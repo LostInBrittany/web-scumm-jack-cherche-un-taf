@@ -17,6 +17,8 @@ export const game = defineGame({
   // Parler à Mireille (l'araignée qui vit dans la tête de Jack) donne les indices de la salle.
   hintItem: 'mireille',
   hintVoice: 'mireille',
+  // Un seul toucher sur une sortie : Jack y va et passe dans le lieu suivant, comme dans les LucasArts.
+  input: { exitOnTap: true },
   verbs: [
     { id: 'give', label: 'Donner', color: '#ff8fa3', join: 'à' },
     { id: 'open', label: 'Ouvrir', color: '#8fd3ff' },
