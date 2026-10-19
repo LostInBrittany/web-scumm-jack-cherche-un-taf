@@ -3,6 +3,9 @@
 **Un jeu d'aventure point-and-click à l'ancienne, dans l'esprit de Day of the Tentacle et Monkey Island, qui se joue
 dans le navigateur, sur ordinateur comme sur téléphone.**
 
+**▶ [Jouer en ligne](https://lostinbrittany.github.io/web-scumm-jack-cherche-un-taf/)**, sur ordinateur ou sur
+téléphone en mode paysage.
+
 *[English summary below](#in-english)*
 
 ![La place du village : Jack face au Brigadier Sans-Tête, qui ne laisse passer personne puisqu'il ne voit personne](/docs/img/jack/place.webp)
