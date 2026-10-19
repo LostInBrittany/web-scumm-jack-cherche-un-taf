@@ -189,6 +189,9 @@ export class App {
   /** The last target tapped and when: a second tap on it soon after is a double tap (4.0, `defaultVerb`). */
   /** @internal Read by the modules of dom/ (4.1.0). */
   lastTap: { id: Id; t: number } | null = null;
+  /** Taps on the scene so far: an exit that goes on a single tap (#188) goes only if none came during its walk. */
+  /** @internal Read by the modules of dom/ (4.1.0). */
+  taps = 0;
   /** Taps on nothing next to a target, by `room/target` (3.8, `nearMiss`). */
   /** @internal Read by the modules of dom/ (4.1.0). */
   misses: Record<string, number> = {};

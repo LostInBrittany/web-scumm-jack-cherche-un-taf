@@ -294,6 +294,13 @@ export interface GameDef {
    */
   settings?: boolean;
   /**
+   * How the player's taps read (4.2.3). `exitOnTap`: a single tap on an exit with no verb picked walks there and goes
+   * through on arrival, as in the LucasArts classics, instead of only walking there (a double tap always went through);
+   * a picked verb still wins, a tap elsewhere during the walk still redirects, and an exit's `onTap` overrides it.
+   * Default off. Input only: the rules, the solver and saves do not see it.
+   */
+  input?: { exitOnTap?: boolean };
+  /**
    * What the game caches for offline play. `full` (default): after the current room and its neighbours, every image
    * and sound of the game is fetched in the background, in batches, so the whole game plays offline after the first
    * visit (skipped on a "save data" or 2G connection; music waits for better than 3G). `nearby`: only the current

@@ -125,7 +125,7 @@ The game (`GameDef`):
 
 - **logic**: `schemaVersion`, `id`, `saveVersion`, `hero`, `players`, `hintItem`, `hintVoice`, `rules`, `scripts`, `events`, `globalTalk`, `start`, `reality`, `checkpoints`, `invariants`, `migrations`, `objectives`, `remix`, `variant`
 - **both**: `verbs`, `characters`, `items`, `rooms`, `map`
-- **presentation**: `title`, `renderer`, `audio`, `skin`, `ending`, `saves`, `settings`, `ui`, `titleScreen`, `creditsScreen`, `credits`
+- **presentation**: `title`, `renderer`, `audio`, `skin`, `ending`, `saves`, `settings`, `input`, `ui`, `titleScreen`, `creditsScreen`, `credits`
 - **meta**: `lang`, `offline`, `lint`, `i18n`, `assetBudgets`, `speedrun`
 
 A room (`RoomDef`):

@@ -201,6 +201,15 @@ verb), a character is talked to, anything else is looked at. When that is not ri
 picked from the bag without a verb is given to a character and used on anything else; the sentence line says which
 before the tap. A verb the game does not have is never chosen (`src/engine/core/default-verb.ts`).
 
+**A single tap that goes through (4.2.3).** In the LucasArts classics a click on a door with the default "Walk to"
+took the hero through it. `input: { exitOnTap: true }` in `game.ts` does the same: a single tap on an exit with no verb
+picked walks there and goes through on arrival, with the double tap's verb (a locked exit says its `locked` line). A
+picked verb still wins, a tap elsewhere during the walk still redirects the hero – and nothing is gone through – and a
+double tap is unchanged. An exit can say otherwise: `onTap: 'walk'` keeps it walk-only in a game with the switch,
+`onTap: 'go'` makes it go through in a game without it
+(`exits: { path: { name: 'path', to: 'village', onTap: 'go' } }`). Off by default. It is input only: the rules, the
+solver and saves do not see it.
+
 ## The commands
 
 A single command, as plain text, makes the hero speak: `'There. A step up.'`.
@@ -477,7 +486,8 @@ The engine turns each exit into a hotspot of the same id (kind `exit`, placed in
 rules on the exit come first, so a special reaction (an item used on the door) still wins. `verbs` defaults to use, open,
 walk, go, enter, push, pull (those your game has). From the exits, the `goto` commands and the map, the validator knows
 **which rooms nothing leads to** and **which exits have no way back** (say `oneWay: true` when that is intended); the
-Studio's Check tab and `npm run page:world` draw that map.
+Studio's Check tab and `npm run page:world` draw that map. What a single tap on an exit does is `onTap` (see "A single tap that goes
+through" above).
 
 ### Chapters and invariants
 

@@ -123,22 +123,43 @@ export function verbFor(app: App, target: Id): VerbId | null {
   return app.verb;
 }
 
+/**
+ * The verb a single tap with no verb picked goes through this exit with (#188), or null when the tap only walks: an
+ * exit (declared, or its generated hotspot) whose `onTap` is `go`, or any exit but a `walk` one when the game sets
+ * `input.exitOnTap`. The verb is the double tap's (`defaultVerb`).
+ */
+function tapVerb(app: App, id: Id): VerbId | null {
+  const room = app.view.room;
+  if (!room || (!room.exits?.[id] && !room.hotspots?.[id]?.exit)) return null;
+  const onTap = room.exits?.[id]?.onTap ?? (app.game.input?.exitOnTap ? 'go' : 'walk');
+  return onTap === 'go' ? defaultVerb(app.game, room, id) : null;
+}
+
 export async function actOnTarget(app: App, id: Id) {
   const now = performance.now();
+  const tap = ++app.taps;
   const double = !!app.lastTap && app.lastTap.id === id && now - app.lastTap.t < DOUBLE_TAP_MS;
   app.lastTap = double ? null : { id, t: now };
   const v = app.verbFor(id);
   if (!v) {
     // A double tap acts with the verb the player means (4.0): through the door, talk to someone, look at the rest.
-    const dv = double && app.view.room ? defaultVerb(app.game, app.view.room, id) : null;
+    const room = app.view.room;
+    const dv = double && room ? defaultVerb(app.game, room, id) : null;
     if (dv) {
       app.resetVerb();
       await app.presenter.intent({ kind: 'act', verb: dv, target: id });
       return;
     }
     const ap = app.engine.approach(id);
+    const go = tapVerb(app, id);
     app.sentence(id);
     if (ap) await app.presenter.intent({ kind: 'walk', to: ap });
+    // An exit that goes on a single tap (#188): through it on arrival, as a double tap would. The walk stays a walk, so
+    // a tap elsewhere meanwhile redirects the hero and cancels this; so do a verb or an item picked, or another room.
+    if (go && tap === app.taps && !app.verb && !app.a && app.view.room === room) {
+      app.resetVerb();
+      await app.presenter.intent({ kind: 'act', verb: go, target: id });
+    }
     return;
   }
   if ((v === 'use' || v === 'give') && app.a) {
@@ -183,6 +204,7 @@ export async function onScenePointer(app: App, e: PointerEvent) {
   const p = app.toScene(e);
   const id = app.view.hit(p);
   if (!id) {
+    app.taps++;
     app.nearMiss(p);
     await app.presenter.intent({ kind: 'walk', to: app.view.walker.clamp(p) });
     return;

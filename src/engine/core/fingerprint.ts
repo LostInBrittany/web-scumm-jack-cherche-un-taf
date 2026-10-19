@@ -67,6 +67,7 @@ export function presentationOf(game: CompiledGame | GameDef, manifest: unknown =
         'ending',
         'saves',
         'settings',
+        'input',
         'ui',
         'titleScreen',
         'creditsScreen',
@@ -97,7 +98,7 @@ export function presentationOf(game: CompiledGame | GameDef, manifest: unknown =
           anims: each(p.anims, (a) => pick(a, ['frames', 'fps', 'loop'])),
         })),
         actors: each(r.actors, (a) => pick(a, ['pose', 'facing'])),
-        exits: each(r.exits, (x) => pick(x, ['sfx'])),
+        exits: each(r.exits, (x) => pick(x, ['sfx', 'onTap'])),
         stage: pick(r.stage, ['layers', 'lights', 'emitters', 'transition']),
       })),
       map: g.map

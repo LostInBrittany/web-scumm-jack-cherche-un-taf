@@ -335,7 +335,7 @@ export function compileIR(game: CompiledGame, o: CompileIROptions): GameIR {
         look: r.look ?? {},
         hints: r.hints ?? [],
         exits: Object.entries(r.exits ?? {}).map(([id, x]) =>
-          defined({ id, ...(logicFields(x, FIELD_CLASSES.exit) as Omit<typeof x, 'sfx'>) }),
+          defined({ id, ...(logicFields(x, FIELD_CLASSES.exit) as Omit<typeof x, 'sfx' | 'onTap'>) }),
         ),
         walkLinks: Object.entries(r.stage?.links ?? {}).map(([id, l]) => defined({ id, if: l.if, locked: l.locked })),
         entities: keys,

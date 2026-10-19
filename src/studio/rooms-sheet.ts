@@ -87,6 +87,25 @@ export function entitySheet(host: SheetHost, s: Sel): HTMLElement[] {
       ),
     );
   }
+  // A declared exit (shown as its hotspot): what a single tap with no verb does (#188), the game's setting or its own.
+  const exit = s.kind === 'hotspot' ? d.exits?.[id] : undefined;
+  if (exit)
+    facts.push(
+      h(
+        'label',
+        { class: 'fact' },
+        h('b', null, 'single tap'),
+        select(
+          [
+            ['', 'as the game says (input.exitOnTap)'],
+            ['go', 'goes through'],
+            ['walk', 'walks there'],
+          ],
+          exit.onTap ?? '',
+          (v) => host.writeValue(`exits.${id}.onTap`, v || undefined),
+        ),
+      ),
+    );
   const vis = (entityDef(d, s) as { visible?: Cond }).visible;
   facts.push(
     h('div', { class: 'fact' }, h('b', null, 'visible'), vis === undefined ? 'always' : h('code', null, condText(vis))),

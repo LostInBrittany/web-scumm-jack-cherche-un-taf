@@ -442,6 +442,12 @@ export interface ExitDef {
   kind?: string[];
   /** The player cannot come back this way: the tools stop reporting it as a missing way back. */
   oneWay?: boolean;
+  /**
+   * What a single tap on it does with no verb picked (4.1.x): `go` walks there and goes through on arrival (the
+   * double tap's verb, `defaultVerb`), `walk` only walks there. Default: `go` when the game sets
+   * `input.exitOnTap`, else `walk`. Input only: the rules, the solver and saves do not see it.
+   */
+  onTap?: 'go' | 'walk';
 }
 
 /** A hint the hint item gives while its `until` condition is false, as lines said in order. @public */

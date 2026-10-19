@@ -134,6 +134,27 @@ describe('entitySheet', () => {
     expect(spies.editRule).toHaveBeenCalledWith(0);
   });
 
+  it("an exit's hotspot offers what a single tap does (#188): the game's setting, go through, or walk there", () => {
+    const { h, spies } = host({
+      def: { ...def, exits: { door: { name: 'door', to: 'hall', onTap: 'walk' } } },
+      layout: {},
+      texts,
+      file,
+    });
+    const tap = entitySheet(h, { kind: 'hotspot', id: 'door' })
+      .flatMap((e) => [...e.querySelectorAll('select')])
+      .at(0) as HTMLSelectElement;
+    expect([...tap.options].map((o) => o.value)).toEqual(['', 'go', 'walk']);
+    tap.value = 'go';
+    tap.dispatchEvent(new Event('change'));
+    expect(spies.writeValue).toHaveBeenCalledWith('exits.door.onTap', 'go');
+    tap.value = '';
+    tap.dispatchEvent(new Event('change'));
+    expect(spies.writeValue).toHaveBeenLastCalledWith('exits.door.onTap', undefined);
+    // A hotspot that is no exit has no such field.
+    expect(entitySheet(host().h, { kind: 'hotspot', id: 'door' }).some((e) => e.querySelector('select'))).toBe(false);
+  });
+
   it('an actor: its character facts, and its talk topics as a list or a tree', () => {
     const parts = entitySheet(host().h, { kind: 'actor', id: 'gm' });
     const head = parts[0] as HTMLElement;
