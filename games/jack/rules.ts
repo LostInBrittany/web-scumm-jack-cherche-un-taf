@@ -15,7 +15,7 @@ export const rules: GameRules = {
     use2: ['Ça ne va pas ensemble.', 'Non. Même avec de la colle.'],
   },
   kinds: [
-    { verb: 'take', kind: 'person', say: 'Je ne peux pas porter {name}. Mes bras sont en plastique.' },
+    { verb: 'take', kind: 'person', say: 'Je ne peux pas porter {name}. Je suis un squelette, pas une grue.' },
     { verb: 'push', kind: 'person', say: 'On ne pousse pas les gens. Même pour le travail.' },
     { verb: 'pull', kind: 'person', say: 'Tirer {name} ? Il pourrait se détacher un morceau.' },
   ],

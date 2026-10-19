@@ -19,6 +19,16 @@ export const game = defineGame({
   hintVoice: 'mireille',
   // Un seul toucher sur une sortie : Jack y va et passe dans le lieu suivant, comme dans les LucasArts.
   input: { exitOnTap: true },
+  // Le menu Réglages (pause) : vitesse et taille du texte, volumes, et la langue (locales/en.json, es.json).
+  settings: true,
+  // Les textes identiques d'une langue à l'autre exprès : des noms propres, un rot, des mots qui s'écrivent pareil.
+  i18n: {
+    same: [
+      'char:hero/name', 'char:mireille/name', 'item:mireille/name', 'char:gloubi/name', 'char:ginette/name', 'char:bouh/name',
+      'char:wolfgang/name', 'room:foire/props.pepite.name', 'room:place/on.place.barbe-gloubi.do[6].say',
+      'item:badge/name', 'room:manoir/hotspots.portrait_comte.name', 'ui/pause', 'ui/ok', 'ui/fingerprint', 'ui/large',
+    ],
+  },
   verbs: [
     { id: 'give', label: 'Donner', color: '#ff8fa3', join: 'à' },
     { id: 'open', label: 'Ouvrir', color: '#8fd3ff' },
@@ -90,5 +100,13 @@ export const game = defineGame({
     skip: 'Passer', rotate: 'Tourne ton téléphone', rotateSub: 'Ce jeu se joue à l\'horizontale.', mapTitle: 'Où aller ?', mapBack: 'Retour',
     world: 'Monde', zoomIn: 'Zoom', arrival: 'Arrivée :', pickUp: 'Décrocher', calling: 'appel…', loading: 'Chargement…', on: 'oui', off: 'non',
     giveWhat: 'Choisis d\'abord un objet dans le sac.', replay: 'Rejouer', miniGame: 'Mini-jeu', tapToContinue: '▼ touche pour continuer', ok: 'OK',
+    // Les textes que le moteur afficherait sinon en anglais : réglages, mises à jour, hors ligne.
+    verbs: 'Verbes', advance: 'Continuer', saveFailed: 'La sauvegarde a échoué', saveAdjusted: 'Sauvegarde adaptée à cette version',
+    updateAvailable: 'Une nouvelle version est prête.', updateNow: 'Sauvegarder et mettre à jour',
+    offlineStatus: 'Hors ligne', offlineComplete: 'complet', offlineRetry: 'réessayer',
+    exportSession: 'Exporter la session', shareSession: 'Partager la session',
+    settings: 'Réglages', textSpeed: 'Vitesse du texte', textSize: 'Taille du texte', slow: 'lente', normal: 'normale', fast: 'rapide',
+    large: 'grande', reduceMotion: 'Moins d\'animations', readableFont: 'Police lisible', language: 'Langue', captions: 'Sous-titres des sons',
+    volumeMusic: 'Volume de la musique', volumeSfx: 'Volume des sons', volumeVoice: 'Volume des voix', fingerprint: 'Version', objectives: 'Objectifs',
   },
 });

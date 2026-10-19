@@ -6,6 +6,11 @@ dans le navigateur, sur ordinateur comme sur téléphone.**
 **▶ [Jouer en ligne](https://lostinbrittany.github.io/web-scumm-jack-cherche-un-taf/)**, sur ordinateur ou sur
 téléphone en mode paysage.
 
+Le jeu existe en français, en anglais ([*Jack Needs a Job*](https://lostinbrittany.github.io/web-scumm-jack-cherche-un-taf/?lang=en))
+et en espagnol ([*Jack busca curro*](https://lostinbrittany.github.io/web-scumm-jack-cherche-un-taf/?lang=es)). Il
+choisit la langue du navigateur ; on la change dans le menu pause, Réglages, Langue. Les traductions sont dans
+`games/jack/locales/` (`npm run i18n -- status`).
+
 *[English summary below](#in-english)*
 
 ![La place du village : Jack face au Brigadier Sans-Tête, qui ne laisse passer personne puisqu'il ne voit personne](/docs/img/jack/place.webp)
@@ -121,10 +126,11 @@ personnages et ses dessins, dans `games/jack/`) est d'Anna et Horacio.
 **Jack cherche un taf** ("Jack needs a job") is a point-and-click adventure in the spirit of Day of the Tentacle and
 Monkey Island, playable in the browser on desktop and phone. Jack, a skeleton with a carved pumpkin for a head, is
 fired from the haunted manor for being far too scary, three days before Halloween. He has until the 31st to find a
-new job. You never die and never get stuck. The game is in French.
+new job. You never die and never get stuck.
 
-**▶ [Play online](https://lostinbrittany.github.io/web-scumm-jack-cherche-un-taf/)**, on desktop or on a phone in
-landscape.
+**▶ [Play online](https://lostinbrittany.github.io/web-scumm-jack-cherche-un-taf/?lang=en)**, on desktop or on a phone in
+landscape. The game speaks French, English (*Jack Needs a Job*) and Spanish (*Jack busca curro*): it follows the
+browser's language, and the pause menu's Settings switch it.
 
 It is built on **[web-scumm](https://github.com/wanoo/web-scumm)**, an open-source point-and-click engine where a game
 is data, not code, so the engine can prove the game can be finished. The game lives in
