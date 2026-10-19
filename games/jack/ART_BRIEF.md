@@ -176,7 +176,11 @@ as in the attached sheet.
 ```
 
 Puis `maire_ok`, avec le nouveau `maire.png` joint : le même Maire, la tête **bien droite**, les **deux** boulons en
-place, l'air ravi.
+place, l'air ravi. **Les 4 rangées**, portraits compris : la première version de cette passe n'avait que les rangées
+2 à 4 (rangée 1 vide). Le jeu va utiliser `maire_ok/r1c2` comme portrait de dialogue une fois le boulon rendu.
+
+**Pour toutes les planches** : les 24 cases doivent être dessinées. Si la découpe affiche `fixed-grid fallback, no
+figure detected: […]`, des cases sont vides : régénère la planche.
 
 Vérifie en jeu : `?dev&at=place` (le Maire penché), puis le Maire après avoir rendu le boulon (`maire_ok`).
 
