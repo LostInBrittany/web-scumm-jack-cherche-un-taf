@@ -120,6 +120,9 @@ Monkey Island, playable in the browser on desktop and phone. Jack, a skeleton wi
 fired from the haunted manor for being far too scary, three days before Halloween. He has until the 31st to find a
 new job. You never die and never get stuck. The game is in French.
 
+**▶ [Play online](https://lostinbrittany.github.io/web-scumm-jack-cherche-un-taf/)**, on desktop or on a phone in
+landscape.
+
 It is built on **[web-scumm](https://github.com/wanoo/web-scumm)**, an open-source point-and-click engine where a game
 is data, not code, so the engine can prove the game can be finished. The game lives in
 [`games/jack/`](/games/jack); the rest of the repository is the unchanged engine (its README is
