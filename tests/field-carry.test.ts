@@ -15,7 +15,7 @@ import {
   digestOfChanges,
   type Surfaces,
 } from '../tools/field/carry';
-import { FIELD_STATUSES, type FieldReport, FieldReportSchema, PASS_IDS } from '../tools/field/schema';
+import { FIELD_STATUSES, type FieldReport, FieldReportSchema, PASS_IDS, passesFor } from '../tools/field/schema';
 import { rangeProblems, trustedApproval } from '../tools/field/trust';
 // @ts-expect-error: a plain .mjs module without declarations
 import { globRe, surfacesOf } from '../tools/field/surfaces.mjs';
@@ -115,9 +115,22 @@ const carries = (passId: (typeof PASS_IDS)[number], over: Record<string, string>
 };
 
 describe('the surfaces of a candidate', () => {
-  it('cover the thirteen passes, each file in a surface or under status, every exclusion justified and tested', () => {
+  it('cover the passes of their release, each file in a surface or under status, every exclusion justified and tested', () => {
     const s = surfaces('4.1.20');
-    expect(s.surfaces.map((x) => x.id).sort()).toEqual([...PASS_IDS].sort());
+    expect(s.surfaces.map((x) => x.id).sort()).toEqual([...passesFor('4.1.20')].sort());
+    // 4.2.1's two passes, from 4.2.1 on: bound to the engine's and the Studio Server's archives.
+    const v421 = surfaces('4.2.1', { 'pack/web-scumm-studio-server-4.2.1.tgz': h('7') });
+    expect(v421.surfaces.map((x) => x.id).sort()).toEqual([...passesFor('4.2.1')].sort());
+    expect(v421.surfaces.map((x) => x.id)).not.toContain('studio-preview');
+    // 4.2.2's two, from 4.2.2 on.
+    const v422 = surfaces('4.2.2', { 'pack/web-scumm-studio-server-4.2.2.tgz': h('7') });
+    expect(v422.surfaces.map((x) => x.id).sort()).toEqual([...passesFor('4.2.2')].sort());
+    // 4.2.3's two, from 4.2.3 on: every pass.
+    const v423 = surfaces('4.2.3', { 'pack/web-scumm-studio-server-4.2.3.tgz': h('7') });
+    expect(v423.surfaces.map((x) => x.id).sort()).toEqual([...PASS_IDS].sort());
+    expect(Object.keys(v421.surfaces.find((x) => x.id === 'studio-hosted')!.artifactDigests)).toContain(
+      'pack/web-scumm-studio-server-4.2.1.tgz',
+    );
     for (const id of PASS_IDS) expect(Object.keys(declared.surfaces[id].artifacts).length).toBeGreaterThan(0);
     for (const x of Object.values(declared.surfaces) as { exclusions: { reason: string; test: string }[] }[])
       for (const e of x.exclusions) {

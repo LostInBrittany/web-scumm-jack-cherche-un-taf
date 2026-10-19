@@ -1,0 +1,10 @@
+# The processing worker's Python packages (4.2.2 PR 6, docs/dev/QUALIF-4.2.2-ASSETS.md): the versions of
+# requirements.txt, each with the sha256 of its wheel for Clever Cloud's native Node.js runtime (CPython 3.13, Linux
+# x86_64, glibc 2.44). Installed by the worker's build hook, wheels only, every hash checked:
+#   python3 -m pip install --target .python --require-hashes --only-binary=:all: -r ops/studio/worker-requirements.lock
+# Made again when requirements.txt changes:
+#   pip download --only-binary=:all: --platform manylinux_2_28_x86_64 --python-version 3.13 --implementation cp \
+#     --abi cp313 -r requirements.txt -d <dir>   then   shasum -a 256 <dir>/*.whl
+numpy==2.4.6 --hash=sha256:a7830bab239b79cda9c08c2da014761cafb48da6150e1da17ac06283f43b6089
+pillow==12.3.0 --hash=sha256:0847a763afefb695bc912d7c131e7e0632d4edc1d8698f58ddabec8e46b8b6d3
+scipy==1.18.1 --hash=sha256:fdaf5ea890a6183d0565f51a61799d67081bd5b1cf03c5f4b3fd3732108625c9

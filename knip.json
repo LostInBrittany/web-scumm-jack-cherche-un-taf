@@ -15,6 +15,8 @@
     "scripts/*.ts",
     "tools/*.ts",
     "tools/studio/*.ts",
+    "studio-server/src/ops/*.ts",
+    "studio-server/src/server/main.ts",
     "tools/speedrun/*.ts",
     "tests/**/*.test.ts",
     "tests/fixtures/connectors/no-eval-run.ts",
@@ -31,6 +33,7 @@
     "src/**/*.ts",
     "bridge/src/**/*.ts",
     "connectors/src/**/*.ts",
+    "studio-server/src/**/*.ts",
     "cli/**/*.mjs",
     "scripts/**",
     "tools/**/*.ts",
@@ -50,7 +53,8 @@
   ],
   "ignoreBinaries": [
     "ffmpeg",
-    "ffprobe"
+    "ffprobe",
+    "openssl"
   ],
   "rules": {
     "files": "error",

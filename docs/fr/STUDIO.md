@@ -5,6 +5,9 @@ changement est écrit dans des fichiers sous `games/<id>/`, les mêmes fichiers 
 modifie avec git. Le Studio affiche le vrai moteur (le lieu rendu par `src/engine/dom`), donc ce qu'on voit est ce
 que les joueurs auront.
 
+Pour mettre le Studio d'un jeu en ligne pour une équipe (connexions, rôles, plusieurs personnes à la fois), voir
+[STUDIO-SERVER](STUDIO-SERVER.md).
+
 ## Sécurité locale et réseau
 
 `npm run studio` et `npm run dev` écoutent sur `127.0.0.1` : une autre machine ne peut pas atteindre leurs routes
@@ -105,6 +108,14 @@ commandes personnalisées sont du code de confiance, pas des données isolées. 
   **Anchors** des salles, et une ajoutée depuis la sélection de l'onglet Salles. Un manifeste qui ne peut faire de monde
   montre les raisons du validateur. Calculé avec le compilateur du moteur (`src/studio/remix-model.ts`) : le Studio ne
   montre jamais un monde que le joueur ne jouerait pas.
+- **Map** (4.2.3) : les regroupements du scénario, chapitres, énigmes et personnages (`games/<id>/groupings.json`),
+  chacun une liste de ce que le jeu nomme déjà (une salle, un id de règle ou de sujet, `item:<id>`, `char:<id>`,
+  `objective:<id>`, `checkpoint:<id>`) avec le `fichier:ligne` qui l'écrit, ou « not declared » quand le jeu ne le
+  connaît pas ; puis les salles, personnages, objets,
+  objectifs et points de passage qu'aucun regroupement ne nomme encore (les ids écrits par du code, et ceux des lignes
+  ou des étapes, ne sont pas dans la provenance de l'IR : ils apparaissent « not declared »). Un regroupement ne fait que référencer : l'enregistrer
+  écrit `groupings.json` seul, jamais le contenu. La carte est dérivée à chaque lecture (de la provenance de l'IR et des
+  regroupements), jamais stockée.
 - **Notes** : le journal partagé (`games/<id>/notes.json`), une entrée par auteur (« you », ou le nom de l'IA), à
   propos d'un id de case, d'un id de lieu, de `lieu.entité`, ou de n'importe quoi (vide : général). Le journal
   entier, le plus récent d'abord, groupé par `about` (lieu / case / entité étiquetés, avec « Open in Rooms » /
@@ -171,6 +182,8 @@ capture d'écran indisponible).
 | POST `room/:id/add` | `{ kind: 'prop' \| 'hotspot' \| 'actor', id, name?, img?, char?, at: [x, y], look? }` → insère l'entrée dans le fichier du lieu (la section est créée si absente), la première ligne de Regarder facultative, et une place dans le layout (accessoire : pied à `at`, hauteur 60 ; zone cliquable : boîte 60 × 60 centrée sur `at` ; acteur : pieds à `at`) ; `{ ok, line, changed }`. `name` est obligatoire pour les accessoires et les zones cliquables |
 | GET/PUT `storyboard` | `storyboard.json` (`{ boards: [] }` si absent). PUT attend `{ boards: [...] }`, renvoie `{ ok, changed }` : un storyboard inchangé n'est pas réécrit, un storyboard modifié est écrit de façon compacte (ce qui tient sur 120 colonnes reste sur une ligne) |
 | POST `storyboard/markdown` | → écrit `games/<id>/storyboard.md` à partir du `storyboard.json` enregistré (même texte que `npm run page:storyboard -- --md`) ; `{ ok, file, bytes, boards, panels }` ; 404 sans `storyboard.json` |
+| GET `diff/<de>..<à>` | 4.2.3 : ce qui a changé entre deux révisions, par ce que le jeu nomme : `{ files: [{ path, change: added\|removed\|changed, ids?: { added, removed, changed: [{ id, fields }] }, values?: { added, removed, changed }, opaque?, cut? }] }` (2 000 révisions au plus ; « Changes between revisions » dans l'onglet Check) |
+| GET `groupings`, PUT `groupings`, GET `map` | 4.2.3 : le fichier des regroupements `{ groupings: [{ id, kind: chapter\|puzzle\|character, title, refs }] }` (vérifié : ids uniques et en minuscules, sortes connues, références sans espace ; 500 au plus de chaque), et la carte dérivée de lui et de l'IR : `{ groupings: [{ …, refs: [{ ref, kind, at? }] }], ungrouped: { <sorte>: [refs] } }` |
 | GET `notes`, POST `notes` | GET → `{ entries: Note[] }` ; POST `{ about?, author?, text }` → la nouvelle `Note = { id, about, author, text, at, edited? }` (auteur par défaut `you`, `at` est une date ISO), ajoutée à `notes.json` (créé à la première écriture) |
 | PUT `notes/:id` | `{ text, about? }` → la `Note` mise à jour (texte débarrassé des espaces superflus, `edited` réglé à maintenant ; `at`, `author` et l'ordre inchangés) ; 400 texte vide, 404 id inconnu |
 | DELETE `notes/:id` | → `{ ok }`, la note retirée de `notes.json` ; 404 id inconnu |
@@ -184,7 +197,7 @@ capture d'écran indisponible).
 | GET `ir` | l'IR du jeu (4.1.12, `docs/fr/DSL.md`) : sa logique en données avec le `fichier:ligne` de chaque id (`provenance`) et l'empreinte des extensions de confiance ; le même JSON que `npm run ir -- --json` |
 | GET `events` | évènements envoyés par le serveur (SSE) : `{ type: 'hello', game }` à la connexion, puis `{ type: 'changed', file }` quand un fichier du dossier du jeu change sur le disque (`file` relatif à ce dossier, ex. `rooms/house.ts` ; les dotfiles et `private/` sont ignorés ; anti-rebond de 150 ms par fichier) |
 
-Les mêmes opérations existent comme de simples fonctions dans `tools/studio/core.ts`, utilisées par le plugin Vite,
+Les mêmes opérations existent comme de simples fonctions dans `studio-server/src/ops/core.ts`, utilisées par le plugin Vite,
 par les tests et par le serveur MCP : `gameInfo()`, `getRoom(id)`, `setLayout(id, layout)`, `setText(id, path, value)`,
 `addEntity(id, e)`, `getStoryboard()`, `setStoryboard(sb)`, `exportStoryboardMarkdown()`, `getNotes()`, `addNote(n)`,
 `editNote(id, { text, about? })`, `deleteNote(id)`, `validate()`, `solve(from?)`,
@@ -193,7 +206,15 @@ pour n'importe quel autre dossier de jeu. Elles ne quittent jamais le processus 
 `StudioError` (avec `status`). Le jeu est réimporté à chaque appel pour que les modifications sur le disque soient
 prises en compte : par défaut avec le chargeur ciblé de tsx (rapide, dans le même processus) ; `importInChild` (un
 processus enfant node + tsx) est le repli là où les imports dans le même processus sont mis en cache, par exemple
-dans Vitest. Les écritures sont sérialisées. Les types partagés sont dans `tools/studio/types.ts` ; le schéma du
+dans Vitest. Les écritures sont sérialisées. Depuis 4.2.1, chaque écriture est une opération du journal du jeu
+(`studio-server/src/ops/journal.ts`, rangé dans `.cache/studio-journal/`) : tous les fichiers qu'elle touche sont écrits
+ensemble ou pas du tout, durablement (fsync), et une opération interrompue par un crash est terminée à la réouverture du
+Studio. Toute écriture sur des fichiers que lit le validateur est gardée sur le jeu tel qu'il serait après elle (422
+si elle ajoute des erreurs de validation ; les textes aussi depuis 4.2.1). Ajouter un prop, un hotspot ou un acteur
+écrit la salle et son layout en une seule opération, annulée en une seule fois. Un changement fait hors du Studio (un
+éditeur, un agent, git) est enregistré avant que la prochaine écriture touche ce fichier, et un fichier réécrit par un
+autre processus pendant la préparation d'une modification donne un 409. Les types partagés sont dans
+`tools/studio/types.ts` ; le schéma du
 storyboard, sa normalisation et l'export Markdown sont dans `tools/pages/storyboard-data.ts` (pur, partagé par le
 générateur de pages, le core et l'UI).
 
@@ -249,6 +270,11 @@ fichier sous 800 lignes).
   les ignorent).
 - **Mode démo** : la liste vient de l'instantané (`assets` dans `snapshot.json`), les vignettes et les sons des
   fichiers préparés de `public/assets` (les cases inutilisées n'ont pas d'aperçu) ; les envois et Prepare sont cachés.
+- **Studio hébergé** (Studio Server, 4.2.3) : le même onglet, servi par `studio-server/src/server/hosted-assets.ts`
+  sous `/api/assets`. Les envois sont bornés (10 Mio ; images PNG, JPEG ou WebP, sons Ogg, MP3 ou WAV, lus dans leurs
+  octets) ; la découpe, le détourage et **Prepare assets (on the server)** sont des jobs de l'application de
+  traitement, sous le bail exclusif du projet, montrés dans un petit panneau avec un bouton **Cancel** (un job annulé
+  avant son écriture ne laisse rien). La planche téléversée elle-même n'y est pas gardée. Voir docs/fr/STUDIO-SERVER.md.
 ## Mode démo
 Le Studio tourne aussi sans aucun serveur, sur un hébergement statique : https://wanoo.github.io/web-scumm/studio.html
 est le Studio du jeu d'exemple, construit par la CI. Même interface, même vue du moteur et même éditeur de placement ;
@@ -279,8 +305,8 @@ les modifications restent dans le navigateur.
   alors : le jeu du joueur est le même). Ils appliquent les mêmes patchs au jeu et aux layouts au démarrage. Save
   layout dans l'éditeur envoie le layout au Studio qui l'entoure (`postMessage`, message `saved` avec `layout`), qui
   le garde comme patch `layout` ; l'éditeur ouvert seul écrit le patch dans `localStorage` lui-même. Sur le serveur de
-  dev, l'éditeur écrit toujours `layout/<room>.json` ; il se rabat sur le même chemin seulement quand `/__layout`
-  n'existe pas.
+  dev, l'éditeur écrit `layout/<room>.json` par l'API du Studio (`PUT /__studio/api/room/<id>/layout`, une opération
+  gardée du journal depuis 4.2.1) ; il se rabat sur le patch seulement quand cette API n'existe pas.
 - **Bandeau** : « Demo: your edits stay in this browser », **Download patch** (`studio-patch-<game>.json` : `{ format:
   'web-scumm-studio-patch', version, game, created, patches }`) et **Reset demo** (abandonne chaque modification).
 - **Appliquer** : `npm run studio-apply patch.json` rejoue un patch téléchargé sur votre copie à travers le cœur

@@ -42,6 +42,34 @@ export const connectorsManifest = (root) => ({
   dependencies: { ssh2: root.devDependencies.ssh2 },
 });
 
+/**
+ * web-scumm-studio-server's package.json (4.2.1, plan §7 row 8): the Studio Server and its processing worker, two
+ * commands that run the server of the engine installed beside it (`web-scumm`, the same version: its sources, Vite and
+ * tsx), with the Studio's page built in. Its own dependencies (OpenID Connect, JWT, Postgres) are locked; the engine is
+ * an optional peer, installed from the same release's archive (it is not on npm, so no lock can name it); the commands
+ * check that its version is theirs.
+ */
+export const studioServerManifest = (root) => ({
+  name: 'web-scumm-studio-server',
+  version: root.version,
+  description:
+    'The web-scumm Studio Server: one game, several people, online (OpenID Connect, PostgreSQL, S3), and its processing worker.',
+  license: 'MIT',
+  type: 'module',
+  engines: root.engines,
+  repository: { type: 'git', url: 'git+https://github.com/wanoo/web-scumm.git' },
+  bin: { 'web-scumm-studio-server': 'bin/server.mjs', 'web-scumm-studio-worker': 'bin/worker.mjs' },
+  exports: { './package.json': './package.json' },
+  dependencies: {
+    'openid-client': root.devDependencies['openid-client'],
+    jose: root.devDependencies.jose,
+    pg: root.devDependencies.pg,
+  },
+  // The engine's line (`4.2.x`): the commands refuse to start on another version than their own.
+  peerDependencies: { 'web-scumm': root.version.replace(/^(\d+)\.(\d+)\..*$/, '$1.$2.x') },
+  peerDependenciesMeta: { 'web-scumm': { optional: true } },
+});
+
 /** The range the Bridge accepts for OpenTelemetry's API; the image locks one version of it. */
 const OTEL_API = '^1.9.0';
 
@@ -67,6 +95,11 @@ export const LOCKED = [
   { name: 'web-scumm-bridge', manifest: bridgeManifest, lock: 'scripts/locks/web-scumm-bridge.json' },
   { name: 'web-scumm-connectors', manifest: connectorsManifest, lock: 'scripts/locks/web-scumm-connectors.json' },
   { name: 'web-scumm-bridge-image', manifest: imageManifest, lock: 'scripts/locks/web-scumm-bridge-image.json' },
+  {
+    name: 'web-scumm-studio-server',
+    manifest: studioServerManifest,
+    lock: 'scripts/locks/web-scumm-studio-server.json',
+  },
 ];
 
 /**

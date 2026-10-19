@@ -4,7 +4,6 @@ import { execSync } from 'node:child_process';
 import { replay } from '@engine/tools/replay';
 import { saveEnvelope } from '@engine/core/save';
 import type { Engine } from '@engine/core/engine';
-// @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
 import { game, layouts, commands } from '../games/demo';
 import { flushExit } from './flush';
 

@@ -1,17 +1,21 @@
 // The Studio's Assets tab, server side (docs/en/STUDIO.md, "Assets tab"): every image and sound of the game with where
 // it is used, the art prompts per sheet, and the uploads (a generated sheet cut by tools/cut-sheet.py, one cell, a
-// decor, a sound), never deleting anything: a replaced file is first kept as `<name>_v<N>.<ext>` next to it.
+// decor, a sound), never deleting anything: a replaced file is first kept as `<name>_v<N>.<ext>` next to it. Since
+// 4.2.1 every upload is one operation of the game's journal (studio.writeFiles): the backups, the new files and the
+// cells a tool cut are written together or not at all, and a tool never writes into the game folder itself.
 // `assetsMiddleware` is mounted by the dev server at /__studio/api/assets (tools/studio/plugin.ts).
-import { spawn } from 'node:child_process';
 import {
-  copyFileSync,
+  closeSync,
   createReadStream,
+  openSync,
+  readSync,
+  realpathSync,
   existsSync,
   mkdirSync,
   readFileSync,
   readdirSync,
+  rmSync,
   statSync,
-  unlinkSync,
   writeFileSync,
 } from 'node:fs';
 import type { IncomingMessage, ServerResponse } from 'node:http';
@@ -20,7 +24,8 @@ import type { GameDef } from '../../src/engine/core/types';
 import { imageSource } from '../pages/lib';
 import { buildPrompts } from '../prompts';
 import { collectRefs } from '../refs';
-import { StudioError, type Studio } from './core';
+import { StudioError, type Studio } from '../../studio-server/src/ops/core';
+import { CutFailed, cutOnCopy, type CutRequest, imageType, run } from './cut';
 import type {
   AssetCell,
   AssetDecor,
@@ -56,6 +61,8 @@ const MIME: Record<string, string> = {
   '.webm': 'audio/webm',
   '.mp4': 'video/mp4',
 };
+/** The type an image or sound of the game is served with. */
+export const mimeOf = (file: string) => MIME[extname(file).toLowerCase()] ?? 'application/octet-stream';
 const BACKUP = /_v\d+$/;
 const SHEET_ID = /^[A-Za-z0-9][\w-]*$/;
 const CELL_ID = /^[\w-]+(\/[\w-]+)*$/;
@@ -65,13 +72,28 @@ const stem = (f: string) => f.slice(0, f.length - extname(f).length);
 
 // ------------------------------------------------------------------ small file helpers
 
+/** Whether `file`, its links followed, is inside `dir` (also its links followed). */
+function inside(dir: string, file: string): boolean {
+  try {
+    return realpathSync(file).startsWith(realpathSync(dir) + sep);
+  } catch {
+    return false;
+  }
+}
+
 /** Pixel size from the file header (PNG, JPEG, WebP, GIF); [0, 0] when unknown. */
 export function imageSize(file: string): [number, number] {
+  // The header is near the start: the first 64 KiB are read, never a whole (possibly huge) file.
   let b: Buffer;
+  let fd: number | undefined;
   try {
-    b = readFileSync(file);
+    fd = openSync(file, 'r');
+    const head = Buffer.alloc(64 * 1024);
+    b = head.subarray(0, readSync(fd, head, 0, head.length, 0));
   } catch {
     return [0, 0];
+  } finally {
+    if (fd !== undefined) closeSync(fd);
   }
   if (b.length > 24 && b.readUInt32BE(0) === 0x89504e47) return [b.readUInt32BE(16), b.readUInt32BE(20)];
   if (b.length > 10 && b.toString('ascii', 0, 3) === 'GIF') return [b.readUInt16LE(6), b.readUInt16LE(8)];
@@ -98,14 +120,6 @@ export function imageSize(file: string): [number, number] {
     }
   }
   return [0, 0];
-}
-
-/** The image type of uploaded bytes, from their magic number. */
-function imageType(b: Buffer): '.png' | '.jpg' | '.webp' | null {
-  if (b.length > 8 && b.readUInt32BE(0) === 0x89504e47) return '.png';
-  if (b.length > 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return '.jpg';
-  if (b.length > 12 && b.toString('ascii', 0, 4) === 'RIFF' && b.toString('ascii', 8, 12) === 'WEBP') return '.webp';
-  return null;
 }
 
 /** Base64 (a data URL is accepted) → bytes. */
@@ -137,11 +151,19 @@ function backupsOf(file: string): string[] {
     .map((f) => join(dir, f));
 }
 
-/** Copies `file` to the next free `<stem>_v<N><ext>` and returns that path. */
-function backup(file: string): string {
-  const n = Math.max(0, ...backupsOf(file).map((f) => Number(/_v(\d+)\.\w+$/.exec(f)![1]))) + 1;
-  const to = join(dirname(file), `${stem(file.slice(dirname(file).length + 1))}_v${n}${extname(file)}`);
-  copyFileSync(file, to);
+/**
+ * The next free `<stem>_v<N><ext>` of `file`, counting the backups already on disk and those this operation plans
+ * (`planned`, which it extends): a backup is a file of the operation, written with the rest.
+ */
+function nextBackup(file: string, planned: Set<string>): string {
+  const num = (f: string) => Number(/_v(\d+)\.\w+$/.exec(f)![1]);
+  const base = stem(file.slice(dirname(file).length + 1));
+  const mine = [...planned].filter(
+    (f) => dirname(f) === dirname(file) && stem(f.slice(dirname(f).length + 1)).startsWith(`${base}_v`),
+  );
+  const n = Math.max(0, ...backupsOf(file).map(num), ...mine.map(num)) + 1;
+  const to = join(dirname(file), `${base}_v${n}${extname(file)}`);
+  planned.add(to);
   return to;
 }
 
@@ -155,32 +177,6 @@ function walk(dir: string, prefix = ''): string[] {
     else if (IMG_EXT.includes(extname(f).toLowerCase()) && !BACKUP.test(stem(f))) out.push(prefix + f);
   }
   return out;
-}
-
-function run(
-  cmd: string,
-  args: string[],
-  cwd: string,
-  env: NodeJS.ProcessEnv = process.env,
-  onData?: (s: string) => void,
-): Promise<{ code: number; output: string }> {
-  return new Promise((ok) => {
-    let output = '';
-    const p = spawn(cmd, args, { cwd, env });
-    const on = (c: Buffer) => {
-      const s = c.toString('utf8');
-      output += s;
-      onData?.(s);
-    };
-    p.stdout.on('data', on);
-    p.stderr.on('data', on);
-    p.on('error', (e) => {
-      output += `${e.message}\n`;
-      onData?.(`${e.message}\n`);
-      ok({ code: 127, output });
-    });
-    p.on('close', (code) => ok({ code: code ?? 1, output }));
-  });
 }
 
 // ------------------------------------------------------------------ where each image and sound is used
@@ -286,13 +282,51 @@ const gridOf = (markdown: string | undefined) => {
 
 // ------------------------------------------------------------------ the assets of one game
 
-export function createAssets(studio: Studio) {
+/**
+ * `publicAssets`: where the prepared images and sounds are (default `<root>/public/assets`); a hosted Studio serves its
+ * latest prepared set from its own folder (4.2.3).
+ */
+export function createAssets(studio: Studio, o: { publicAssets?: () => string; confine?: boolean } = {}) {
   const dir = studio.gameDir;
   const root = studio.root;
   const artDir = join(dir, 'art');
   const audioDir = join(dir, 'audio');
-  const pub = join(root, 'public', 'assets');
+  const pubOf = o.publicAssets ?? (() => join(root, 'public', 'assets'));
+  let pub = pubOf();
   const rel = (f: string) => relative(dir, f).split(sep).join('/');
+  /** A file of the operation being built: its path in the game and its whole new content (`null` removes it). */
+  type Out = { path: string; after: Buffer | null };
+  /** Keeps `file` as its next backup, as a file of the operation. */
+  const keep = (file: string, planned: Set<string>): Out => ({
+    path: rel(nextBackup(file, planned)),
+    after: readFileSync(file),
+  });
+  /** A scratch folder outside the game, removed after `fn`. */
+  async function scratch<T>(fn: (tmp: string) => Promise<T>): Promise<T> {
+    const tmp = join(root, '.cache', 'studio', `work-${process.pid}-${Date.now().toString(36)}`);
+    mkdirSync(tmp, { recursive: true });
+    try {
+      return await fn(tmp);
+    } finally {
+      rmSync(tmp, { recursive: true, force: true });
+    }
+  }
+  /** Runs a cut on a scratch copy of `art/<sheet>/` (cut.ts): its files as files of the operation, under `art/`. */
+  async function cutCopy(tmp: string, source: string, req: CutRequest) {
+    try {
+      const out = await cutOnCopy({
+        tmp,
+        artDir,
+        source,
+        req,
+        engine: root,
+        env: { ...process.env, GAME: studio.gameId, GAME_DIR: dir },
+      });
+      return { ...out, files: out.files.map((f): Out => ({ path: `art/${f.path}`, after: f.bytes })) };
+    } catch (e) {
+      throw e instanceof CutFailed ? new StudioError(e.message, 500) : e;
+    }
+  }
 
   let queue: Promise<unknown> = Promise.resolve();
   const serial = <T>(fn: () => Promise<T> | T): Promise<T> => {
@@ -304,10 +338,14 @@ export function createAssets(studio: Studio) {
   /** The source file of an image id (tools/pages/lib.ts rules, as tools/assets.py), never the prepared copy. */
   const sourceOf = (id: string) => {
     const f = imageSource(dir, id);
-    return f && !resolve(f).startsWith(pub + sep) ? resolve(f) : undefined;
+    if (!f || resolve(f).startsWith(pub + sep)) return undefined;
+    // `confine` (a hosted Studio): a source `sources.json` names outside the game folder is not read, nor said.
+    if (o.confine && !inside(dir, f)) return undefined;
+    return resolve(f);
   };
 
   async function list(): Promise<AssetsListing> {
+    pub = pubOf();
     const mod = await studio.loadGame();
     const game = mod.game;
     const refs = collectRefs(mod);
@@ -508,8 +546,11 @@ export function createAssets(studio: Studio) {
       return null;
     const f = resolve(dir, p);
     if (!f.startsWith(artDir + sep) && !f.startsWith(audioDir + sep)) return null;
+    // Its links followed, it is still under art/ or audio/ (a link out of them is no file of theirs).
+    if (!inside(artDir, f) && !inside(audioDir, f)) return null;
     try {
-      return statSync(f).isFile() ? f : null;
+      const real = realpathSync(f);
+      return statSync(real).isFile() ? real : null;
     } catch {
       return null;
     }
@@ -524,127 +565,132 @@ export function createAssets(studio: Studio) {
 
   // ---------------------------------------------------------------- uploads
 
+  /**
+   * A sheet's upload checked before any cut: its id, grid and cells (400), its image (400, `bad` for a hosted Studio's
+   * 415), the cells it would recut without naming them (409, `conflicts`); and the backups of those it recuts, read now.
+   */
+  function planSheet(b: SheetUpload, bad = 400) {
+    if (!b || typeof b.sheetId !== 'string' || !SHEET_ID.test(b.sheetId) || b.sheetId === 'decor')
+      throw new StudioError('`sheetId` must be letters, digits, _ and - (not "decor")');
+    const grid = b.grid ?? '6x4';
+    const g = /^(\d{1,2})x(\d{1,2})$/i.exec(grid);
+    if (!g || +g[1] < 1 || +g[2] < 1) throw new StudioError('`grid` must be COLSxROWS, e.g. 6x4');
+    const [cols, rows] = [+g[1], +g[2]];
+    let only: string[] | undefined;
+    if (b.cells !== undefined && b.cells !== '') {
+      if (typeof b.cells !== 'string') throw new StudioError('`cells` must be a list like r1c1,r2c3');
+      only = uniq(
+        b.cells
+          .split(',')
+          .map((x) => x.trim())
+          .filter(Boolean),
+      );
+      for (const c of only) {
+        const m = /^r(\d+)c(\d+)$/.exec(c);
+        if (!m || +m[1] < 1 || +m[1] > rows || +m[2] < 1 || +m[2] > cols)
+          throw new StudioError(`not a cell of a ${grid} grid: "${c}"`);
+      }
+      if (!only.length) throw new StudioError('`cells` is empty');
+    }
+    const data = decode(b.data);
+    const type = imageType(data);
+    if (!type) throw new StudioError('the sheet must be a PNG, JPEG or WebP image', bad);
+    const out = join(artDir, b.sheetId);
+    const targets =
+      only ?? Array.from({ length: rows * cols }, (_, i) => `r${Math.floor(i / cols) + 1}c${(i % cols) + 1}`);
+    const existing = targets.filter((c) => existsSync(join(out, `${c}.png`)));
+    // Validated sprites are never recut by accident: overwriting needs the cells named.
+    if (!only && existing.length) {
+      throw Object.assign(
+        new StudioError(
+          `${existing.length} cell(s) of "${b.sheetId}" already exist: name the cells to recut (cells), or upload into a new sheet id`,
+          409,
+        ),
+        { body: { conflicts: existing } },
+      );
+    }
+    const planned = new Set<string>();
+    const backups = existing.map((c) => keep(join(out, `${c}.png`), planned));
+    const req: CutRequest = { mode: 'sheet', sheetId: b.sheetId, cols, rows, only };
+    return { data, type, req, targets, backups };
+  }
+
   function uploadSheet(b: SheetUpload): Promise<SheetUploadResult> {
     return serial(async () => {
-      if (!b || typeof b.sheetId !== 'string' || !SHEET_ID.test(b.sheetId) || b.sheetId === 'decor')
-        throw new StudioError('`sheetId` must be letters, digits, _ and - (not "decor")');
-      const grid = b.grid ?? '6x4';
-      const g = /^(\d{1,2})x(\d{1,2})$/i.exec(grid);
-      if (!g || +g[1] < 1 || +g[2] < 1) throw new StudioError('`grid` must be COLSxROWS, e.g. 6x4');
-      const [cols, rows] = [+g[1], +g[2]];
-      let only: string[] | undefined;
-      if (b.cells !== undefined && b.cells !== '') {
-        if (typeof b.cells !== 'string') throw new StudioError('`cells` must be a list like r1c1,r2c3');
-        only = uniq(
-          b.cells
-            .split(',')
-            .map((x) => x.trim())
-            .filter(Boolean),
-        );
-        for (const c of only) {
-          const m = /^r(\d+)c(\d+)$/.exec(c);
-          if (!m || +m[1] < 1 || +m[1] > rows || +m[2] < 1 || +m[2] > cols)
-            throw new StudioError(`not a cell of a ${grid} grid: "${c}"`);
-        }
-        if (!only.length) throw new StudioError('`cells` is empty');
-      }
-      const data = decode(b.data);
-      const type = imageType(data);
-      if (!type) throw new StudioError('the sheet must be a PNG, JPEG or WebP image');
-      const out = join(artDir, b.sheetId);
-      const targets =
-        only ?? Array.from({ length: rows * cols }, (_, i) => `r${Math.floor(i / cols) + 1}c${(i % cols) + 1}`);
-      const existing = targets.filter((c) => existsSync(join(out, `${c}.png`)));
-      // Validated sprites are never recut by accident: overwriting needs the cells named.
-      if (!only && existing.length) {
-        throw Object.assign(
-          new StudioError(
-            `${existing.length} cell(s) of "${b.sheetId}" already exist: name the cells to recut (cells), or upload into a new sheet id`,
-            409,
-          ),
-          { body: { conflicts: existing } },
-        );
-      }
-      const sheetsDir = join(dir, 'private', 'sheets');
-      mkdirSync(sheetsDir, { recursive: true });
-      const file = join(sheetsDir, `${b.sheetId}-${new Date().toISOString().replace(/[:.]/g, '-')}${type}`);
-      writeFileSync(file, data);
-      const backups = existing.map((c) => rel(backup(join(out, `${c}.png`))));
-      const args = [
-        join(root, 'tools', 'cut-sheet.py'),
-        file,
-        b.sheetId,
-        '--grid',
-        `${cols}x${rows}`,
-        '--out',
-        artDir,
-        ...(only ? ['--cells', only.join(',')] : []),
-      ];
-      const r = await run('python3', args, root, { ...process.env, GAME: studio.gameId });
-      if (r.code !== 0)
-        throw new StudioError(
-          `cut-sheet.py failed (${r.code}): ${r.output.trim().split('\n').slice(-3).join(' ')}`,
-          500,
-        );
-      const l = await list();
+      const { data, type, req, targets, backups } = planSheet(b);
+      const file = join(
+        dir,
+        'private',
+        'sheets',
+        `${req.sheetId}-${new Date().toISOString().replace(/[:.]/g, '-')}${type}`,
+      );
+      // The uploaded sheet is kept first, on its own: a cut that fails leaves it there to try again by hand.
+      await studio.writeFiles(`sheet ${req.sheetId}: upload`, [{ path: rel(file), after: data }], { undo: false });
+      const r = await scratch(async (tmp) => {
+        const sheetFile = join(tmp, `sheet${type}`);
+        writeFileSync(sheetFile, data);
+        const out = await cutCopy(tmp, sheetFile, req);
+        await studio.writeFiles(`sheet ${req.sheetId}`, [...backups, ...out.files], { undo: false });
+        return out;
+      });
       return {
         ok: true as const,
         file: relative(root, file),
         output: r.output.trim(),
         written: targets,
-        backups,
-        cells: l.sheets.find((s) => s.id === b.sheetId)?.cells ?? [],
+        backups: backups.map((x) => x.path),
+        cells: await sheetCells(req.sheetId),
       };
     });
   }
 
+  /** A sheet's cells as the listing gives them (after an upload). */
+  async function sheetCells(sheetId: string): Promise<AssetCell[]> {
+    const l = await list();
+    return l.sheets.find((s) => s.id === sheetId)?.cells ?? [];
+  }
+
+  /** A cell's replacement checked before any keying (as planSheet), and the backup of the cell it replaces, read now. */
+  function planCell(b: CellReplace, bad = 400) {
+    if (!b || typeof b.sheetId !== 'string' || !SHEET_ID.test(b.sheetId) || b.sheetId === 'decor')
+      throw new StudioError('`sheetId` must be a sheet of art/ (not decor)');
+    if (typeof b.cell !== 'string' || !CELL_ID.test(b.cell))
+      throw new StudioError('`cell` must be like r1c2, or pose/t1 in a talk kit');
+    const key = b.key ?? 'auto';
+    if (!['auto', 'always', 'never'].includes(key)) throw new StudioError('`key` must be auto, always or never');
+    const data = decode(b.data);
+    const type = imageType(data);
+    if (!type) throw new StudioError('the cell must be a PNG, JPEG or WebP image', bad);
+    const target = join(artDir, b.sheetId, `${b.cell}.png`);
+    const kept = existsSync(target) ? keep(target, new Set()) : undefined;
+    const req: CutRequest = { mode: 'cell', sheetId: b.sheetId, cell: b.cell, key };
+    return { data, type, req, file: rel(target), kept };
+  }
+
   function replaceCell(b: CellReplace): Promise<CellReplaceResult> {
     return serial(async () => {
-      if (!b || typeof b.sheetId !== 'string' || !SHEET_ID.test(b.sheetId) || b.sheetId === 'decor')
-        throw new StudioError('`sheetId` must be a sheet of art/ (not decor)');
-      if (typeof b.cell !== 'string' || !CELL_ID.test(b.cell))
-        throw new StudioError('`cell` must be like r1c2, or pose/t1 in a talk kit');
-      const key = b.key ?? 'auto';
-      if (!['auto', 'always', 'never'].includes(key)) throw new StudioError('`key` must be auto, always or never');
-      const data = decode(b.data);
-      const type = imageType(data);
-      if (!type) throw new StudioError('the cell must be a PNG, JPEG or WebP image');
-      const target = join(artDir, b.sheetId, `${b.cell}.png`);
-      const tmpDir = join(root, '.cache', 'studio');
-      mkdirSync(tmpDir, { recursive: true });
-      const tmp = join(tmpDir, `upload-${process.pid}-${Date.now()}${type}`);
-      writeFileSync(tmp, data);
-      try {
-        mkdirSync(dirname(target), { recursive: true });
-        const kept = existsSync(target) ? rel(backup(target)) : undefined;
-        const r = await run(
-          'python3',
-          ['-c', KEY_PY, join(root, 'tools', 'cut-sheet.py'), tmp, target, key, artDir],
-          root,
-          { ...process.env, GAME: studio.gameId },
-        );
-        const keyed = r.output.trim().split('\n').pop() as CellReplaceResult['keyed'];
-        if (r.code !== 0 || !['keyed', 'kept', 'opaque'].includes(keyed))
-          throw new StudioError(`keying failed (${r.code}): ${r.output.trim().split('\n').slice(-3).join(' ')}`, 500);
-        return {
-          ok: true as const,
-          file: rel(target),
-          ...(kept ? { backup: kept } : {}),
-          keyed,
-          cell: await cellEntry(b.sheetId, b.cell),
-        };
-      } finally {
-        try {
-          unlinkSync(tmp);
-        } catch {
-          /* already gone */
-        }
-      }
+      const { data, type, req, file, kept } = planCell(b);
+      const keyed = await scratch(async (tmp) => {
+        const upload = join(tmp, `upload${type}`);
+        writeFileSync(upload, data);
+        const out = await cutCopy(tmp, upload, req);
+        await studio.writeFiles(`cell ${b.sheetId}/${b.cell}`, [...(kept ? [kept] : []), ...out.files], {
+          undo: false,
+        });
+        return out.keyed!;
+      });
+      return {
+        ok: true as const,
+        file,
+        ...(kept ? { backup: kept.path } : {}),
+        keyed,
+        cell: await cellEntry(b.sheetId, b.cell),
+      };
     });
   }
 
   function uploadSound(b: SoundUpload): Promise<UploadResult> {
-    return serial(() => {
+    return serial(async () => {
       if (!b || (b.kind !== 'music' && b.kind !== 'sfx')) throw new StudioError('`kind` must be music or sfx');
       if (
         typeof b.file !== 'string' ||
@@ -655,32 +701,41 @@ export function createAssets(studio: Studio) {
       }
       const data = decode(b.data);
       const target = join(audioDir, b.kind, b.file);
-      mkdirSync(dirname(target), { recursive: true });
-      const kept = existsSync(target) ? rel(backup(target)) : undefined;
-      writeFileSync(target, data);
-      return { ok: true as const, file: rel(target), ...(kept ? { backup: kept } : {}) };
+      const kept = existsSync(target) ? keep(target, new Set()) : undefined;
+      await studio.writeFiles(
+        `sound ${b.kind}/${b.file}`,
+        [...(kept ? [kept] : []), { path: rel(target), after: data }],
+        {
+          undo: false,
+        },
+      );
+      return { ok: true as const, file: rel(target), ...(kept ? { backup: kept.path } : {}) };
     });
   }
 
   function uploadDecor(b: DecorUpload): Promise<UploadResult> {
-    return serial(() => {
+    return serial(async () => {
       if (!b || typeof b.name !== 'string' || !/^[\w-]+$/.test(b.name) || BACKUP.test(b.name))
         throw new StudioError('`name` must be letters, digits, _ and -');
       const data = decode(b.data);
       const type = imageType(data);
       if (type !== '.png' && type !== '.jpg') throw new StudioError('a decor must be a PNG or a JPEG image');
       const decorDir = join(artDir, 'decor');
-      mkdirSync(decorDir, { recursive: true });
       const target = join(decorDir, `${b.name}${type}`);
       // The previous picture is kept as a backup; one with another extension is moved away (tools/assets.py would take it first).
+      const planned = new Set<string>();
+      const files: Out[] = [];
       let kept: string | undefined;
       for (const ext of ['.png', '.jpg', '.jpeg']) {
         const old = join(decorDir, `${b.name}${ext}`);
         if (!existsSync(old)) continue;
-        kept = rel(backup(old));
-        if (old !== target) unlinkSync(old);
+        const k = keep(old, planned);
+        files.push(k);
+        kept = k.path;
+        if (old !== target) files.push({ path: rel(old), after: null });
       }
-      writeFileSync(target, data);
+      files.push({ path: rel(target), after: data });
+      await studio.writeFiles(`decor ${b.name}`, files, { undo: false });
       return { ok: true as const, file: rel(target), ...(kept ? { backup: kept } : {}) };
     });
   }
@@ -694,58 +749,30 @@ export function createAssets(studio: Studio) {
         process.platform === 'win32' ? 'npm.cmd' : 'npm',
         ['run', 'assets'],
         root,
-        { ...process.env, GAME: studio.gameId },
+        { ...process.env, GAME: studio.gameId, GAME_DIR: dir },
         onData,
       );
       return { ok: r.code === 0, code: r.code, output: r.output };
     });
   }
 
-  return { list, prompts, filePath, uploadSheet, replaceCell, uploadSound, uploadDecor, prepare };
+  return {
+    list,
+    prompts,
+    filePath,
+    uploadSheet,
+    replaceCell,
+    uploadSound,
+    uploadDecor,
+    prepare,
+    planSheet,
+    planCell,
+    sheetCells,
+    cellEntry,
+  };
 }
 
 export type Assets = ReturnType<typeof createAssets>;
-
-/**
- * Keys one uploaded cell with the cutter's own rule (tools/cut-sheet.py: background = the border's median colour,
- * flood-filled from the border, tolerance 30), then crops it to its figure. argv: cut-sheet.py, source, target, mode,
- * art folder. Prints `kept` (the image already has transparency), `opaque` (no flat background, or mode never) or `keyed`.
- * Pixel-art games (site.json `artStyle: "pixel"`, next to the art folder): the cell is then fixed like a cut sheet
- * (scaled down 4× when larger than 128 px, colours reduced and snapped to the sheet's existing ones, indexed PNG).
- */
-const KEY_PY = String.raw`
-import importlib.util, os, sys
-sys.dont_write_bytecode = True
-import numpy as np
-from PIL import Image
-spec = importlib.util.spec_from_file_location('cut_sheet', sys.argv[1])
-cut = importlib.util.module_from_spec(spec); spec.loader.exec_module(cut)
-src, dst, mode = sys.argv[2], sys.argv[3], sys.argv[4]
-pixel = len(sys.argv) > 5 and cut.art_style(sys.argv[5]) == 'pixel'
-def save(img, what):
-    if pixel and what != 'opaque':
-        a = np.asarray(img.convert('RGBA'))
-        scale = cut.PIXEL_SCALE if max(a.shape[:2]) > 2 * cut.CELL // cut.PIXEL_SCALE else 1
-        cut.pixelize(a, scale, cut.PIXEL_COLORS, shared=cut.existing_colors(os.path.dirname(dst))).save(dst, transparency=0)
-    else:
-        img.save(dst)
-    print(what); sys.exit(0)
-im = Image.open(src)
-rgba = im.convert('RGBA')
-alpha = np.asarray(rgba)[..., 3]
-if (alpha < 250).mean() > 0.01 and mode != 'always':
-    box = rgba.getbbox()
-    save(rgba.crop(box) if box else rgba, 'kept')
-a = np.asarray(im.convert('RGB')).astype(int)
-edge = np.concatenate([a[0], a[-1], a[:, 0], a[:, -1]])
-flat = (np.sqrt(((edge - np.median(edge, axis=0)) ** 2).sum(-1)) <= 30).mean() > 0.9
-if mode == 'never' or (mode == 'auto' and not flat):
-    save(rgba, 'opaque')
-fg = ~cut.flood_from_border(cut.bg_mask(a))
-out = Image.fromarray(np.dstack([a.astype(np.uint8), (fg * 255).astype(np.uint8)]), 'RGBA')
-box = out.getbbox()
-save(out.crop(box) if box else out, 'keyed')
-`;
 
 // ------------------------------------------------------------------ the HTTP side (/__studio/api/assets/*)
 
@@ -803,7 +830,7 @@ export function assetsMiddleware(studio: Studio, log?: { error: (msg: string) =>
           send(res, 404, { error: 'no such file' });
           return;
         }
-        res.setHeader('content-type', MIME[extname(f).toLowerCase()] ?? 'application/octet-stream');
+        res.setHeader('content-type', mimeOf(f));
         res.setHeader('cache-control', 'no-cache');
         createReadStream(f).pipe(res);
         return;

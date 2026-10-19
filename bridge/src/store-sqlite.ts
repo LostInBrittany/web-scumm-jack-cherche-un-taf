@@ -151,6 +151,42 @@ class SqliteDb implements SqlDb {
   }
 }
 
+/**
+ * Opens (or creates) a SQLite file as this module's `SqlDb`: WAL, `synchronous = FULL`, the busy wait of `busyMs` and
+ * one chain of statements per file in this process. The Bridge's store and the Studio Server's journal (4.2.1) both
+ * open their file through it; neither migrates here.
+ */
+export async function openSqliteDb(file: string, o: { busyMs?: number } = {}): Promise<SqliteDb> {
+  if (file !== ':memory:') {
+    mkdirSync(dirname(file), { recursive: true });
+    // Created empty with mode 0600 first: SQLite gives its `-wal` and `-shm` the database file's permissions.
+    if (!existsSync(file)) writeFileSync(file, '', { mode: 0o600 });
+  }
+  // Loaded here, not at the top: a 4.1.9 configuration (the JSON-lines journal) never needs it, on any Node.
+  const { DatabaseSync } = await import('node:sqlite');
+  const busyMs = o.busyMs ?? 5000;
+  // The connection's own busy wait (`timeout`, Node 22.16+; the pragma for older Nodes): it touches no page, so it
+  // cannot itself meet a lock.
+  const db = new DatabaseSync(file, { timeout: SYNC_WAIT_MS } as ConstructorParameters<typeof DatabaseSync>[1]);
+  db.exec(`PRAGMA busy_timeout = ${SYNC_WAIT_MS}`);
+  const sqlite = new SqliteDb(db, busyMs, file === ':memory:' ? file : resolve(file));
+  try {
+    // Switching a fresh file to WAL takes its exclusive lock: another process opening it at the same moment waits.
+    if (file !== ':memory:')
+      await sqlite.apply((d) => {
+        const [r] = d.prepare('PRAGMA journal_mode = WAL').all() as Row[];
+        const mode = String(r?.journal_mode ?? '');
+        // SQLite answers the mode it kept when it could not switch: another process held the file; wait and ask again.
+        if (mode.toLowerCase() !== 'wal') throw new Error(`SQLITE_BUSY: the journal stayed in ${mode} mode`);
+      });
+    await sqlite.apply((d) => d.exec('PRAGMA synchronous = FULL'));
+  } catch (e) {
+    db.close();
+    throw e;
+  }
+  return sqlite;
+}
+
 export class SqliteRealityStore extends SqlRealityStore {
   readonly kind = 'sqlite' as const;
   private polls = new Set<ReturnType<typeof setInterval>>();
@@ -173,33 +209,7 @@ export class SqliteRealityStore extends SqlRealityStore {
     file: string,
     o: { migrate?: boolean; pollMs?: number; busyMs?: number; onPollError?: (e: unknown) => void } = {},
   ): Promise<SqliteRealityStore> {
-    if (file !== ':memory:') {
-      mkdirSync(dirname(file), { recursive: true });
-      // Created empty with mode 0600 first: SQLite gives its `-wal` and `-shm` the database file's permissions.
-      if (!existsSync(file)) writeFileSync(file, '', { mode: 0o600 });
-    }
-    // Loaded here, not at the top: a 4.1.9 configuration (the JSON-lines journal) never needs it, on any Node.
-    const { DatabaseSync } = await import('node:sqlite');
-    const busyMs = o.busyMs ?? 5000;
-    // The connection's own busy wait (`timeout`, Node 22.16+; the pragma for older Nodes): it touches no page, so it
-    // cannot itself meet a lock.
-    const db = new DatabaseSync(file, { timeout: SYNC_WAIT_MS } as ConstructorParameters<typeof DatabaseSync>[1]);
-    db.exec(`PRAGMA busy_timeout = ${SYNC_WAIT_MS}`);
-    const sqlite = new SqliteDb(db, busyMs, file === ':memory:' ? file : resolve(file));
-    try {
-      // Switching a fresh file to WAL takes its exclusive lock: another process opening it at the same moment waits.
-      if (file !== ':memory:')
-        await sqlite.apply((d) => {
-          const [r] = d.prepare('PRAGMA journal_mode = WAL').all() as Row[];
-          const mode = String(r?.journal_mode ?? '');
-          // SQLite answers the mode it kept when it could not switch: another process held the file; wait and ask again.
-          if (mode.toLowerCase() !== 'wal') throw new Error(`SQLITE_BUSY: the journal stayed in ${mode} mode`);
-        });
-      await sqlite.apply((d) => d.exec('PRAGMA synchronous = FULL'));
-    } catch (e) {
-      db.close();
-      throw e;
-    }
+    const sqlite = await openSqliteDb(file, { busyMs: o.busyMs });
     const store = new SqliteRealityStore(sqlite, file, o.pollMs ?? 250, o.onPollError);
     if (o.migrate !== false) await store.migrate();
     // The owner's only: hashes of capabilities, the journal, revocations (the WAL holds recent pages of the same).

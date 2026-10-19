@@ -1,7 +1,8 @@
 // Notes: the shared log of games/<id>/notes.json (you, teammates, any AI). A store shared by the Notes tab, the
 // Storyboard tab (notes per panel) and the Rooms tab (notes per room), and the Notes tab itself: the whole log,
 // newest first, grouped by what it is about, with filters, a composer, reply / edit / delete.
-import { api, type GameInfo, type NewNote, type Note } from './api';
+import { api, ApiError, type GameInfo, type NewNote, type Note } from './api';
+import { hosting } from './api-base';
 import { h, select, toast } from './ui';
 
 export class NotesStore {
@@ -45,7 +46,8 @@ export class NotesStore {
       toast('Note added');
       return note;
     } catch (e) {
-      toast((e as Error).message, 'error');
+      // A refusal a dialog already shows (a hosted Studio's 423, 409) is not said twice.
+      if (!(e instanceof ApiError && e.handled)) toast((e as Error).message, 'error');
       return null;
     }
   }
@@ -59,7 +61,8 @@ export class NotesStore {
       toast('Note saved');
       return true;
     } catch (e) {
-      toast((e as Error).message, 'error');
+      // A refusal a dialog already shows (a hosted Studio's 423, 409) is not said twice.
+      if (!(e instanceof ApiError && e.handled)) toast((e as Error).message, 'error');
       return false;
     }
   }
@@ -73,7 +76,8 @@ export class NotesStore {
       toast('Note deleted');
       return true;
     } catch (e) {
-      toast((e as Error).message, 'error');
+      // A refusal a dialog already shows (a hosted Studio's 423, 409) is not said twice.
+      if (!(e instanceof ApiError && e.handled)) toast((e as Error).message, 'error');
       return false;
     }
   }
@@ -216,7 +220,8 @@ export function composer(
     h(
       'div',
       { class: 'crow' },
-      h('label', { class: 'muted small' }, 'as ', author),
+      // On a hosted Studio the author is the session's (the server sets it).
+      hosting.hosted ? null : h('label', { class: 'muted small' }, 'as ', author),
       h('button', { class: 'primary', onclick: () => void send() }, 'Add note'),
     ),
   );

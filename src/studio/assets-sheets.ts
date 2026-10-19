@@ -479,7 +479,12 @@ function showCut(host: SheetsHost, sheetId: string, r: SheetUploadResult) {
           );
         }),
     ),
-    h('p', { class: 'muted small' }, `Sheet kept as ${r.file}. Run Prepare assets to see the used cells in the game.`),
+    h(
+      'p',
+      { class: 'muted small' },
+      // A hosted Studio does not keep the sheet itself (4.2.3): only its cells, and the backups of those recut.
+      `${r.file ? `Sheet kept as ${r.file}. ` : ''}Run Prepare assets to see the used cells in the game.`,
+    ),
   );
   modal(`Cut result: ${sheetId}`, body);
   host.select({ type: 'sheet', id: sheetId }, null);

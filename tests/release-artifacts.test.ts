@@ -89,6 +89,18 @@ describe('the manifest of a release', () => {
     expect(candidateFiles('4.1.19', RUNS)).toEqual(sorted([...CANDIDATE_4119, ...candidateAdds]));
   });
 
+  it('lists the Studio Server and its SBOM from 4.2.1 on, never before', () => {
+    expect(candidateFiles('4.2.1', [])).toContain('pack/web-scumm-studio-server-4.2.1.tgz');
+    expect(candidateFiles('4.2.1-rc.1', [])).toContain('sbom/web-scumm-studio-server.cdx.json');
+    expect(candidateFiles('4.2.0', []).filter((f: string) => f.includes('studio-server'))).toEqual([]);
+    const v421 = releaseFiles('v4.2.1', candidateFiles('4.2.1', []));
+    expect(v421).toContain('web-scumm-studio-server-4.2.1.tgz');
+    expect(v421).toContain('web-scumm-studio-server-v4.2.1-sbom.cdx.json');
+    expect(
+      releaseFiles('v4.2.0', candidateFiles('4.2.0', [])).filter((f: string) => f.includes('studio-server')),
+    ).toEqual([]);
+  });
+
   it('names packages without the pre-release suffix, every other file with the tag', () => {
     const rc = releaseFiles('v4.1.20-rc.1', candidateFiles('4.1.20-rc.1', ['run-daily']));
     expect(rc).toContain('web-scumm-bridge-4.1.20.tgz');

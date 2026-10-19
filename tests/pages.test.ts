@@ -169,15 +169,16 @@ describe('import-layout', () => {
     expect(changes).toEqual(['~ props.lamp: x 1 → 10, z 9 → —', '+ hotspots.door {"rect":[0,0,10,10]}']);
   });
 
-  it('writes the merged layout and is idempotent', () => {
+  it('writes the merged layout and is idempotent', async () => {
     const dir = tempGame();
     const exp = join(dir, 'export.json');
     writeFileSync(exp, JSON.stringify({ layouts: { house: { props: { lamp: { x: 300, y: 310, h: 60 } } } } }));
     const log: string[] = [];
-    expect(importLayouts(exp, dir, { log: (s) => log.push(s) })).toBe(1);
+    // The folder holds layouts only (no game to validate): the guard is off.
+    expect(await importLayouts(exp, dir, { log: (s) => log.push(s), guard: false })).toBe(1);
     const house = JSON.parse(readFileSync(join(dir, 'layout/house.json'), 'utf8'));
     expect(house.props.lamp).toEqual({ x: 300, y: 310, h: 60 });
     expect(house.actors.grandma).toEqual({ x: 450, y: 340, h: 110 });
-    expect(importLayouts(exp, dir, { log: () => {} })).toBe(0);
-  });
+    expect(await importLayouts(exp, dir, { log: () => {}, guard: false })).toBe(0);
+  }, 60000);
 });

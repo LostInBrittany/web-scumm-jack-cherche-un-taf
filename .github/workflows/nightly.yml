@@ -22,7 +22,7 @@ jobs:
     steps:
       - shell: bash
         run: |
-          for p in web-scumm create-web-scumm web-scumm-bridge web-scumm-connectors; do
+          for p in web-scumm create-web-scumm web-scumm-bridge web-scumm-connectors web-scumm-studio-server; do
             # The maintainer's npm user exactly (`wanoo <mail>`), never a prefix; a 404 is free, any other error said.
             if who=$(npm view "$p" maintainers --json 2>/tmp/npm-err); then
               if echo "$who" | grep -Eq '"wanoo( <|")'; then echo "✔ $p: ours"; else echo "::warning title=npm name taken::$p is published by someone else: $who"; echo "- $p: TAKEN by $who" >> "$GITHUB_STEP_SUMMARY"; fi

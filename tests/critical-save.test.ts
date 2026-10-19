@@ -320,6 +320,11 @@ describe('parseSlot', () => {
       v: 1,
     });
   });
+  it('keeps the revision a slot was made in, and adds none to a slot without one (ADR 0026)', () => {
+    const revision = { rev: 7, fingerprint: 'f'.repeat(64) };
+    expect(parseSlot(game(), { meta: { revision }, state: state() }, quiet).meta.revision).toEqual(revision);
+    expect('revision' in parseSlot(game(), { meta: {}, state: state() }, quiet).meta).toBe(false);
+  });
   it('passes the warning through, and rejects a slot with no state', () => {
     const warnings: string[] = [];
     parseSlot(game(), { meta: {}, state: state({ inventory: ['gone'] }) }, { warn: (m) => warnings.push(m) });

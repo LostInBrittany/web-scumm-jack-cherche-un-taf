@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { createAssets } from './assets';
-import { createStudio, type StudioOptions } from './core';
+import { createStudio, type StudioOptions } from '../../studio-server/src/ops/core';
 import type { RoomData, StudioSnapshot } from './types';
 import { ROOT } from '../game';
 

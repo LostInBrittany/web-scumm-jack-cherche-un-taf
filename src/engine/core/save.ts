@@ -94,6 +94,14 @@ export interface SlotMeta {
   room: Id;
   roomName: string;
   v: number;
+  /** Where it was made, in a build that declares its revision (4.2.2, ADR 0026). */
+  revision?: SavedRevision;
+}
+
+/** Where a save was made (4.2.2, ADR 0026): its revision and the full fingerprint of the content then. */
+export interface SavedRevision {
+  rev: number;
+  fingerprint: string;
 }
 
 /** A save as written until 4.1.14: the state with the format, the schema, the game's id and save version and the date. @public */
@@ -303,5 +311,7 @@ export function parseSlot(
     roomName: String(raw.meta?.roomName ?? state.room),
     v: state.v,
   };
+  // Kept as stored: dom/revision.ts reads it only when well formed (the player's first visit carries no check).
+  if (raw.meta?.revision) meta.revision = raw.meta.revision;
   return { meta, state };
 }

@@ -130,7 +130,11 @@ describe('EditorBridge', () => {
     const p = bridge.flush().then(() => {
       done = true;
     });
-    expect(win.postMessage).toHaveBeenCalledWith({ source: 'web-scumm-studio', type: 'save' }, location.origin);
+    // A save request carries a nonce (a hosted view answers with it; here the view writes itself).
+    expect(win.postMessage).toHaveBeenCalledWith(
+      { source: 'web-scumm-studio', type: 'save', nonce: expect.any(String) },
+      location.origin,
+    );
     await Promise.resolve();
     expect(done).toBe(false);
     receive({ source: 'web-scumm-editor', type: 'saved', room: 'kitchen', ok: true });

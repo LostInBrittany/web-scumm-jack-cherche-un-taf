@@ -15,7 +15,8 @@ import { atLeast } from './candidate.mjs';
 /**
  * Every file of a release. `candidate`: its path in the candidate's manifest (`{pkg}` the package version, `{v}` the
  * version, `*` a run's name), `artifact` and `job` the candidate job that uploads it; `null` when the release job makes
- * it. `published`: its name on the release (`{tag}` the tag). `sbom`: the published SBOM that describes it.
+ * it. `published`: its name on the release (`{tag}` the tag). `sbom`: the published SBOM that describes it. `since`:
+ * the first release that has it (an older one is judged without it).
  */
 export const ARTIFACTS = [
   // The four packages (4.1.18), packed once by the candidate, installed outside the repository on three systems.
@@ -37,6 +38,27 @@ export const ARTIFACTS = [
     job: 'pack',
     published: `${p}-{tag}-sbom.cdx.json`,
   })),
+  // The Studio Server (4.2.1): its archive, installed from the candidate's own beside the engine (studio-install-smoke),
+  // and its SBOM, from its lock.
+  {
+    id: 'package:web-scumm-studio-server',
+    kind: 'package',
+    candidate: 'pack/web-scumm-studio-server-{pkg}.tgz',
+    artifact: 'candidate-pack',
+    job: 'pack',
+    published: 'web-scumm-studio-server-{pkg}.tgz',
+    sbom: 'web-scumm-studio-server-{tag}-sbom.cdx.json',
+    since: '4.2.1',
+  },
+  {
+    id: 'sbom:web-scumm-studio-server',
+    kind: 'sbom',
+    candidate: 'sbom/web-scumm-studio-server.cdx.json',
+    artifact: 'candidate-sbom',
+    job: 'pack',
+    published: 'web-scumm-studio-server-{tag}-sbom.cdx.json',
+    since: '4.2.1',
+  },
   // The Bridge's qualification image (4.1.19): its archive, its three identities, its SBOM.
   {
     id: 'image:archive',
@@ -189,7 +211,7 @@ const runsOf = (candidateFiles) =>
 
 /** The files a candidate's manifest must list for a version (the runs as the manifest names them). */
 export function candidateFiles(version, runs) {
-  return ARTIFACTS.filter((a) => a.candidate)
+  return ARTIFACTS.filter((a) => a.candidate && (!a.since || atLeast(version, a.since)))
     .flatMap((a) =>
       a.candidate.includes('*')
         ? runs.map((r) => fill(a.candidate.replace('*', r), { tag: `v${version}`, version }))
@@ -202,11 +224,13 @@ export function candidateFiles(version, runs) {
 export function releaseFiles(tag, candidate) {
   const version = versionOfTag(tag);
   const runs = runsOf(candidate);
-  return ARTIFACTS.flatMap((a) =>
-    a.published.includes('*')
-      ? runs.map((r) => fill(a.published.replace('*', r), { tag, version }))
-      : [fill(a.published, { tag, version })],
-  ).sort();
+  return ARTIFACTS.filter((a) => !a.since || atLeast(version, a.since))
+    .flatMap((a) =>
+      a.published.includes('*')
+        ? runs.map((r) => fill(a.published.replace('*', r), { tag, version }))
+        : [fill(a.published, { tag, version })],
+    )
+    .sort();
 }
 
 /** What is wrong with a folder of release files against the manifest: each file missing or not in it. */

@@ -117,8 +117,9 @@ export function structuredEdit(o: {
   const close = modal(o.title, body);
 }
 
-/** The header's Undo / Redo (dev server only), with Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z outside text fields. */
+/** The header's Undo / Redo (on a shared Studio, the member's own: 4.2.2), with Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z outside text fields. */
 export function undoButtons(after: () => void): HTMLElement | null {
+  // A shared Studio's undo is the member's own (4.2.2): their last change, not someone else's.
   if (!api.undo || !api.redo) return null;
   const go = async (dir: 'undo' | 'redo') => {
     try {

@@ -3,8 +3,8 @@
 // ready-to-paste image-model prompt per sheet to generate, all sharing one STYLE block and one reference sheet, with
 // the engine's pose rows (docs/en/PROMPTS.md). `--missing`: only the sheets with at least one image not cut yet.
 // Also used by the MCP tool `asset_prompts` (tools/mcp/server.ts).
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { dirname, join, relative, resolve } from 'node:path';
+import { existsSync, readFileSync } from 'node:fs';
+import { join, relative, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { CharacterDef, GameDef, Layout, PropDef, RoomDef } from '../src/engine/core/types';
 import { normalizeExits } from '../src/engine/core/define';
@@ -1285,8 +1285,8 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
   const outFile = resolve(ROOT, oi >= 0 && args[oi + 1] ? args[oi + 1] : join(GAME_DIR, 'prompts.md'));
   const mod = await loadGameModule();
   const r = buildPrompts(mod, { gameId: GAME, gameDir: GAME_DIR, missing, root: ROOT });
-  mkdirSync(dirname(outFile), { recursive: true });
-  writeFileSync(outFile, r.markdown);
+  const { writeOutput } = await import('./game-write');
+  await writeOutput('prompts.md', outFile, r.markdown);
   const toDo = r.sheets.filter((s) => s.missing.length);
   console.log(
     `${relative(ROOT, outFile)}: ${r.sheets.length} sheet(s), ${toDo.length} with missing images, ${r.missing.length} missing image(s).`,

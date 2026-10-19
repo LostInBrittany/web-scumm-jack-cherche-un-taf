@@ -1,0 +1,71 @@
+{
+  "realm": "web-scumm",
+  "enabled": true,
+  "accessTokenLifespan": 300,
+  "registrationAllowed": false,
+  "clients": [
+    {
+      "clientId": "studio",
+      "name": "web-scumm Studio",
+      "protocol": "openid-connect",
+      "publicClient": false,
+      "secret": "studio-test-secret-not-for-production",
+      "standardFlowEnabled": true,
+      "implicitFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "serviceAccountsEnabled": false,
+      "redirectUris": [
+        "http://localhost:8080/auth/callback"
+      ],
+      "webOrigins": [],
+      "frontchannelLogout": false,
+      "attributes": {
+        "pkce.code.challenge.method": "S256",
+        "backchannel.logout.url": "http://host.docker.internal:8080/auth/backchannel",
+        "backchannel.logout.session.required": "true",
+        "backchannel.logout.revoke.offline.tokens": "true",
+        "post.logout.redirect.uris": "http://localhost:8080"
+      }
+    },
+    {
+      "clientId": "web-scumm-cli",
+      "name": "web-scumm CLI and MCP",
+      "protocol": "openid-connect",
+      "publicClient": true,
+      "standardFlowEnabled": false,
+      "directAccessGrantsEnabled": false,
+      "attributes": {
+        "oauth2.device.authorization.grant.enabled": "true"
+      },
+      "protocolMappers": [
+        {
+          "name": "studio-api audience",
+          "protocol": "openid-connect",
+          "protocolMapper": "oidc-audience-mapper",
+          "config": {
+            "included.custom.audience": "studio-api",
+            "access.token.claim": "true",
+            "id.token.claim": "false"
+          }
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "username": "lea",
+      "email": "lea@example.org",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Léa",
+      "lastName": "Test",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "lea-local-only",
+          "temporary": false
+        }
+      ]
+    }
+  ]
+}

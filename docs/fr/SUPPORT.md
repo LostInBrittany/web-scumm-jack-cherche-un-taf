@@ -56,12 +56,46 @@ aucun runner Windows ni Node 24 (`CONTRIBUTING.md`, « What CI runs ») :
 | Joueur, lecteur d'écran | axe-core sur chaque écran (pas une conformité WCAG) | une passe VoiceOver ou NVDA |
 | Firefox | la PWA seulement : installation, mise à jour, réinstallation, hors ligne (`npm run e2e:pwa`, le job `pwa-firefox`) ; le refus occasionnel par son worker d'une image en cache hors ligne est signalé par le job, pas compté | Firefox hors ligne sur une vraie machine ; rien d'autre de promis |
 | Node | 22.12 ou plus : 22 et 24 sur Ubuntu ; macOS pour l'usage quotidien du mainteneur | — |
-| Windows | un job `windows-latest` (4.1.8 ; sur une pull request, quand du code a changé) : `doctor`, les types, la suite unitaire moins six fichiers qui supposent POSIX (modes de fichier, `/` dans les chemins ; nommés dans `ci.yml`) et, depuis 4.1.9, les tests Telnet et SSH, `build`, le serveur de production qui répond | `npm run dev` et le Studio sous Windows ; les six fichiers de tests, portés |
+| Windows | un job `windows-latest` (4.1.8 ; sur une pull request, quand du code a changé) : `doctor`, les types, la suite unitaire moins six fichiers qui supposent POSIX (modes de fichier, `/` dans les chemins ; nommés dans `ci.yml`) et, depuis 4.1.9, les tests Telnet et SSH, et, depuis 4.2.1, l'application de traitement du Studio Server et ses prévisualisations (Linux seulement), `build`, le serveur de production qui répond | `npm run dev` et le Studio sous Windows ; les six fichiers de tests, portés |
 | Python | optionnel : les outils d'image et le pipeline audio, Pillow, NumPy, SciPy épinglés dans `requirements.txt` | — |
 | Reality Bridge | Node 22.12+, e2e Chromium et WebKit, une contre-vérification Rust du protocole (`SignalV2` compris) | un Bridge derrière HTTPS avec un vrai connecteur |
 | Bridge, profil `local` (4.1.10) | SQLite via `node:sqlite` (Node 22.13+) : le contrat du store, les tenants croisés en tests de propriété, trois processus sur un fichier dont un tué pendant 1 000 propositions, la sauvegarde en un seul instantané et la restauration tout ou rien (4.1.19) ; le backup schéma 4, store entier et quota compris, et deux modes de restauration, `merge` et `replace-store`, sous un lease de maintenance (4.1.20) ; une charge de 50 000 propositions chaque nuit | une installation de longue durée sur une vraie machine |
 | Bridge, profil `distributed` (4.1.10, `experimental`) | Postgres 16 en CI (`bridge-postgres`) : le même contrat, les tenants et la diffusion entre instances ; la charge de nuit ; le profil de qualification (`ops/qualify/` : HTTPS, trois instances, le classement, un worker tué en pleine vérification, une restauration après destruction de la topologie) dans le workflow `qualify` ; depuis 4.1.20 le profil complet dans chaque candidat qu'un tag peut nommer (les deux modes de restauration sous le bail de maintenance), `--short` dans celui d'une pull request | un vrai déploiement : jusque-là, `experimental` |
 | Connecteurs (4.1.9), **expérimental** (D19) | email (webhook signé, IMAP), Telnet, SSH, Open Badges 2 et 3 : le même contrat pour les quatre, tests d'abus et de fuzz, une exécution sous `--disallow-code-generation-from-strings`, les replays du chapitre d'exemple ; les quatre joués depuis leur archive dans le candidat (4.1.19) ; les tests Telnet et SSH pas encore sous Windows | un vrai fournisseur d'email, un vrai badge d'un vrai émetteur, SSH et Telnet exposés dans un environnement contrôlé |
+
+## 4.2.2 : l'atelier jouable
+
+Le Studio Server reste **expérimental** : la 4.2.2 ajoute deux passes aux deux de la 4.2.1, `studio-preview` (des
+personnes jouent la révision commune, portent une sauvegarde d'une révision à l'autre, lisent la santé, défont leur
+propre travail, publient un build) et `studio-assets-hosted` (`prepare` sur l'application de traitement). Leurs preuves
+machine sont les suites unitaires (SQLite) et le job `studio-hosted` (Postgres et S3 : un build, le `prepare` de
+l'application de traitement, une sauvegarde restaurée et son journal rejoué). Le set de mutation `studio-workshop` est
+mesuré, pas bloquant, jusqu'à la lecture de ses survivants. Limites dites : la découpe de planches et les uploads
+restent sur un Studio local (4.2.3) ; la santé du jeu juge le validateur et le solveur depuis une nouvelle partie, pas
+les playtests ; une sauvegarde est une entrée de confiance (elle peut ajouter des propriétaires) ; une restauration ne
+vaut que pour un stockage hébergé ; un worker installé depuis les archives de la release ne peut pas lancer `prepare`
+(déployez-le depuis le dépôt ; la 4.2.3 livre le verrou). Des limites de la 4.2.1, l'aperçu vivant a disparu (un build
+par révision) ; la découpe et les uploads de l'onglet Assets et l'Assistant ne sont toujours pas sur un Studio hébergé,
+une écriture refusée garde toujours son brouillon sans diff à fusionner, et les éditeurs n'envoient toujours pas la
+révision qu'ils ont lue.
+
+## 4.2.1 : le Studio Server, et l'exception 4.2.x (D40)
+
+Les 4.2.1 à 4.2.3 peuvent **ajouter** (un outil, une commande, une route du Studio Server, un paquet) mais jamais
+changer ou retirer un nom public ou un format : l'API publique (`src/engine/api`), le format du contenu et l'enveloppe
+de sauvegarde restent ceux de la 4.2.0 (D40). Le **Studio Server** (`docs/fr/STUDIO-SERVER.md`, l'archive
+`web-scumm-studio-server`) est **expérimental** : ses preuves machine sont le job CI `studio-hosted` et le
+`studio-install-smoke` du candidat ; il devient limité, puis stable, avec ses passes `studio-hosted` (un vrai
+déploiement Clever Cloud, un vrai Safari) et `studio-collab` (trois personnes, une coupure, un redéploiement). Ses
+tests navigateur tournent sous Chromium et Firefox en CI (job `studio-hosted`, sur main et chaque tag), et sous WebKit
+sous macOS à la main : aucun WebKit ne les fait tourner en CI, et WebKit sous Linux ne peut pas afficher le jeu dans
+son cadre. En 4.2.1 le jeu dans le Studio hébergé est un **aperçu vivant**, pas figé à une révision (P4 arrive en
+4.2.2) ; l'onglet Assets et l'Assistant n'y sont pas encore ; une écriture refusée garde son brouillon à copier et à
+réessayer (pas de diff à fusionner), et les éditeurs n'envoient pas la révision qu'ils ont lue (la base de P5). Le
+Studio et les outils qui écrivent un jeu demandent Node 22.13+. Les dépendances de l'archive sont verrouillées pour une
+installation depuis le registre ; installées depuis le fichier d'archive, npm les résout d'après leurs plages
+(`web-scumm-studio-server deps` dit lesquelles).
+
 ## 4.2.0 : ce qui est promis (D38)
 
 La 4.2.0 sort avant les passes humaines. Des surfaces ci-dessus, elle ne promet **stables** que celles qui n'en

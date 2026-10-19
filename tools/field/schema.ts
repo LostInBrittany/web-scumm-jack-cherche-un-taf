@@ -5,7 +5,7 @@
 // field it does not name is refused, so a token, an address or an attachment cannot ride in by mistake.
 import { z } from 'zod';
 
-/** The thirteen passes of 4.1.17's sheet, by an id that does not move with a translation. */
+/** The passes, by an id that does not move with a translation: the thirteen of 4.1.17's sheet, then two each in 4.2.1, 4.2.2 and 4.2.3. */
 export const PASS_IDS = [
   'bridge-postgres-https',
   'runs-real-players',
@@ -20,8 +20,35 @@ export const PASS_IDS = [
   'blind-playtesters',
   'voices-listening',
   'archive-human-install',
+  'studio-hosted',
+  'studio-collab',
+  'studio-preview',
+  'studio-assets-hosted',
+  'studio-mcp-remote',
+  'studio-oidc-generic',
 ] as const;
 export type PassId = (typeof PASS_IDS)[number];
+
+/** The first release each pass is asked of: a pass added later is not asked of an older release (4.2.1). */
+const PASS_SINCE: Partial<Record<PassId, string>> = {
+  'studio-hosted': '4.2.1',
+  'studio-collab': '4.2.1',
+  'studio-preview': '4.2.2',
+  'studio-assets-hosted': '4.2.2',
+  'studio-mcp-remote': '4.2.3',
+  'studio-oidc-generic': '4.2.3',
+};
+
+/** The passes asked of a release (`4.2.1`, `4.2.1-rc.1`: a pre-release is asked what its release will be). */
+export function passesFor(release: string): PassId[] {
+  const parts = (v: string) => v.replace(/-.*$/, '').split('.').map(Number);
+  const atLeast = (a: string, b: string) => {
+    const [x, y] = [parts(a), parts(b)];
+    for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return (x[i] ?? 0) > (y[i] ?? 0);
+    return true;
+  };
+  return PASS_IDS.filter((id) => !PASS_SINCE[id] || atLeast(release, PASS_SINCE[id]!));
+}
 
 /** What each pass is, as the sheet says it (English; the French docs show their own label, the tools use the id). */
 export const PASS_LABELS: Record<PassId, string> = {
@@ -38,6 +65,17 @@ export const PASS_LABELS: Record<PassId, string> = {
   'blind-playtesters': 'Playtesters who do not know the puzzles',
   'voices-listening': 'The voices listened to',
   'archive-human-install': 'The published archive installed by a person',
+  'studio-hosted':
+    'The Studio Server deployed on Clever Cloud (Node, PostgreSQL, Cellar, Keycloak, a TLS domain), from its archive, by its guide; a real Safari on macOS and iOS',
+  'studio-collab': 'Three people on one hosted Studio, a network cut and a redeploy while they edit',
+  'studio-preview':
+    'On a hosted Studio, people play the shared revision without a dev server, a save carried across revisions, the health chip, their own undo, a published build',
+  'studio-assets-hosted':
+    "A hosted Studio's prepare on the worker (Python, ffmpeg), its prepared set played in the Play tab",
+  'studio-mcp-remote':
+    "An AI agent on a hosted Studio through its remote MCP (/mcp): a real MCP client, a member's token, a write in the journal as the member, a span another holds refused",
+  'studio-oidc-generic':
+    'The Studio Server behind a second OpenID Connect provider (GitLab, D44): login, roles, a revoked member refused, verified by a person',
 };
 
 export const FIELD_STATUSES = ['not-run', 'blocked', 'failed', 'passed'] as const;

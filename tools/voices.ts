@@ -5,7 +5,7 @@
 // `check` measures every clip with ffmpeg (duration, sample rate, codec, loudness, peak). Exit codes: `status` 0;
 // `import` 1 on an unknown line or status; `check` 1 on an error (with --release, an approved line without its clip
 // is one), 0 otherwise. Lines without an id are not listed: `npm run ids -- --lines` first.
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { applyLocale } from '../src/engine/tools/i18n';
 import { lineIds } from '../src/engine/core/content-ids';
@@ -21,6 +21,7 @@ import {
 } from '../src/engine/tools/voices';
 import { ASSETS_DIR, GAME, GAME_DIR, loadGameModule } from './game';
 import { clipFacts } from './voice-facts';
+import { writeGame } from './game-write';
 
 const game = (await loadGameModule()).game;
 const [cmd, ...rest] = process.argv.slice(2);
@@ -80,7 +81,7 @@ if (cmd === 'import') {
   for (const u of r.unknown) console.log(`  ✖ no line "${u}" in the game`);
   for (const b of r.bad) console.log(`  ✖ ${b}`);
   if (r.unknown.length || r.bad.length) process.exit(1);
-  writeFileSync(SHEET, JSON.stringify(r.sheet, null, 2) + '\n');
+  await writeGame(`voices import ${lang}`, [{ file: SHEET, text: JSON.stringify(r.sheet, null, 2) + '\n' }]);
   console.log(`✔  [${GAME}] ${lang}: ${rows.length} row(s) imported into ${SHEET.replace(process.cwd() + '/', '')}`);
   process.exit(0);
 }

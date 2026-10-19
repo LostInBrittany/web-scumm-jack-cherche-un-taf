@@ -4,12 +4,13 @@
 // what is translated, following texts that moved (a reordered list: same source text in the previous reference file),
 // parking what disappeared under `_stale:<path>`, and adding the missing paths with the base text (to translate).
 // The reference file is refreshed at the same time. status: coverage of every file.
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { localeStatus, mergeLocale, textPaths } from '../src/engine/tools/i18n';
 import { GAME, GAME_DIR, loadGameModule } from './game';
 import { uiFallbacks } from '../src/engine/dom/ui-defaults';
 import { lineIds } from '../src/engine/core/content-ids';
+import { writeGame } from './game-write';
 
 const { game } = await loadGameModule();
 const args = process.argv.slice(2);
@@ -36,13 +37,21 @@ if (cmd === 'extract') {
   const reference: Record<string, string> = { _: header(base) };
   for (const { path, text } of paths) reference[path] = text;
   if (target === base) {
-    writeFileSync(file(base), JSON.stringify(reference, null, 1) + '\n');
+    await writeGame('i18n extract', [{ file: file(base), text: JSON.stringify(reference, null, 1) + '\n' }], {
+      guard: false,
+    });
     console.log(`${file(base)}: ${paths.length} texts`);
     process.exit(0);
   }
   const m = mergeLocale(paths, read(target), read(base));
-  writeFileSync(file(target), JSON.stringify({ _: header(target), ...m.table }, null, 1) + '\n');
-  writeFileSync(file(base), JSON.stringify(reference, null, 1) + '\n');
+  await writeGame(
+    `i18n extract ${target}`,
+    [
+      { file: file(target), text: JSON.stringify({ _: header(target), ...m.table }, null, 1) + '\n' },
+      { file: file(base), text: JSON.stringify(reference, null, 1) + '\n' },
+    ],
+    { guard: false },
+  );
   console.log(
     `${file(target)}: ${paths.length} texts, ${m.added} to translate${m.remapped ? `, ${m.remapped} followed a moved text` : ''}${m.revived ? `, ${m.revived} revived` : ''}${m.stale.length ? `, ${m.stale.length} parked as _stale` : ''}`,
   );

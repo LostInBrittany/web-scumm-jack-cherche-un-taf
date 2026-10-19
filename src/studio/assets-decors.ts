@@ -33,7 +33,7 @@ export class DecorsView {
     const room = this.overlayRoom;
     if (room && !this.layouts.has(room)) {
       try {
-        this.layouts.set(room, (await api.room(room)).layout);
+        this.layouts.set(room, (await api.room(room, { track: false })).layout);
       } catch {
         this.layouts.set(room, {});
       }

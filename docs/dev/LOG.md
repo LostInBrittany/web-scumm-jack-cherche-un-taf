@@ -4929,3 +4929,998 @@ candidate is judged against criteria older than it (plan §8.3; the critique of 
 
 → next: this PR's candidate, `preflight-stable`, `v4.2.0` signed, `ship verify`,
 `readme-quickstart --published`, the thirteen issues commented.
+
+## #188 · 2026-10-18 · Claude · proposal · "Studio Server" (4.2.1 → 4.2.3): the plan, ADR 0025, D39, D40, D41 — hosted behind OIDC
+
+Branch: docs/43-plan (#127) · Base: a0ce19d (v4.2.0)
+
+- **The maintainer's request (17 Oct):** a platform where several developers connect to one server, at the same time,
+  each on a part of the scenario, and build the shared work together (D39). A first, Git-native proposal (one local
+  Studio each, pull requests) was off-target. Of the two shared shapes, they chose one live copy with explicit locks
+  over private workspaces.
+- **Their reading of the second proposal** brought the plan's three steps (§5) and its principles (§3):
+  - the transaction as the unit of change;
+  - one write owner, with fenced leases;
+  - one validation guard on the final state;
+  - an explicit per-revision preview;
+  - a revision on every diagnostic and build;
+  - durability and a single entry from the first step.
+- **Checked against the tree (§1.1).** About ten paths write to `games/`: core, assets, the MCP process, TypeScript and
+  Python authoring tools, and `POST /__layout`. Only `setValue` and `setLayout` are guarded. Also:
+  - no fsync;
+  - Bridge leases have no fencing;
+  - the save envelope is strict and has no content fingerprint;
+  - validation runs the content's TypeScript.
+- **Second automated reading context, on revision 1:**
+  - **P0:** recovery could not roll back from hashes alone. It now rolls forward, with a content-addressed blob store.
+  - **Twelve P1s, all taken into revision 2 (plan §9):**
+    - ownership is decided by file, with an exclusive mode;
+    - 409 is checked per file;
+    - leases go through the queue;
+    - validation runs in a staged directory, in a child process with no secrets;
+    - local mode adopts external changes;
+    - a service lease ensures one writing process (P8);
+    - the save envelope is unchanged by default (ADR 0026, reserved);
+    - Play is labelled at step 1;
+    - passes are non-blocking (D12).
+- **Numbering decided (D40):** 4.2.1 "Shared Floor", 4.2.2, 4.2.3, not a 4.3. The 4.2.x line may add but never change a
+  public name or a format, as D14 allowed for 4.1.x. The plan file is renamed `PLAN-4.2.1-4.2.3-STUDIO-SERVER.md`.
+
+- **Revision 4, hosted (D41):**
+  - native Clever Cloud Node.js runtime, PostgreSQL, Cellar, Keycloak or any OIDC provider, no Docker;
+  - rights in the Studio, one game per instance, assistant on the user's own key (BYOK).
+  - What the maintainer's two Codex readings required:
+    - four HTTP policies;
+    - bounded revocation;
+    - a separate game origin, with Safari decided by spike S;
+    - the post-commit protocol and reads by revision;
+    - a live preview stated as not frozen, with P4 in 4.2.2;
+    - a fenced lease with Postgres timeouts;
+    - a worker whose temporary capabilities are assumed visible to hostile code.
+  - Their verdict: « je validerais le cap et le lancement du spike S » (I would validate the course and the launch of
+    spike S).
+
+### Checks run
+
+| Command | Result |
+|---|---|
+| `npm run audit` | exit 0, `audit: clean` |
+| `npm run quality` | exit 0 |
+| `npx vitest run tests/support-truth.test.ts tests/changes.test.ts tests/partition.test.ts tests/ci-plan.test.ts` | 4 files, 59/59 |
+
+→ next: human (merge this PR); Claude (spike S on Clever's native runtime, the step-0 mock-ups)
+
+
+## #189 · 2026-10-18 · Claude · proposal · 4.2.1 PR 1: the operation core moves to `studio-server/src/ops/` (neutral)
+
+Branch: refactor/421-ops-split · Plan: `docs/dev/PLAN-4.2.1-4.2.3-STUDIO-SERVER.md` §7, row 1
+
+- **What moved:**
+  - `tools/studio/{core,source,apply,errors}.ts` now live in `studio-server/src/ops/` (git mv);
+  - their importers follow: the plugin, `assets.ts`, `assistant.ts`, `backend.ts`, `snapshot.ts`, the MCP server, the
+    ids codemod, ten tests, and `npm run studio-apply`.
+- **What stays:**
+  - `types.ts` stays in `tools/studio/`: 62 importers, shared with the browser Studio;
+  - `paths.ts` and the server-side `assets.ts` stay too. `assets.ts` moves with its queue in PR 3 (single entry).
+- **The client names the API once:** `apiUrl()` in `src/studio/api-base.ts`.
+- **Deliberately not here** (the plan's row 1 listed them; each lands where it has a meaning and a test):
+  - typed effects, in PR 2 with the transactions;
+  - the `dir` parameter of `bridge/src/migrations.ts`, in PR 2 with the Studio's own migrations. A parameter nothing
+    calls would be a surviving mutant in a gated set.
+- **Registered:**
+  - `studio-server` in `tsconfig.json` and `knip.json`, the same entry rule `tools/studio/*.ts` had;
+  - a CI rule (`tools/ci-plan.ts`) with the authoring gates.
+
+- **Second automated reading context** found:
+  - P0: the published `web-scumm` package would have left `studio-server/` out (`scripts/pack.mjs`'s `SHIP`), although
+    `vite.config.ts` (through the plugin) and `ids` import it. It ships now, which the packed archive confirms;
+  - P1: Biome did not cover the moved files. `studio-server/**/*.ts` is now in `biome.json`.
+
+→ next: Claude (PR 2, the transactional core)
+
+
+## #190 · 2026-10-18 · Claude · proposal · 4.2.1 PR 2: the operation journal, the unified guard (local mode)
+
+Branch: feature/421-ops-journal (stacked on #128) · Plan §3.8, §4, row 2
+
+- **Journal** (`studio-server/src/ops/journal.ts`). Each operation:
+  - checks the client's base (409) and the hashes it read (409);
+  - is guarded;
+  - stores its "after" blobs;
+  - logs an intent;
+  - writes each file durably (`durable.ts`: temp, fsync, rename, fsync of the directory);
+  - is confirmed with its revision and recorded response. A retry with the same id gets that response.
+- **Opening the journal:**
+  - rolls forward interrupted intents, file by file from the blobs;
+  - refuses with maintenance (503) when a file is neither side;
+  - sweeps temporaries;
+  - adopts outside changes as `external` operations.
+- **One writer per project across processes:** a lease row on the database's clock, refused after a bounded wait.
+- **SQLite and migrations:** reused from the Bridge without widening its store:
+  - `openSqliteDb` is extracted from `SqliteRealityStore.open` (neutral);
+  - `migrate()` gains a `dir` option, used by `studio-server/migrations/`.
+- **Core:**
+  - every writer goes through the journal (`write`);
+  - the guard builds a staging folder of hard links with the changed files, validates it, and compares with the
+    baseline of the current revision (P3), so nothing is written and then taken back;
+  - undo and redo are operations, and one step covers every file;
+  - notes and the storyboard stay out of undo, as before.
+- **Deliberately later:**
+  - the hosted journal (Postgres plus Cellar, reads by revision): PR 4;
+  - the `Executor` with an emptied environment and the separate worker: PR I. The guard still imports in process, as
+    the dev server did.
+
+- **Second automated reading context**, all taken in:
+  - **P0:** an intent a dead process left was recovered only at opening. A live process could adopt the half-written
+    state as an `external` operation with the same revision, and a later recovery moved the head backwards. Now
+    every operation first settles under the lease: logged intents are rolled forward, then the whole disk is
+    adopted. `confirm` refuses anything but head + 1, and live operations are unique per revision (partial index).
+  - **P1:**
+    - the lease is renewed while an operation runs and fenced; the intent and the confirmation check it in their
+      transaction (`LeaseLostError`);
+    - files are hashed again after the guard, so an editor's save during the check is a 409;
+    - the guard's baseline stays true, since the whole disk is adopted before each operation (hashes recomputed only
+      when size or mtime moved).
+  - **P2:**
+    - the room writers pass the text they computed from (`from`);
+    - staging falls back to copies across file systems;
+    - a real I/O error of a directory fsync is no longer swallowed;
+    - a dead writer's id, retried, is answered `{ recovered: true }`.
+  - **Tests added:** a second live process meets a dead intent; a writer whose lease was taken over cannot log; a
+    file saved during the guard is a 409.
+  - **Noted, not done:**
+    - fsync is not F_FULLFSYNC on macOS;
+    - Postgres's lease and its own database come with PR 4;
+    - text edits now pay the guard (one look-lines test needed a longer timeout). The p95 is measured before the
+      release.
+
+→ next: Claude (PR 3, a single entry for every writer)
+
+
+## #191 · 2026-10-18 · Claude · proposal · 4.2.1 PR 3: a single entry for the game's files
+
+Branch: refactor/421-single-entry (stacked on PR 2) · Plan §7, row 3, and P6
+
+- **`studio.writeFiles(what, files, { guard? })`**: the core's operation API for other modules. Effects are bytes
+  (`Buffer | string`).
+- **Asset uploads:** one operation each. `cut-sheet.py` and the keying script run on a real copy of
+  `art/<sheet>/` in `.cache/`, never on hard links, because PIL rewrites a cell in place. What they wrote there, plus
+  the backups (numbered with the planned ones), is applied together.
+- **Authoring CLIs** go through `tools/game-write.ts` (`writeGame`, `writeOutput`): `ids`, `i18n`, `voices`,
+  `import-layout` (now async), `provenance`, `page:storyboard --md`, `prompts`, `remix`. The batch tools are not
+  guarded: renamed paths change the text of the errors the guard compares.
+- **The room editor** saves by `PUT /__studio/api/room/<id>/layout`, and `layoutWriter` (`/__layout`) is removed.
+- **The MCP server and `studio-apply`** were already clients of the journal: their `createStudio` opens the same
+  `.cache/studio-journal/` (lease plus read hashes across processes).
+- **`tests/single-entry.test.ts`** inventories every program that writes:
+  - `journal`;
+  - `adopted`: Python art and audio tools, `migrate`. In local mode the journal records their writes as `external`
+    before the next edit; in hosted mode they run in the executor or are unavailable;
+  - `elsewhere`.
+
+  A new writer fails the test until it is classified.
+- **Deliberately not here:** an end-to-end test running each tool against a server, since there is no server yet.
+  It comes with PR 4.
+
+- **Second automated reading context**, taken in:
+  - **P1:**
+    - the cut and keying tools get `GAME_DIR`. Their `site.json` lookup (pixel art) no longer depends on the scratch
+      folder;
+    - the editor tells a Studio refusal (JSON, e.g. an unknown room's 404) from "no Studio here", so a save is no
+      longer silently routed to the browser;
+    - the 409 from a tool's read to its write is real only where the tool passes what it read (`from`:
+      import-layout). The header says so.
+  - **P2:**
+    - uploads are not guarded (`art/`, `audio/`, `private/` are files the validator never reads);
+    - one Studio per game per run in `game-write`;
+    - `remix --record` writes all its sessions as one operation;
+    - an uploaded sheet is kept first, on its own, so a failed cut leaves it to retry;
+    - the inventory catches more writing calls (`createWriteStream`, links, `.js`, and Python's `wb`, `os.remove`,
+      `shutil`, `.export`), and its scope is stated (authoring programs; `scripts/` and `bridge/` author no game);
+    - `layoutWriter` stays as a deprecated no-op (D40: no public name removed);
+    - `ids` reports what it wrote after it wrote it.
+  - **Noted:** `onSheetCopy` copies the sheet's `_vN` backups too (cost, not correctness).
+
+- **The package ships the journal's SQL layer** (`bridge/src/store*.ts`, `migrations.ts`): since PR 2 the ops core
+  imports it, and a fresh install's `web-scumm verify` could not find it (found by `fresh-install` on this PR).
+
+→ next: Claude (PR 4, the server)
+
+
+## #192 · 2026-10-18 · Claude · proposal · 4.2.1 PR 4: the Studio Server package (no authentication yet)
+
+Branch: feature/421-server (stacked on PR 3) · Plan §4, §7 row 4
+
+- **`studio-server/src/server/`:**
+  - `config.ts`: a JSON configuration, and secrets taken from `*_FILE` (0600) or the environment, Clever's add-on
+    names included. They are removed from `process.env`, and anything short or not text is refused. `playUrl` must
+    be another origin.
+  - `postgres.ts`: the Studio's own `pg` adapter, with `lock_timeout`, `statement_timeout` and
+    `idle_in_transaction_session_timeout` on every connection.
+  - `s3.ts`: SigV4 over `node:crypto` (PUT, GET, HEAD, presign), and the blob store by sha256.
+  - `service-lease.ts`: TTL 30 s, a fence, a local deadline that stops writes before expiry, SIGTERM as a shortcut.
+  - `http.ts`: the shared route table (`studio-server/src/ops/routes.ts`, moved out of the plugin), probes, JSON logs
+    with request ids, trust-proxy, a read/write lock so no read sees half an operation, 503 with Retry-After without
+    the lease, and request replay by `x-studio-op`.
+  - `main.ts`: `serve`, `import`, `export`. `serve` refuses anything but the loopback until PR 5.
+- **The journal in hosted mode:**
+  - adopted contents are stored in the blobs;
+  - `materialize()` rebuilds the folder from the head at start (never for a project with no head: a first import is
+    adopted, not emptied);
+  - `reconcile()` runs every 30 s.
+- **`operationContext`** (AsyncLocalStorage): a request's operations get the ids `<op>:1`, `<op>:2`…, deterministic
+  across retries.
+- **Tests, `tests/studio-server.test.ts`:**
+  - secrets and configuration;
+  - probes, API, cursor, 404/409, replay, 503 without the lease;
+  - lease expiry and takeover with a new fence;
+  - import → export through the command;
+  - the hosted pair, run here against a local Postgres 16 and the spike's real Cellar bucket: presign and expiry,
+    and a folder rebuilt after the disk is lost.
+- **Deviation from the plan, stated:** reads are serialised with writes by a lock (one instance) instead of
+  per-revision snapshot folders. P4's per-revision previews (4.2.2) bring the snapshots.
+- **Not yet:**
+  - authentication (PR 5);
+  - leases on game parts, and SSE (PR 6);
+  - the client (PR 7);
+  - packaging (PR 9).
+
+- **Second automated reading context**, taken in:
+  - **P0:**
+    - the read/write lock no longer stays held when a handler throws before its first `await` (a `POST …/add {}`
+      used to hang every later request);
+    - hosted, `settle` makes the folder follow the head (`materialize`) and adopts only a project with no head. An
+      instance that waited for the lease no longer reverts what the other one confirmed meanwhile.
+  - **P1:**
+    - the cache repair runs under the instance's lock alone;
+    - S3 requests have a 30 s timeout;
+    - `import` checks the database's head, copies beside and renames;
+    - Postgres's session limits are given at connection time (`options`), so a connection without them does not
+      exist.
+  - **P2:**
+    - the lease's tries are chained, never overlapping, and a try that lands after `release` gives back what it took;
+    - read-only POSTs (validate, solve…) need no lease and share the lock;
+    - `studio_requests` is kept 7 days;
+    - `/api/ops` reads under the lock and returns `next`; a non-number cursor is a 400;
+    - a body over 1 MiB gets its 413 instead of a reset;
+    - `export` reads the head in one snapshot;
+    - SIGTERM drains (5 s) before the journal and the lease close;
+    - a listen error gives the lease back;
+    - secret files on Windows, trimmed variables, a missing secret file as a configuration error.
+  - **Health check:** the platform's health check must be `/startz`, not `/readyz`. `/readyz` answers 503 while the
+    old instance holds the lease, which would deadlock a redeploy. The guide (PR 8) says so.
+
+→ next: Claude (PR 5, OIDC)
+
+
+## #193 · 2026-10-18 · Claude · proposal · 4.2.1 PR 5: OpenID Connect, rights in the Studio, bounded revocation
+
+Branch: feature/421-oidc (stacked on PR 4) · Plan §3, ADR 0027, threat model `docs/dev/threat-models/studio-server.md`
+
+- **`studio-server/src/server/auth/`:**
+  - `oidc.ts`: the RP on `openid-client` 6.8.8 and `jose` 6.2.12, exact pins. Login, refresh (definitive refusal
+    vs unreachable), end-session URL, Bearer verification (JWKS, issuer, audience, algorithms, lifetime ≤ 5 min, no
+    id_token), logout-token verification.
+  - `store.ts`: users, members, invitations (hashed, one use, verified email), sessions (hashed ids, sealed refresh
+    and id tokens, AES-256-GCM key ring), pre-authentications (one use), the `jti` replay cache, audit.
+  - `gate.ts`: policies A and B chosen by the request, the role per route (`roleFor`: GET and read-only POSTs are a
+    reviewer's, writes a dev's), revocation within R (check every 5 min, fail closed after 15), and a revocation bus
+    for long connections.
+  - `routes.ts`: `/auth/login`, `/auth/callback`, `/auth/logout`, `/auth/backchannel`, `/auth/me`, `/auth/cli`, and
+    the owner's members, invitations and audit routes.
+  - `device.ts`: the CLI's device flow, tokens in a 0600 file, renewal.
+- **Migration 0003:** identity, membership, sessions, audit.
+- **The server:**
+  - operations are authored by the session's email;
+  - 429s per address on `/auth/*` and on failed authentications;
+  - `serve` beyond the loopback only with OIDC configured;
+  - `studio-server invite`, `login`, `token`.
+- **Tests:**
+  - `tests/studio-auth.test.ts` (17 cases), against a test provider (`tests/fixtures/oidc-op.ts`: discovery, JWKS,
+    code with PKCE, refresh, device flow, refusals);
+  - the role matrix is checked over every API route.
+- **Not here:**
+  - the game's origin and its tickets (policy F), with the client (PR 7);
+  - closing SSE streams on revocation, with SSE itself (PR 6), on the bus that is ready;
+  - a real Keycloak in CI (PR 9). The spike's managed Keycloak announces every endpoint used here.
+
+- Second reading (automated second context): the return path admits plain path characters only (a tab no longer
+  becomes `//evil`); refused credentials no longer lock a whole address out, and OIDC beyond the loopback requires
+  `trustProxy`; one refresh per session at a time, a slow refresh still stores the rotated token, an unreadable one
+  ends the session; a back-channel logout with a `sid` ends that provider session only; invitation tokens are hashed
+  while a login carries them, and an invitation never demotes the last owner; the session key is derived by HKDF and
+  32 characters or more; stored answers are per author; Bearer refusals carry `WWW-Authenticate`; policy A's
+  refusals say nothing of which check failed; the CLI writes its tokens atomically under a lock and to https only.
+
+→ next: Claude (PR I, the separate worker; then PR 6)
+
+
+## #194 · 2026-10-18 · Claude · proposal · 4.2.1 PR I: the game's code runs in a worker without secrets
+
+Branch: feature/421-isolation (stacked on PR 5) · Plan §3.8, ADR 0028
+
+- **`studio-server/src/worker/`:**
+  - `job.ts`: Ed25519 jobs, binding id, instance, epoch, revision, snapshot hash, kind, parameters, staging prefix,
+    expiry and presigned URLs;
+  - `snapshot.ts`: sources and data only, unpacked without leaving the folder;
+  - `child.ts`: validate or load, with an emptied environment;
+  - `main.ts`: the supervisor (single use, one instance, process group killed at the deadline, survivors → recycle,
+    bounded output) and the `studio-worker` entry point.
+- **`studio-server/src/server/remote-executor.ts`:** the Studio's side. Snapshot up, signed job, result read back and
+  checked, staging deleted, last answer kept by snapshot hash.
+- **`studio-server/src/ops/validate-dir.ts`:** the validator's verdict on a folder, one function for the Studio and the
+  worker. `core.ts` takes an `executor` (validate and load); captures are unavailable with one.
+- **Configuration:** with `oidc`, `worker` and S3 blobs are required; `STUDIO_WORKER_KEY`; `studio-server
+  worker-keys`. `S3.delete`.
+- **Measured:** child 237–283 ms; Mac → Cellar round trip 760–958 ms; spike S Studio → worker inside Clever p95 37 ms.
+  The p95 on Clever is measured with the hosted pass.
+- **Tests:** `tests/studio-worker.test.ts`, 14 cases:
+  - signatures, expiry, prefix, kinds;
+  - snapshot contents and paths;
+  - emptied environment and the deadline with grandchildren;
+  - refusals: signature, instance, replay;
+  - another job's answer refused;
+  - the full round trip through a memory S3 (validate, load, cache, deadline, no staging left);
+  - the Studio reading through the executor;
+  - a hostile game: an escaped process does not hang the worker, its logs do not corrupt the output; a job expired in
+    the queue is not run; a killed background process is no false survivor; failures are not cached;
+  - with STUDIO_TEST_S3: a presigned write scoped to its key, and the round trip through Cellar.
+
+- **Second reading** (automated second context): output through a file, no pipes, resolve on exit, survivors polled
+  for a second, recycle by exiting once idle, expiry checked at dequeue, failures thrown and never cached, a bounded
+  result read, snapshot bounds and more source kinds, a copy per reader, `worker` checked whenever set.
+
+→ next: Claude (PR 6, leases and live events)
+
+
+## #195 · 2026-10-18 · Claude · proposal · 4.2.1 PR 6: spans, leases and the live stream
+
+Branch: feature/421-leases-live (stacked on PR I) · Plan P2, P7, §5, §3.6
+
+- **`studio-server/src/ops/spans.ts`:** the span of every game file (rooms, languages, story, items, cast, rules,
+  voices, assets, notes, meta, playtests, reality); a file no rule names is refused (422). A test walks every game of
+  the repository.
+- **`studio-server/src/server/leases.ts`** (migration 0004 `studio_spans`): claims all or none, never waiting, in a
+  fixed order, on the database's clock, in the journal's intent transaction (`JournalOptions.claim`); fences that
+  only grow; heartbeat renewal; release; owner takeover; the exclusive lease `*`; optional client fences
+  (`x-studio-fences`).
+- **`studio-server/src/server/live.ts`:** presence (heartbeat, 60 s) and `GET /api/events` (SSE: hello, revision,
+  leases, presence, ping), closed on the revocation bus, at a Bearer's end, and by a 30 s check of the credential.
+- **`journal.ts`:** `claim` hook and `confirmed` events after each commit. **`http.ts`:** `/presence`, `/leases`,
+  `/leases/release`, `/leases/takeover`, `/exclusive`, `/exclusive/release`, `/events`; undo and redo refused
+  (409) on a shared Studio. **`main.ts`:** leases and presence with OIDC.
+- **Tests:** `tests/studio-collab.test.ts`, 12 cases:
+  - three devs, a reviewer and an owner against the test provider: 423 naming the holder, expiry, the heartbeat,
+    takeover with fences and the audit, the exclusive lease, undo refused;
+  - the stream: revisions with spans, presence, closing on removal within 5 s and at a Bearer's end;
+  - races of ten claims on SQLite and on Postgres (`STUDIO_TEST_PG_URL`).
+
+- **Second reading** (automated second context): one shared hub reads the leases once per change for every stream
+  (coalesced, numbered, errors caught); `hello` first; a stream too far behind is closed; the 30 s check does not move
+  the session's idle clock, and a cookie stream closes at the session's expiry; a removed member's leases and presence
+  go at once; leases are checked before the guard; a shared Studio refuses a write that names nobody; what the
+  exclusive lease covers today is said as it is.
+
+→ next: Claude (PR 7, the client)
+
+
+## #196 · 2026-10-18 · Claude · proposal · 4.2.1 PR 7, server side: the game's origin
+
+Branch: feature/421-play (stacked on PR 6) · Plan §6.1, policy F
+
+- **`studio-server/src/server/play.ts`** (migration 0005): tickets (hashed, once, 60 s, a relative path, a member's
+  browser session only); game sessions (hashed, 15 min sliding, never past the Studio session they come from,
+  checked at every request with the Studio session and the membership); the `__Host-ws_play` cookie, `Secure;
+  HttpOnly; SameSite=None; Partitioned`; `frame-ancestors` the Studio, `no-referrer`, `no-store`.
+- **`http.ts`:** routing by `Host`: the game's origin answers only its own paths; `POST /api/play-ticket` (policy A,
+  reviewer). **`store.ts`:** `sessionByHash`. **`main.ts`:** the game's origin, without content until the live preview
+  is mounted (the client, PR 7).
+- **The cookie, a provisional choice:** CHIPS is the one cookie spike S saw accepted by Chromium, Firefox and WebKit,
+  default settings, across the two sites of `*.cleverapps.io`. The maintainer's real Safari (macOS, iOS) confirms or
+  reverses it.
+- **Tests:** `tests/studio-play.test.ts`, 5 cases: no API on the game's origin, the ticket and its cookie, expiry,
+  relative paths only, no ticket to a Bearer, the game session ending with its Studio session or the membership, and
+  after 15 min unused.
+
+- **Second reading** (automated second context): the game session really slides (its expiry and its cookie are
+  renewed while it is used), and it stops within R = 15 min of the provider's last confirmation of its Studio session,
+  so a member who only plays, the Studio closed, cannot outlast a disabled account; the ticket in a proxy's log and
+  login CSRF on the game's origin written as residual risks.
+
+→ next: Claude (PR 7, the client, after the maintainer validates the mockups)
+
+
+## #197 · 2026-10-18 · Claude · proposal · 4.2.1 PR 8 (first part): the hosting guide
+
+Branch: ops/421-hosting (stacked on PR 7's server side) · Plan §7 row 8, D41
+
+- **Guide** `docs/en|fr/STUDIO-SERVER.md`: what runs where, Clever Cloud step by step (two apps, add-ons linked to the
+  studio only, `min = max = 1`, `/startz` as health check, the variables, the job keys, import, the first owner),
+  the provider's settings, roles, spans, the CLI, local trial, known limits. Steps not exercised yet are said so (the
+  `studio-hosted` pass runs the guide on a real domain).
+- **`ops/studio/`**: `studio.config.example.json` (checked by `tests/studio-server.test.ts`), `keycloak/realm.json`
+  (clients `studio` with PKCE S256 and back-channel logout, `web-scumm-cli` with the device grant and the audience
+  mapper, 5 min access tokens), `compose.yml` (optional: Postgres, MinIO, Keycloak).
+- **`package.json`**: `studio-server` and `studio-worker`. **`config.ts`/`main.ts`**: `STUDIO_CONFIG_JSON`.
+- Left for the rest of PR 8 and PR 9: the release packages (`web-scumm-studio-server`, `-worker`) that replace the
+  deployment from the repository, UPGRADING and SUPPORT (exception D40).
+
+- **Second reading** (automated second context): access-token lifetime as the server checks it, the example
+  without `port` (Clever's `PORT` applies), the partitioned cookie said as it is, `trustProxy` ranges marked as an
+  assumption, `mkdir` before `worker-keys`, the dev plan's 5 connections, a test user in the realm and what a local
+  OIDC trial still needs, MinIO and Keycloak from their publishers' registries.
+
+→ next: Claude (PR 9; the client PR 7 after the mockups)
+
+
+## #198 · 2026-10-18 · Claude · proposal · 4.2.1 PR 9 (first part): the Studio Server's gates
+
+Branch: ci/421-gates (stacked on PR 8's first part) · Plan §7 row 9, §11
+
+- **CI job `studio-hosted`** (gate `studioHosted`, opened by `studio-server/`, its hosted tests and
+  `ops/studio/ci/`; in `pr-gate`): the hosted tests against a Postgres 16 service and S3. S3 is SeaweedFS
+  (`mirror.gcr.io/chrislusf/seaweedfs`, pinned by digest): its gateway checks SigV4 and presigned URLs as Cellar
+  does, and MinIO no longer publishes free images. Its test identity is `ops/studio/ci/seaweedfs-s3.json`. Run here
+  against the same image: 41 tests passed (`studio-server`, `studio-worker`, `studio-collab`).
+- **Coverage:** `studio-server/src/**` measured; floors on the trust boundaries (journal, spans, gate, provider, auth
+  routes and store, configuration, HTTP, leases, live stream, game's origin, remote executor, jobs, snapshots), two
+  points under the measure, taken as the `coverage` job runs (no `STUDIO_TEST_PG_URL` nor `STUDIO_TEST_S3`: the
+  Postgres and S3 paths count in `studio-hosted`, not in coverage). Global coverage rose (lines 75.7 %, branches
+  70.7 %).
+- **Mutation:** two sets, `studio-ops` and `studio-auth`, measured (`docs/dev/MUTANTS.md`).
+- **Left for the second part** (after the client, PR 7): the release packages `web-scumm-studio-server` and
+  `-worker` with their locks and SBOM, `studio-install-smoke`, a real Keycloak in CI, the passes `studio-hosted` and
+  `studio-collab` (bound to those packages), and the two sets gated once their survivors are read.
+
+- **Second reading** (automated second context): `ops/studio/ci/` and the journal's SQL layer
+  (`bridge/src/store-sql|store-sqlite|migrations.ts`) open the job (rule order fixed, cases in
+  `tests/ci-plan.test.ts`); the hosted test starts from a clean schema, so it reruns on the same database; S3 is
+  ready when its bucket exists and one object was written and read back (`ops/studio/ci/s3-ready.ts`);
+  `studio-server.test.ts` judges `studio-ops` too.
+
+→ next: Claude (PR 7, the client, after the mock-ups)
+
+
+## #199 · 2026-10-18 · Claude · proposal · 4.2.1: the survivors of `studio-ops` read
+
+- **Measured on main** (run 39093185782): 115 of 181 mutants killed, 66 survivors.
+- **Killed by tests** (`tests/studio-journal-mutants.test.ts`, `tests/studio-durable-mutants.test.ts`): hosted mode on
+  SQLite (off by default; a first import kept in the blobs; the folder follows the head; repair counts what it
+  rewrote; an empty head never empties a folder); deletions; a retried aborted id; an unchanged base; an interrupted
+  operation whose revision does not follow the head; an interrupted deletion rolled forward; no dot-files, folders
+  or symbolic links; a size or a time that moved; paths outside the game; an expired, fenced or missing lease; the
+  wait for another writer and a fence that grows; the Postgres clock expression; durable removals, text and bytes,
+  the sweep of a missing folder.
+- **Named** in `docs/dev/mutants.json` (13): boundaries in the same millisecond (the wait for a lease), a
+  deletion that deletes nothing, directory fsync errors that only Windows raises, a Buffer copied, one write call;
+  after the second reading, a folder's descriptor closed (counted in /dev/fd), the cache's stated limit and a lease
+  ending in the millisecond of the check (the database clock pinned) are killed by tests instead.
+- **Result** (local run): 168 of 181 killed, 13 explained, none left. `studio-ops` is gated; `studio-auth` stays
+  measured until its survivors are read.
+
+
+## #200 · 2026-10-18 · Claude · proposal · 4.2.1: the survivors of `studio-auth` read
+
+- **Measured on main** (run 39093187981): 381 of 577 mutants killed, 196 survivors.
+- **Killed by unit tests**, one file per source, each driven directly with fakes or a migrated SQLite and a clock
+  the test moves: `tests/studio-gate-mutants.test.ts` (each refusal and status; a session's absolute, idle, 5-min
+  and R boundaries; what is written back), `studio-store-mutants` (the session key, sealed values, users and
+  verified email, members and the last owner, invitations to the millisecond, sessions read back, `touch`, the
+  back-channel logout by sid or sub, logins in progress, the audit), `studio-routes-mutants` (which requests each
+  route takes, the form's limit, what a callback stores, logout, the owner's routes, errors),
+  `studio-oidc-mutants` (lifetime bounds, http, no JWKS, no end-session endpoint, no id_token, non-string claims,
+  definitive refusals, access and logout tokens), `studio-leases-mutants` (boundaries on a pinned database clock,
+  fences, releases, takeovers, Postgres's clock), `studio-play-mutants` (tickets, a game session's ends and
+  sliding, each reason a Studio session no longer carries a game, the ticket's body). The test provider
+  (`tests/fixtures/oidc-op.ts`) gained switches for those edges.
+- **Named** in `docs/dev/mutants.json` (13): a cookie by the empty name, openid-client's own nonce check, `||` on a missing event, a string's `toString`, a sealed value's guard doubled by its catch, `sid =
+  NULL`, read-only transactions, and the idle end of a game session that its absolute end always reaches first.
+- **Second reading** (automated second context): a token living 0 s from a future `iat` (which jose lets through)
+  is now refused by a test instead of named; the read-only transactions' reason says what differs (locking and
+  isolation, not the answers).
+- **Result** (local run, then seven kills checked by hand): 564 of 577 killed, 13 explained, none left.
+  `studio-auth` is gated; no set is measured any more.
+
+
+## #201 · 2026-10-18 · Claude · proposal · 4.2.1 PR 9 (second part, first step): a real Keycloak in CI
+
+- **`tests/studio-keycloak.test.ts`**, against the test realm of `ops/studio/keycloak/` (runs when
+  `STUDIO_TEST_KEYCLOAK` is set): a login through Keycloak's own form (its HTML, its cookies); the identity (a
+  verified email, a name, a sid, a refresh token and an id_token); an id_token refused as an access token; a refresh;
+  an admin ending that very session, and the back-channel logout Keycloak then sends to this test, which
+  `verifyLogoutToken` accepts and which names that session (its sid) and its user;
+  a user disabled by an admin, whose next refresh is a `DefinitiveRefusal`.
+- **CI:** the `studio-hosted` job starts Keycloak 26 (`quay.io/keycloak/keycloak`, pinned by digest) with the realm,
+  able to reach the runner as `host.docker.internal`; `ops/studio/keycloak/` opens the job.
+- **Run here** against the same image: 3 tests passed. On Apple silicon the JVM needs `-XX:UseSVE=0`
+  (`JAVA_OPTS_APPEND`), not on the x86 runners.
+- **Not covered here:** the device flow, which needs a person to approve the code (its contract stays tested against
+  the test provider).
+
+- **Second reading** (automated second context): the back-channel check proved little (an assertion that could not
+  fail, optional comparisons, and a logout of every session racing several tokens); it now ends one session and
+  requires the token naming it. Keycloak's readiness waits for a 200 (`curl -fsS`); the client's back-channel URL
+  is put back afterwards; the id_token's refusal is pinned to its audience.
+
+→ next: Claude (PR 7, the client, after the maintainer validates the mock-ups)
+
+
+## #202 · 2026-10-18 · Claude · proposal · 4.2.1 PR 7 (first part): the hosted Studio's page and the game's live preview
+
+Branch: feature/421-client · Plan §6.1, §6.2, §7 row 7 · mock-ups approved by the maintainer (18 Oct.)
+
+- **The Studio's page on its origin** (`studio-server/src/server/client.ts`): the built Studio (`npm run studio-client`:
+  `studio.html` alone, no game, no public files, no service worker), with a meta tag naming its API and the game's
+  origin, and a Content-Security-Policy (scripts and requests to its own origin, frames to the game's only, framed by
+  nobody else). Its scripts, its icon and font to anyone; the game's images and sounds to members only.
+- **The live preview on the game's origin** (`preview.ts`): Vite in middleware mode, behind the game session, GET only,
+  no websocket (Vite's client module is a stub that still sets the build's constants), dependencies bundled once at
+  start; an allow-list of paths before Vite and `fs.strict` behind it; the game's `private/`, `tests/`, `playtests/`
+  never served.
+- **The client on a hosted Studio** (`api-base.ts`, `game-origin.ts`): the API under `/api`, the CSRF header on every
+  request, a 401 sends to the login (once: no loop); the Rooms editor, the Play tab and the game links open on the
+  game's origin with a ticket (a late ticket never replaces a later one). The editor never writes there: a save starts
+  from the member only, the Studio asks for the layout with a nonce and writes it itself; anything else it sends is
+  ignored. Undo, the Assistant and the Assets tab hidden; the Play tab's inspector panels left out.
+- **Second reading** (automated second context), fixed: Vite's host check (it would have refused every real game
+  domain), the preview read again after each revision (it stayed at its first load), `/@id/` limited to virtual
+  modules and the hidden folders in `fs.deny` (they were reachable through it), no save started by the view, ordered
+  navigations, traversal tests sent raw, the Assets tab's claim in the guide.
+- **Tests:** `tests/studio-client.test.ts` (the page, its policy, its files, members-only media, the preview's
+  allow-list, no Studio API on the game's origin); `scripts/e2e-studio-hosted.ts` (`npm run e2e:studio-hosted`, in the
+  `studio-hosted` job): login, Rooms on the game's origin, the solicited save, an unasked layout ignored, the game's
+  page kept from the Studio's page and API, Play, logout ending the game session; Chromium over http and Firefox over
+  https in CI, WebKit on macOS here. WebKit on Linux stores no cookie a frame of another host sets, even on one site
+  (a probe in a Linux container: every variant lost, where Chromium and Firefox keep the partitioned one): it cannot
+  stand for Safari, whose real test stays the `studio-hosted` pass.
+
+→ next: Claude (PR 7, second part: the screens of the mock-ups: login, access refused, revision, presence, leases,
+conflicts, members)
+
+
+## #203 · 2026-10-18 · Claude · proposal · 4.2.1 PR 9 (second part): the Studio Server's release archive and its passes
+
+Branch: ci/421-packages · Plan §7 rows 8 and 9, §11
+
+- **The package** (`scripts/pack.mjs`, `scripts/pack-manifests.mjs`): `web-scumm-studio-server`, two commands
+  (`bin/server.mjs`, `bin/worker.mjs`) that run the server and the worker of the engine installed beside it, after
+  checking it is the same version; the Studio's page built at pack time (`client/`); `openid-client`, `jose` and `pg`
+  locked (`scripts/locks/web-scumm-studio-server.json`, by `npm run locks`); the engine an optional peer (`4.2.x`),
+  since it is not on npm and no lock can name it. One package for both commands: the worker holds no secret either
+  way, and the two run from the same engine.
+- **The engine's archive** ships `bridge/src/allowlist.ts`: `inAllowlist`, out of the Bridge's server (still exported
+  there), the one piece of it the Studio Server imports.
+- **The candidate**: `studio-install-smoke` (`scripts/studio-install-smoke.mjs`), in the gate: the two archives in an
+  empty folder, the engine's template imported, `serve` on the loopback (its probes, the Studio's page, the API), the
+  worker's probe. Run here from a local pack: green.
+- **The release**: the archive and its SBOM (`scripts/sbom.mjs`) in `tools/release/artifacts.mjs` from 4.2.1 on
+  (`since`: an older tag is judged without them), in `release.yml` (guarded for older tags), in the preflight's
+  packages and the nightly's watched npm names.
+- **The passes**: `studio-hosted` and `studio-collab` in `PASS_IDS` and `docs/dev/surfaces.json`, asked of a release
+  from 4.2.1 on (`passesFor`, a surface's `since`): an older sheet keeps its thirteen rows.
+
+- **Second reading** (automated second context), fixed:
+  - npm reads no shrinkwrap from an archive file, and nests the lock's dependencies under the package when it does
+    (a registry install): the engine's sources found `openid-client` and `pg` only by hoisting. The launcher now runs
+    node with tsx's loader and a resolve hook (`bin/resolve.mjs`) that finds the package's own dependencies from it;
+    `deps` imports each, and the smoke runs it on a hoisted and a nested install (without the hook the nested one
+    fails: `Cannot find package 'jose'`). No tsx command between the launcher and the server: a Ctrl-C reaches it
+    once (the launcher forwards SIGINT only without a terminal);
+  - the preflight counted 13 passes and asked every package of any release: the passes come from
+    `docs/dev/surfaces.json` and the packages from their `since`;
+  - `field:check` says a report of a pass the release is not asked, and a `--require` of one;
+  - tests: the 4.2.1 sheet (15 rows), what a 4.2.0 and a 4.2.1 are asked;
+  - "locked" said for what it is: the lock and the SBOM, and a registry install;
+  - left: a minor bump (4.3.0) makes `npm run locks` needed again, the peer range following the version.
+
+→ next: Claude (the 4.2.1 release candidate, once PR 7's second part is merged)
+
+
+## #204 · 2026-10-18 · Claude · proposal · 4.2.1 PR 7 (second part): the screens of the shared Studio
+
+Branch: feature/421-client-screens (on PR 7's first part) · Plan §3.3, §3.6, §5, §7 row 7, §11 · the mock-ups
+approved on 18 Oct.
+
+- **Before the Studio** (`src/studio/hosted.ts`): the login page, "access not granted" (a session that is not a
+  member's), "identity provider unreachable" (a suspended session, plan §3.6). Nothing of the game is asked for
+  before the session is a member's.
+- **The header**: the revision (green while the stream is up), who is here and where (the heartbeat, every 30 s,
+  which also renews the leases), and the member's menu: spans, members (owner), logout. A line under it says when
+  the stream is cut ("last revision seen") or writes are waiting.
+- **The live state**: one stream (`/api/events`); after a cut, the revisions missed are read from `/api/ops` (the
+  journal is the source, not the stream), each told once and in order; a new epoch reloads the page.
+- **Writes** (`api.ts`): an operation id on each hosted write; a cut or a 503 sends it again with the same id (P6);
+  a 423 or a 409 opens a dialog with the draft kept (copy, try again, "tell me when it is free", an owner's take-over),
+  `src/studio/spans.ts`.
+- **Spans**: a panel of every span with its holder (take, release, take over); the room shown has its own chip in the
+  Rooms bar; the live preview's label says the revision the view was loaded at and when the head moved on.
+- **Members** (`src/studio/members.ts`): roles, removal, sessions ended, invitation links, invitations pending, the
+  audit log in words; the last owner stays.
+- **Server**: a note's author is the session's name on a shared Studio (`studio-server/src/ops/core.ts`).
+- **Tests**: `scripts/e2e-studio-collab.ts` (`npm run e2e:studio-collab`, in `studio-hosted`): three people in three
+  browsers (owner, dev, reviewer) see one another; a span held by one refuses another's note, naming them, the draft
+  kept, saved once free; a reviewer cannot write, and writes once made dev from the Members screen; a cut is shown and
+  the revision missed is read back; everyone ends on the same revision; a visitor gets the login page, a stranger
+  "access not granted". Its server is `scripts/lib/studio-stack.ts`. In CI: Chromium and Firefox; WebKit on macOS.
+
+- **Second reading** (automated second context), fixed:
+  - a revision streamed while the journal was read after a cut could be skipped: it now waits and follows in order,
+    and `hello`s are taken one at a time;
+  - a journal that does not answer is retried, then said as a gap with a reload;
+  - a stream the server refused (removed, suspended, a proxy) checks the session and opens again, and a role changed
+    reloads the page (the e2e no longer reloads by hand);
+  - only file conflicts open the 409 dialog, Undo is gone everywhere hosted, a handled refusal is not toasted twice;
+  - the server looks for a write's stored answer again under the write lock and stores it once (a retry while the
+    first try runs gets its answer);
+  - the checks that POST are reads (not "waiting"), a write counts as waiting only after a failed try, and 502 and 504
+    are retried;
+  - the whole-game lease is released through its own route and never taken over span by span;
+  - `hello` reads the leases' sequence number first;
+  - also: an unreachable `/auth/me` is no logout, accessible avatars, presence sent on each move, the last owner may
+    end their own sessions, a role change is confirmed, the notes' author field is hidden hosted, every span listed;
+  - left as a stated limit: the editors do not yet send the revision they read (P5 base).
+
+→ next: Claude (PR 9, second part: the release packages and the passes)
+
+## #205 · 2026-10-18 · Claude · release · 4.2.1 "Shared Floor": the Studio online for a team, experimental
+
+- **What ships**: the plan's §7 for 4.2.1 (rows A, S, 1–9, I), merged as #127–#132, #135–#143 and #145–#147 (18 PRs;
+  LOG #188–#204): the journal and its guard, the single entry, the server and its probes, OpenID Connect with the
+  Studio's roles, the processing worker, spans and leases with the live stream, the game's origin and its live preview,
+  the shared Studio's screens from the approved mock-ups, the hosting guide, the CI gates (a real Postgres, S3 and
+  Keycloak; the browsers), the release archive `web-scumm-studio-server` and its install smoke, the passes
+  `studio-hosted` and `studio-collab`. Spike S's report is `docs/dev/SPIKE-4.2.1-CLEVER.md` (its throwaway code stays
+  on a local branch and goes with the Clever resources).
+- **The maintainer's answers (18 Oct)** to what blocked the goal "release 4.2.3": the mock-ups « i approuved »; the
+  real Safari test « all test later » (the `studio-hosted` pass, open); signing « yes sign plz » (D37: recorded as the
+  yes for `v4.2.1`; 4.2.2 and 4.2.3 get their own); the 4.2.2 plan « i didn't read the #144 » (4.2.2 waits for it).
+- **Experimental (D18):** both passes are open; SUPPORT says what 4.2.1 does not do yet and writes D40's exception.
+- **Where 4.2.1 departs from its plan's §7, said:**
+  - the Studio's browser tests and the real Keycloak run in `ci.yml`'s `studio-hosted` job (on main and every tag),
+    not in the candidate, whose gate has `studio-install-smoke`; the tag waits for `studio-hosted` green on its SHA;
+  - a 409 keeps the draft to copy and try again, without a diff to merge, and the editors do not send the revision they
+    read (P5's base);
+  - the redeploy with two instances is covered in parts (the service lease taken over, a fenced writer refused, the
+    folder following the head), not by two servers writing at once; every API route is checked for its role, and the
+    gate stands in front of all of them, without a walk of every route unauthenticated;
+  - no `ops/studio/clever/` model folder: the guide's table of variables stands for it;
+  - the Studio and the tools that write a game need Node 22.13+ (UPGRADING §34);
+  - WebKit runs the Studio's browser tests on macOS by hand, not in CI (WebKit on Linux cannot run the game's frame).
+- **The version**: 4.2.1; the golden save `demo-4.2.1.json`; the reference run recorded again (it names the engine's
+  version); the CHANGELOG assembled from 17 fragments, with the plan's entry written beside them.
+
+→ next: Claude (this PR's candidate, `v4.2.1` signed on it, `ship verify`, the two pass issues; then 4.2.2 once #144
+is merged, and its own yes to sign)
+
+## #206 · 2026-10-18 · Claude · proposal · 4.2.2 PR 2a: per-revision previews, built by the worker; Vite out of the Studio Server
+
+- **The build** (`studio-server/src/worker/preview-build.ts`): `vite build` of the revision's snapshot in the worker's
+  child (an emptied environment, its process group, a deadline), base `/preview/<rev>/`, no public files, no service
+  worker, the Studio's origin in a meta tag, the fingerprint's `site.json`, the editing tools on
+  (`VITE_STUDIO_PREVIEW`). The result is bounded (2,000 files, plain relative paths, base64) by the worker and checked
+  again by the Studio. In the tests and the e2e stack the same child runs on this machine (`worker/local.ts`).
+- **The store** (`server/previews.ts`, migration 0006): coalesced builds, one at a time, from a snapshot packed holding
+  the instance's lock (the label is the revision it was made from); files in the blob store by content; one row per
+  revision and epoch, ready or failed with its reason, never built twice (a restart included). Its state goes to the
+  live events (`preview`, and in `hello`).
+- **The game's origin**: `/` redirects to the last ready preview (its query kept), or says it is being prepared;
+  `/preview/<rev>/…` serves the build (its hashed code immutable, its page revalidated, so an ended session is refused
+  at the next load: the e2e caught a page served from the cache after the logout) and the prepared assets by an
+  allow-list, one byte range when asked; anything else is a 404.
+- **The Studio's page**: the room view reloads on a newer preview unless a placement is unsaved; the label says the
+  revision shown, the one building, a failure; Vite-era reload timers are off when hosted.
+- **Second reading** (a subagent): a worker away or a timeout is no longer recorded as the revision's failure (only
+  the game's own build failing is; the rest is tried again, 5 s doubling to 5 min); the folder is repaired to the head
+  before it is packed; the assets' streams end on an error or a client gone; a build never stays shown as running;
+  the assets' version is computed once; a new history reloads the frames; hidden files are refused; the Play tab says
+  it keeps its preview and offers the latest; the job binds the snapshot's revision; an output over 16 MiB says so.
+  Left as limits, written in STUDIO-SERVER: text files only in a preview, one worker queue shared with validations,
+  few files shared between revisions (the base is in the page and its code).
+- **Measured here**: the sample game's preview builds from its snapshot in a child in about half a second on the
+  maintainer's machine (cache empty): about 50 files, 1 MB.
+- **Departure from the plan's PR order**: ADR 0026 (saves across revisions) is its own PR, 2b, next; the plan put it in
+  PR 2. Until then, a save made in a preview is not told apart by revision (STUDIO-SERVER "Known limits").
+- **Tests**: `tests/studio-previews.test.ts` (coalescing, once per epoch, failures, another epoch, the files' bounds),
+  `tests/studio-client.test.ts` (a real build served and what is refused), `tests/studio-worker.test.ts` (the job
+  through the worker, never cached, its parameters checked), both browser e2e (the editor on `/preview/<n>/`, a layout
+  written meanwhile shown once built, the logout refusing the next load).
+
+→ next: Claude (PR 2b: ADR 0026, then PR 3, health per revision)
+
+
+## #207 · 2026-10-18 · Claude · proposal · 4.2.2 PR 2b: ADR 0026, saves across revisions
+
+- **The decision** (`docs/dev/adr/0026-saves-across-revisions.md`): the envelope unchanged (D40); a slot's
+  `SlotMeta.revision` (kept as stored, read only when well formed, in a module a player never loads) and the autosave's record in the page's storage say where a save was made (revision and full
+  fingerprint); only a build that declares its revision (`BootOptions.revision`, a preview from its base) writes them
+  and asks; the test is the content, not the number; Resume here, Restart, Stay in revision N; the texts are the
+  Studio's, outside the game's `ui`.
+- **The code**: `src/engine/dom/revision.ts` (the guard, its record of the autosave around the engine's own store, the
+  dialog), `boot.ts` (the guard when the build declares a revision), `menus.ts` (Continue and a slot's load ask
+  first), `save.ts` (a slot's record read back when well formed), `src/main.ts` (a preview's revision from its base).
+- **Tests**: `tests/revision.test.ts`; `scripts/e2e-studio-hosted.ts` loads the latest preview in the Play tab, checks
+  the revision recorded, the question and its answers, and that Stay opens the save's revision (G2).
+- **Not done here**: the Play tab (`?dev`) starts a new game, so in the Studio the question comes from a slot; a
+  revision no longer kept cannot be stayed in (said in the ADR).
+
+→ next: Claude (PR 3: health per revision and bisection)
+
+
+## #208 · 2026-10-19 · Claude · proposal · 4.2.2: the detailed plan (draft for the maintainer)
+
+- `docs/dev/PLAN-4.2.2-ATELIER-JOUABLE.md`: what 4.2.1 leaves open, eight guarantees with their limits and tests, the
+  PRs in order (spike of the preview, per-revision previews and ADR 0026, health per revision, personal undo,
+  immutable builds, assets on a qualified native runtime, backup and journal shipping, gates), exit criteria, the
+  decisions asked of the maintainer, risks. No 4.2.2 code before the maintainer merges it.
+
+
+## #209 · 2026-10-19 · Claude · proposal · 4.2.2 PR 3a: diagnostics with their revision, and on the worker
+
+- **The revision of a read** (G3): `http.ts` reads the journal's revision under the same read lock as the answer and
+  sends it as `x-studio-revision`; the client keeps it beside the answer (`revisionOf`, `api.ts`); the Check tab says
+  "revision N" (or a range when its requests straddled a write) and "stale" once the live head is past it.
+- **The diagnostics on the worker**: new job kinds `lint`, `solve`, `playtests`; one implementation
+  (`studio-server/src/ops/diagnose.ts`) for the local Studio and the worker's child; the child checks the solver's
+  parameters (`solveParams`) and says a refusal (an unknown checkpoint) as the local route does; the snapshot takes the
+  playtests' sessions for that job only; only validate and load answers are cached by snapshot (a diagnostic depends
+  on its parameters). Hosted, the solver has a 45 s limit (`HOSTED_SOLVE_MS`), under the job's deadline.
+- **Stale, decided by the oldest result** (`src/studio/check-stamp.ts`): a write between the tab's eight requests
+  leaves some at the older revision; a run that stops part-way shows none of the previous run's results. Rooms saves
+  re-run the checks; a member's other own writes (storyboard, notes, forms) do not, and the label says so (re-running on
+  each would queue the worker, one job at a time).
+- **Second reading** (a subagent): any checkpoint name reaches the worker (only looked up) and an unknown one is a 400
+  as on a local Studio; a diagnostic past its deadline is a 504 "unknown for now"; lint's solver has the 45 s limit
+  too, and both stay 10 s under the job's deadline; the Studio checks each diagnostic's shape; a reality policy is
+  refused on a hosted Studio (501) rather than solved as another question; the playtests test sends a real session.
+  Left for PR 3b: a diagnostic holds the instance's read lock while the worker runs it (writes wait), as it did in
+  the process before.
+- **Tests**: `tests/studio-worker.test.ts` (lint and solve through the worker equal a local run; parameters bounded;
+  an unknown checkpoint a 400; a session sent with the playtests job only), `tests/check-stamp.test.ts` (stale by the
+  oldest result), `tests/studio-client.test.ts` (a read's revision), `scripts/e2e-studio-hosted.ts` (the Check tab's
+  revision).
+
+→ next: Claude (PR 3b: health per revision and bisection)
+
+
+## #210 · 2026-10-19 · Claude · proposal · 4.2.2 PR 3b: health per revision, and the bisection
+
+- **The verdict** (`studio-server/src/server/health.ts`, migration 0007): after each confirmed revision, coalesced, the
+  head is judged on the worker from a snapshot packed holding the instance's lock: the validator, then the solver from
+  a new game, a witness bounded to 45 s (`judgeBy`). The guard already refuses an edit the validator fails, so what a
+  revision breaks is mostly a game that can no longer be finished. One row per revision and epoch; a restart judges
+  nothing twice; a worker away records nothing and is tried again (5 s doubling to 5 min); a solver cut short records
+  nothing and says "unknown".
+- **The bisection** (G4): when the head fails and the last judged revision passed, the revisions between them are
+  judged on snapshots rebuilt from the journal (`Journal.filesAt`: the head with the later operations undone, from
+  their "before" blobs, sources and data only, `packable`) until the first failing one, in ⌈log₂ n⌉ checks at most,
+  each a judgement (the validator, then the solver: up to two jobs), each kept. It names the revision, its operation's `what` and its files (`Journal.opAt`), never its author. A failing
+  head after a failing revision keeps the revision found; an unknown verdict on the way stops the search, naming none.
+  `POST /api/health/bisect {good, bad}` (a dev) checks its ends first.
+- **Shown**: the live events carry the state (`health`, and in `hello`); the header's chip says "✔ valid at revision
+  N", "✖ k error(s) at revision N · broken since revision M: what (files)", "checking…", or "unknown", stale once the
+  head has moved past it. The game's title in the header no longer shrinks to nothing beside it (the e2e caught it).
+- **Second reading** (a subagent): a bisection asked for past the head is refused (it would have kept the head's verdict
+  under a number not yet made); the search always starts from the last passing revision, bounded by the first failing
+  one already known, so a bisection stopped part-way (the worker away) or rows kept on the way never lose the revision
+  that broke it; a kept row only gains that revision (`COALESCE`), the one found on demand is written on the failing
+  end; one judgement or bisection at a time; the blobs read once per bisection; health on a hosted Studio only (a
+  past revision's files need every operation's blobs); five failures of the same revision say "cannot be judged"; an
+  older verdict is greyed, never green; the route checks its numbers and the lease. The worker's cost (three jobs per
+  revision, up to two per bisection step) is written in STUDIO-SERVER's limits.
+- **Tests**: `tests/studio-health.test.ts` (once per revision; ⌈log₂ n⌉ for several n and k; kept while broken, read
+  back after a restart; unknown; another epoch; a worker away; a bisection asked for and its ends; the verdict's
+  composition; a past revision's files and their snapshot, equal to the folder's; the chip's texts),
+  `scripts/e2e-studio-hosted.ts` (the chip in a real hosted Studio).
+
+→ next: Claude (PR 4: personal undo and redo)
+
+
+## #211 · 2026-10-19 · Claude · proposal · 4.2.2 PR 4: personal undo and redo
+
+- **The stacks** (`studio-server/src/ops/undo.ts`, migration 0008): each undoable operation a member makes is kept by
+  member and epoch (done, undone, gone); a new undoable edit of the member makes their undone ones gone (no redo past
+  a new edit). Undo takes their latest done one, redo their latest undone one.
+- **The operation** (`core.ts`, `personalStep`): its effects read from the journal (`Journal.effectsAt`), each file's
+  head compared with what the operation left (undo) or found (redo): another write since is a 409; the inverse is one
+  new operation through the same path as any edit (the guard, and the spans' claim: 423 when another holds one);
+  history is never rewritten. The contents put back are the journal's blobs; a local journal, which adopted a file
+  without keeping it, keeps the "before" of each undoable write (`Journal.keep`).
+- **Where**: a shared Studio with members (the server's `leases`): `createStudio({ personalUndo })`, and the HTTP
+  layer serves `/undo` and `/redo` there (`personalUndo: true`); a local Studio keeps its process's stack. The header's
+  Undo / Redo are back on a hosted Studio.
+- **Second reading** (a subagent): a retried edit (the same operation id, answered again) records nothing more; an
+  undo whose inverse landed but whose move was lost (a cut, a stop) is moved when its files are already back, never
+  refused for good; a move moves from its expected state only; the journal compares, under its lease, the content the
+  409 check found (`from`); the next redo is the earliest undone (the stacks' order: every undone revision is past
+  every done one), first in the history; a recording that fails after the edit landed is logged, not a refusal of the
+  edit; a hosted journal keeps no blob again; an operation with no effects is a 409; another history's rows and what
+  can no longer be redone are deleted.
+- **G5, as built**: 423 when another member holds a span of the undo (a free one is taken, as by any write); the 409
+  compares content, so an undo can cross another member's write that was itself undone.
+- **Tests**: `tests/studio-undo.test.ts` (two members: each undoes their own, in their order, as new revisions; redo;
+  a new edit drops the redo; another studio on the same journal sees the same stacks; 409 over the other's write; 423
+  under the other's span; several files, created ones included; a retried edit; an undo already applied), `scripts/e2e-studio-hosted.ts` (Undo in a real hosted Studio puts the last layout back as a
+  new revision).
+
+→ next: Claude (PR 5: immutable builds `/play/<n>`)
+
+
+## #212 · 2026-10-19 · Claude · proposal · 4.2.2 PR 5: published builds `/play/<n>`
+
+- **The build** (`studio-server/src/server/builds.ts`, migration 0009): the head's snapshot, packed holding the
+  instance's lock, built by the worker as a preview is (`preview-build.ts` with `play`: base `/play/<n>/`, the
+  player's game: no editing tools, no Studio origin); its files kept by content; its manifest (epoch, revision,
+  engine, the snapshot's sha256, each file's sha256, the revision's health then) signed with Ed25519 by the Studio's
+  job key (`STUDIO_WORKER_KEY`; the worker's public key checks it; `manifestBytes` is the canonical form). One
+  publication or rebuild at a time.
+- **Served** on the game's origin: `/play/<n>/` from the manifest (the page asked again at each load, the code kept),
+  the prepared assets beside it; `/play/` sends to the last green build, computed when asked from `studio_health`
+  (a build published before its revision was judged becomes green once it is). `publicBuilds` (config, false by
+  default, D42) opens `/play/` and `/icons/` without a game session, still framed by the Studio only.
+- **Fresh rebuild** (an owner, D42: an option, not required to publish): the same revision's snapshot rebuilt from
+  the journal (refused, 409, if it is not the published snapshot), built again, compared file by file; the comparison
+  is kept with the build, which never changes. It runs on the worker as it is now: a redeployed worker is not asked
+  for (its cost is measured by the `studio-preview` pass).
+- **API**: `GET /api/builds`, `GET /api/builds/<n>` (manifest and signature), `POST /api/builds` (a dev),
+  `POST /api/builds/<n>/rebuild` (an owner). The Play tab's panel publishes, lists (green, failing, not judged),
+  opens and rebuilds.
+- **Limits, written in STUDIO-SERVER**: no service worker in a published build; its saves not yet told apart by build.
+- **Second reading** (a subagent): the manifest says what built it as the worker knows it (`build.json`: its engine,
+  its commit when it is a Git checkout, its lockfile's sha256), the assets' version it was built against (a rebuild
+  uses the same), and the revision's verdict, the revision being judged at publication (`Health.judgeSnapshot`: the
+  coalesced loop may pass it over); the bytes signed are an explicit canonical form (keys sorted, files as pairs sorted
+  by UTF-8 bytes), prefixed `web-scumm build manifest v1\n` (no overlap with a job token's bytes, by design now), kept
+  and given back as `signed`, with the key's id in the manifest; a build's number is reserved first (two instances
+  during a deploy never share one) and a failed build leaves no row; one build at a time, a second asked meanwhile is
+  a 429; the last green build in one query; a rebuild in another history is said as such; the public paths' predicate
+  is the one tested; a reviewer sees no Publish button. G6, as built: no diagnostics beyond the verdict (validator and
+  solver), and the images and sounds are served from the instance as they are now, outside the build.
+- **Tests**: `tests/studio-builds.test.ts` (numbered, signed, the signature broken by a changed file or revision; the
+  last green build as judged now; served by number, the page revalidated, the code immutable; refused paths; a fresh
+  rebuild the same, then different; a snapshot the journal does not give back the same), `tests/studio-play.test.ts`
+  (a public build without a session, nothing else; the predicate itself in `studio-builds.test.ts`), `tests/studio-worker.test.ts` (a real published build through the
+  worker), `scripts/e2e-studio-hosted.ts` (publish from the Play tab, the signature checked, `/play/1/` served).
+
+→ next: Claude (PR 6: the assets' qualification on the native runtime)
+
+
+## #213 · 2026-10-19 · Claude · proposal · 4.2.2 PR 6a: the hosted assets' qualification
+
+- **Measured** on the spike's processing app (kept for #149; an SSH session, a folder in `/tmp`, nothing deployed or
+  changed): glibc 2.44, Python 3.13, ffmpeg 9; the locked wheels installed with every hash checked in 7.0 s (226 MB);
+  a full `prepare` of the sample game in 4.1 s (194 images, 24 sounds, 7 MB), then 0 reprocessed on a second run.
+  Not measured: the sheets' cutting, a bigger game, the peak memory.
+- **Kept**: the lock (`ops/studio/worker-requirements.lock`, its test pinning the versions of `requirements.txt` each
+  with a hash), the worker's build hook in STUDIO-SERVER (en, fr), `.python/` ignored.
+- **Decided (D43)**: `prepare` becomes a worker job in 4.2.2 (PR 6b); the sheets' cutting and the hosted uploads move
+  to 4.2.3 (a departure from the plan's §2.6, which put both in PR 6).
+
+→ next: Claude (PR 6b: `prepare` as a worker job)
+
+
+## #214 · 2026-10-19 · Claude · proposal · 4.2.2 PR 6b: `prepare` on the processing worker
+
+- **The job** (`studio-server/src/worker/prepare.ts`, kind `prepare`): a version 2 snapshot (`packAssets`: the
+  sources and data as text, the art and sounds under `art/` and `audio/` in base64, bounded as any snapshot); in the
+  child, the references (`tools/refs.ts`'s `collectRefs`), then `tools/assets.py` with `WEB_SCUMM_PROJECT` (its work
+  folder, inside the job's), `GAME_DIR`, `PYTHONPATH=<engine>/.python` (the build hook's packages) and the worker's
+  own `PATH` (python3, ffmpeg; passed for this job only, the rest of the environment stays empty). The answer: the
+  prepared files and the new manifest, checked by the Studio (`preparedShape`).
+- **The store** (`server/prepared.ts`, migration 0010): one run at a time (else 429), under the member's `*` lease
+  (taken and given back; another's span refuses it, 423); the files kept by content, a set per run; the manifest
+  written as one operation of the journal; the latest set written to `<workDir>/.prepared/<id>/` (again at start: the
+  disk is ephemeral) and served first by the Studio's media, the previews and the builds (`assetDirs`, `findAsset`),
+  then `publicDir`; its version becomes the previews' and builds' `__ASSETS_VERSION__`.
+- **API and screen**: `GET /api/assets/prepared`, `POST /api/assets/prepare` (a dev); the Play tab's Assets panel
+  (devs), which says the sheets and uploads stay local. CI's `studio-hosted` job gets Python and ffmpeg.
+- **Second reading** (a subagent): a game naming its sources in `sources.json` is refused (they would not be found);
+  a manifest that would lose an image or a sound the game had is refused, naming them, with the asset tools' last
+  lines; the new set is served before the manifest's revision lands (its previews are built against it) and set back
+  if the write is refused; the answer may be 30 MiB (the Studio's result bound), past which "prepare on a local
+  Studio"; `prepare` has the worker's 2-minute deadline; the output walk follows no link; the snapshot reads only
+  what it keeps and counts bytes; a refused file name is named; the exclusive lease is given back only if this run
+  took it; the author is named as any write's; the latest set is written again at start in the background, a failure
+  logged; the Studio's media route compares real paths. Not done, said in STUDIO-SERVER: cancellation and step by step
+  progress (the plan's §2.6), an incremental run, builds pinned to the set they were built against.
+- **Measured here**: the sample game's `prepare` in the worker's child in about 3.5 s (218 files, 9.4 MB answered).
+- **Tests**: `tests/studio-prepared.test.ts` (under the lease, kept, served first, written again at start; nothing kept
+  on a failure; one at a time; version 2 snapshots and their bound; the answer's shape; a real `prepare` where Python
+  has the packages), `scripts/e2e-studio-hosted.ts` (a dev prepares from the Play tab).
+
+→ next: Claude (PR 7: backup, restore, journal shipping, GC)
+
+
+## #215 · 2026-10-19 · Claude · proposal · 4.2.2 PR 7: backup, restore, the journal shipped, the collection
+
+- **The backup** (`studio-server/src/ops/backup.ts`): every table of the migrations kept or skipped with why (a test
+  reads the migrations; an unknown table refuses the backup); the kept tables read in one read-only transaction,
+  sorted, digested; the blobs they name listed (the head, every operation's before and after, the previews, builds and
+  prepared sets); the migrations' version recorded. The restore: into an empty project of the same schema only, every
+  blob checked first, every row in one transaction.
+- **The journal shipped** (`ops/ship.ts`): after each confirmed operation and at start, the operations past the
+  watermark (`studio_meta.shipped`) copied in order to `journal/<epoch>/<rev>.json`; a failure logged and tried again
+  at the next operation; the RPO (the age of the oldest operation not shipped) in `/readyz`. The replay after a
+  restore applies the segments past the backup's revision, in order, and stops at a gap.
+- **The collection** (`ops/gc.ts`): what the rows name is kept (the same reading as a backup's), and what is younger
+  than a day; the worker's staging older than an hour too; listed by default, deleted with `--delete`. The blob
+  stores can list and remove (fs; S3 through ListObjectsV2, `S3.list`).
+- **Commands**: `backup <file>`, `restore <file> [--replay]`, `replay`, `gc [--delete]`; the drill in STUDIO-SERVER
+  (en, fr).
+- **After the second reading**:
+  - only confirmed operations are backed up (an intent or aborted row broke the replay or the recovery);
+  - the replay checks each operation against the head it continues (revision, every `before`, the `after` blobs) and
+    says why it stopped;
+  - a restored instance ships on a new line (`journal/<epoch>/<line>/<rev>.json`), so its revisions never overwrite
+    the timeline it left; a restore is marked under way until it ends, `serve` refuses meanwhile, `replay` resumes it;
+  - restore is refused on a local store (its journal adopts the folder);
+  - a blob stored again gets a new date (fs `utimes`, S3 written again), closing the collection's race with a write
+    naming an old blob;
+  - a restore needs only the head's and the journal's blobs: derived rows whose blobs were collected are left out
+    and counted;
+  - columns are checked against the schema before an insert (a backup is trusted input, said in the docs);
+  - a failed shipment is retried within 30 s;
+  - S3 listing decodes its XML entities once, and its continuation token too.
+- **Tests**: `tests/studio-backup.test.ts` (the registry against the migrations; restore then replay gives the same
+  head and the project opens; a backup altered, a project not empty, a blob missing, another schema refused; the RPO
+  while the bucket is away; a replay stopped at a gap, at another timeline, at a missing blob; a restored instance
+  shipping on a new line; confirmed operations only; a column refused; collected previews left out; a shipment
+  retried; the collection's grace, a blob stored again, its deletion, the staging), and on
+  Postgres and S3 in CI (`tests/studio-server.test.ts`: the same round trip, the bucket listed).
+
+→ next: Claude (PR 8: the gates, then the release)
+
+
+## #216 · 2026-10-19 · Claude · proposal · 4.2.2 PR 8: the gates
+
+- **Passes** (`tools/field/schema.ts`, `docs/dev/surfaces.json`): `studio-preview` and `studio-assets-hosted`, asked
+  from 4.2.2 (`PASS_SINCE`), bound to the engine's and the Studio Server's archives, both after `studio-hosted`; a
+  4.2.1 release is not asked them (`tests/field-kit.test.ts`, `tests/field-carry.test.ts`).
+- **Mutation** (`tools/mutation-sets.ts`): the set `studio-workshop`, its tests the workshop's own
+  (`tests/studio-{undo,health,previews,builds,prepared,backup}.test.ts`, and `studio-client` for the previews' serving), in `MEASURED`: run every night and on demand,
+  gating nothing until its survivors are read (as `studio-ops` and `studio-auth` in 4.2.1).
+- **CI**: the previews, builds and restore run in `check` (SQLite) and in `studio-hosted` (Postgres and S3: the build,
+  the prepare on the worker, the backup's round trip with the journal shipped and replayed).
+
+→ next: Claude (the set measured on a runner, then the release)
+
+## #217 · 2026-10-19 · Claude · release · 4.2.2 "Playable Workshop": the shared game played, judged, published
+
+- **What ships**: the plan's §2 for 4.2.2 (`docs/dev/PLAN-4.2.2-ATELIER-JOUABLE.md`), merged as #152–#162 (with #151,
+  Dependabot; LOG #206–#216):
+  - the preview spike and D42;
+  - per-revision previews built by the worker, with Vite out of the server;
+  - ADR 0026 (saves across revisions);
+  - diagnostics with their revision, on the worker;
+  - health by revision and the bisection;
+  - personal undo;
+  - published builds with signed manifests;
+  - the hosted assets' qualification (D43) and `prepare` on the worker;
+  - backup, restore, the journal shipped and the collection;
+  - the gates.
+- **The maintainer's answers**:
+  - having merged #144: « go 4.2.2 », « you have my all go » (D42: the choices of the plan's §4, taken under that go);
+  - « yes sign 4.2.2 » (18 Oct), the yes for `v4.2.2` only (D37); `v4.2.3` gets its own;
+  - « keep spike resources » (they serve pass #149).
+- **Experimental (D18)**: four Studio passes open after this release (`studio-hosted` #149, `studio-collab` #150, and
+  4.2.2's `studio-preview` and `studio-assets-hosted`, opened with the release).
+- **Where 4.2.2 departs from its plan, said**:
+  - G7's restore drill ran in CI (Postgres and an S3, the journal shipped then replayed), not yet on a qualified
+    Clever instance: the drill is written in STUDIO-SERVER, to be run with `studio-hosted`;
+  - sprite sheets and uploads stay on a local Studio; only `prepare` runs hosted (D43, 4.2.3);
+  - the health judges the validator and the solver from a new game, not lint or the playtests;
+  - the mutation set `studio-workshop` is measured, not gated: its survivors are read in a later 4.2.x (the plan's
+    §2.8 allows it; §3's exit criteria do not ask it);
+  - the preview's time is measured locally, not yet held on Clever (D42's threshold is provisional until
+    `studio-preview`);
+  - the fresh rebuild's cost is left to the `studio-preview` pass to measure (LOG #212);
+  - `prepare` shows no progress over the live stream and cannot be cancelled (LOG #214);
+  - a worker installed from the release archives cannot run `prepare` (the lock is not shipped): deploy it from the
+    repository; 4.2.3 ships it (SUPPORT, STUDIO-SERVER, UPGRADING §35);
+  - the threat model gains the rows of 4.2.2's new surfaces (published builds, signed manifests, undo, the health's
+    load, the Python packages, a crafted backup).
+- **The version**: 4.2.2; the golden save `demo-4.2.2.json`; the reference run recorded again; the CHANGELOG assembled
+  from 11 fragments, with the plan's entry written beside them as a CHANGELOG line; UPGRADING §35, SUPPORT "4.2.2", ROADMAP, README,
+  STUDIO-SERVER's status (en, fr); `docs/dev/passes/4.2.2.md` (seventeen passes).
+
+→ next: Claude (this PR's candidate, `v4.2.2` signed on it, `ship verify`, the two pass issues; then the 4.2.3 plan for
+the maintainer to merge, and its own yes to sign)

@@ -1,4 +1,4 @@
-// Shared types of the Studio: the core functions (tools/studio/core.ts), the dev-server API (tools/studio/plugin.ts),
+// Shared types of the Studio: the core functions (studio-server/src/ops/core.ts), the dev-server API (tools/studio/plugin.ts),
 // the Studio UI (src/studio/) and the MCP server all speak these shapes. Type-only: safe to import from the browser.
 import type {
   CharacterDef,
@@ -275,14 +275,26 @@ export type EditorToStudio =
   | { source: 'web-scumm-editor'; type: 'ready'; room: Id; missing: { kind: EntityKind; id: Id }[] }
   | { source: 'web-scumm-editor'; type: 'select'; room: Id; key: EditorKey; kind?: EntityKind; id?: Id }
   | { source: 'web-scumm-editor'; type: 'dirty'; room: Id; dirty: boolean }
-  /** `layout`: set when the editor could not write the file (Studio demo, no dev server): the Studio stores it. */
-  | { source: 'web-scumm-editor'; type: 'saved'; room: Id; ok: boolean; error?: string; layout?: Layout };
+  /**
+   * `layout`: set when the editor could not write the file (Studio demo, no dev server; a hosted Studio, where the view
+   * never writes): the Studio stores it. `nonce`: the Studio's save request this answers (hosted).
+   */
+  | {
+      source: 'web-scumm-editor';
+      type: 'saved';
+      room: Id;
+      ok: boolean;
+      error?: string;
+      layout?: Layout;
+      nonce?: string;
+    };
 
 export type StudioToEditor =
   | { source: 'web-scumm-studio'; type: 'select'; kind: EntityKind; id: Id }
   /** Give geometry to an entity the room declares but the layout lacks (no-op if it has some). */
   | { source: 'web-scumm-studio'; type: 'create'; kind: EntityKind; id: Id; at?: Point }
-  | { source: 'web-scumm-studio'; type: 'save' };
+  /** `nonce`: a hosted view answers with it, so the Studio takes no layout it did not ask for. */
+  | { source: 'web-scumm-studio'; type: 'save'; nonce?: string };
 
 // ---------------------------------------------------------------------------
 // Assets tab (tools/studio/assets.ts, GET /__studio/api/assets): every image and sound of the game, where it is used,

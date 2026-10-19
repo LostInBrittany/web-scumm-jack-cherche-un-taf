@@ -1,5 +1,5 @@
 // Text paths of a room file (`look.piano[1]`, `on[3].do[0]`…) and which of them are texts. Pure, with no dependency:
-// shared by the source editor (tools/studio/source.ts, node) and the Studio's browser backend (src/studio/api-browser.ts).
+// shared by the source editor (studio-server/src/ops/source.ts, node) and the Studio's browser backend (src/studio/api-browser.ts).
 import type { TextKind } from './types';
 import { must } from '../../src/engine/core/must';
 

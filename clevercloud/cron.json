@@ -1,0 +1,3 @@
+[
+  "17 3 * * * $ROOT/ops/studio/backup-cron.sh"
+]

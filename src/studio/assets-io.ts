@@ -1,7 +1,10 @@
 // Assets tab, IO (4.1.8, programme §4.7: the Studio's biggest owners split into model / IO / view): what leaves the
-// page. The uploads' POSTs to /__studio/api/assets/* on the dev server (tools/studio/assets.ts; the listing itself
-// goes through `api.assets()`), a picked file read as a data URL, the system file picker, the clipboard.
+// page. The uploads' POSTs to the API's assets/* (the dev server's tools/studio/assets.ts; a hosted Studio's
+// hosted-assets.ts since 4.2.3, where a cut is a job followed to its end; the listing itself goes through
+// `api.assets()`), a picked file read as a data URL, the system file picker, the clipboard.
 import { h, toast } from './ui';
+import { studioFetch } from './api-base';
+import { followJob, type JobInfo } from './jobs';
 
 export class AssetsApiError extends Error {
   constructor(
@@ -13,16 +16,24 @@ export class AssetsApiError extends Error {
   }
 }
 
-/** POST /__studio/api/assets/<path> (dev server only). */
-export async function post<T>(path: string, body: unknown): Promise<T> {
-  const r = await fetch(`/__studio/api/assets/${path}`, {
+/**
+ * POST assets/<path>. A hosted Studio answers a cut or Prepare with a job (202): it is followed to its end (its panel
+ * has a Cancel button), and its result is the answer; a job that failed throws as the route would have, a job
+ * cancelled throws `cancelled` (status 0).
+ */
+export async function post<T>(path: string, body: unknown, onJob?: (j: JobInfo) => void): Promise<T> {
+  const r = await studioFetch(`assets/${path}`, {
     method: 'POST',
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(body),
   });
   const data = await r.json().catch(() => ({ error: `${r.status} ${r.statusText}` }));
   if (!r.ok) throw new AssetsApiError(data.error ?? `${r.status}`, r.status, data);
-  return data as T;
+  if (r.status !== 202) return data as T;
+  const j = await followJob(data as JobInfo, onJob);
+  if (j.state === 'done') return j.result as T;
+  if (j.state === 'cancelled') throw new AssetsApiError('cancelled: nothing was written', 0, {});
+  throw new AssetsApiError(j.error ?? 'the job failed', j.status ?? 500, { ...(j.body ?? {}), error: j.error });
 }
 
 /** A picked file as base64 (a data URL). */

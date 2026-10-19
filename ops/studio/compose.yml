@@ -1,0 +1,29 @@
+# An optional local stack to try the Studio Server (4.2.1): Postgres, MinIO (S3) and Keycloak with the test realm.
+# Never required: the reference hosting is a native Node.js application on Clever Cloud (D41), and the server runs on
+# any Node 22 with any Postgres, S3 and OpenID provider. Postgres from mirror.gcr.io (Docker Hub's official image),
+# MinIO and Keycloak from quay.io (their publishers' registries). The realm's user and passwords are for local use only.
+#   docker compose -f ops/studio/compose.yml up -d
+services:
+  postgres:
+    image: mirror.gcr.io/library/postgres:16
+    environment:
+      POSTGRES_USER: studio
+      POSTGRES_PASSWORD: studio-local-only
+      POSTGRES_DB: studio
+    ports: ['127.0.0.1:55432:5432']
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: studio-local
+      MINIO_ROOT_PASSWORD: studio-local-only
+    ports: ['127.0.0.1:59000:9000']
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.0
+    command: start-dev --import-realm
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: admin-local-only
+    volumes: ['./keycloak:/opt/keycloak/data/import:ro']
+    ports: ['127.0.0.1:58080:8080']
+    extra_hosts: ['host.docker.internal:host-gateway']

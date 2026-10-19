@@ -13,16 +13,36 @@ import { CheckTab } from './check';
 import { NotesStore, NotesTab, roomNotesBlock } from './notes';
 import { PlayTab } from './play';
 import { IrTab } from './ir-tab';
+import { MapTab } from './map-tab';
 import { RemixTab } from './remix-tab';
 import { RoomsTab } from './rooms';
 import { StoryboardTab } from './storyboard';
 import { download, h, toast } from './ui';
 import { must } from '../engine/core/must';
+import { apiUrl, goLogin, hosting, loginHeld, studioFetch } from './api-base';
+import { assetsPanel, buildsPanel } from './builds-panel';
+import { commentsPanel } from './comments-panel';
+import { gitPanel } from './git-panel';
+import { diffPanel } from './diff-panel';
+import { gameLink } from './game-origin';
+import { gateScreen, hostedStudio, type Me, whoAmI } from './hosted';
 
-type TabId = 'rooms' | 'storyboard' | 'assets' | 'voices' | 'music' | 'check' | 'play' | 'language' | 'remix' | 'notes';
+type TabId =
+  | 'rooms'
+  | 'storyboard'
+  | 'map'
+  | 'assets'
+  | 'voices'
+  | 'music'
+  | 'check'
+  | 'play'
+  | 'language'
+  | 'remix'
+  | 'notes';
 const TABS: [TabId, string][] = [
   ['rooms', 'Rooms'],
   ['storyboard', 'Storyboard'],
+  ['map', 'Map'],
   ['assets', 'Assets'],
   ['voices', 'Voices'],
   ['music', 'Music'],
@@ -59,6 +79,8 @@ async function demoApi(): Promise<BrowserApi> {
     storage,
     download,
     loadGame: async () => {
+      // The hosted Studio's page holds no game (`npm run studio-client`): this branch is left out of its build.
+      if (import.meta.env.VITE_STUDIO_HOSTED === '1') throw new Error('no demo on a hosted Studio');
       const [g, eng] = await Promise.all([import('@game'), import('@engine/minigames')]);
       const m = g.manifest as unknown as { images?: Record<string, [number, number]>; audio?: Record<string, unknown> };
       return {
@@ -77,8 +99,21 @@ async function demoApi(): Promise<BrowserApi> {
  * API to talk to (a static host answers 404, or a page instead of JSON).
  */
 async function pickBackend(): Promise<{ info: GameInfo; demo: BrowserApi | null }> {
+  // The Studio Server (4.2.1): its API only, never the demo; a visitor without a session logs in first.
+  if (hosting.hosted || import.meta.env.VITE_STUDIO_HOSTED === '1') {
+    const r = await studioFetch('game', { cache: 'no-store' });
+    if (r.status === 401) {
+      goLogin();
+      return new Promise(() => undefined);
+    }
+    const data = await r.json().catch(() => ({ error: `${r.status} ${r.statusText}` }));
+    if (!r.ok) throw new Error(data.error ?? `${r.status}`);
+    useApi(serverApi);
+    loginHeld();
+    return { info: data as GameInfo, demo: null };
+  }
   if (import.meta.env.VITE_STUDIO_DEMO !== '1') {
-    const r = await fetch('/__studio/api/game', { cache: 'no-store' }).catch(() => null);
+    const r = await fetch(apiUrl('game'), { cache: 'no-store' }).catch(() => null);
     const json = r?.headers.get('content-type')?.includes('json');
     if (r && json) {
       const data = await r.json();
@@ -149,6 +184,13 @@ function demoBanner(demo: BrowserApi): HTMLElement {
 
 async function start() {
   const root = document.getElementById('studio')!;
+  // A hosted Studio shows nothing of the game before the session is a member's (hosted.ts).
+  let me: Me | undefined;
+  if (hosting.hosted) {
+    const who = await whoAmI();
+    if (who.state !== 'member') return void root.replaceChildren(await gateScreen(who));
+    me = who.me;
+  }
   let info: GameInfo, demo: BrowserApi | null;
   try {
     ({ info, demo } = await pickBackend());
@@ -183,6 +225,7 @@ async function start() {
   const openRoom = (id: string) => {
     rooms.openRoom(id);
     show('rooms');
+    shared?.roomShown();
   };
   const rooms = new RoomsTab(
     {
@@ -216,15 +259,19 @@ async function start() {
   const voices = new VoicesTab();
   const music = new MusicTab(info);
   const language = new IrTab(info);
+  const scenario = new MapTab(me?.role === 'reviewer');
   const remix = new RemixTab({
     selection: () => ({
       room: rooms.room,
       entity: rooms.selection ? { kind: rooms.selection.kind, id: rooms.selection.id } : undefined,
     }),
   });
+  // What changed between two revisions (4.2.3): the dev server and a hosted Studio have the route, not the demo.
+  if (!demo) check.el.append(diffPanel());
   const panes: Record<TabId, HTMLElement> = {
     rooms: rooms.el,
     storyboard: storyboard.el,
+    map: scenario.el,
     assets: assets.el,
     voices: voices.el,
     music: music.el,
@@ -236,6 +283,7 @@ async function start() {
   };
 
   const nav = h('nav', { class: 'tabs', role: 'tablist' });
+  // The Assets tab is served by the Studio Server too since 4.2.3 (its uploads, its cutting and Prepare on the worker).
   let current: TabId = (TABS.some(([t]) => t === hashTab) ? hashTab : 'rooms') as TabId;
   show = (t: TabId) => {
     current = t;
@@ -246,12 +294,14 @@ async function start() {
       b.setAttribute('aria-selected', String(on));
     });
     history.replaceState(null, '', t === 'rooms' ? `#rooms/${rooms.room}` : `#${t}`);
+    shared?.moved();
     if (t === 'storyboard') void storyboard.load();
     if (t === 'notes') void notes.load();
     if (t === 'assets') void assets.load();
     if (t === 'voices') void voices.load();
     if (t === 'music') music.load();
     if (t === 'language') void language.load();
+    if (t === 'map') void scenario.load();
     if (t === 'remix') void remix.load();
   };
   for (const [id, label] of TABS) {
@@ -260,6 +310,39 @@ async function start() {
     );
   }
   const live = demo ? null : h('span', { class: 'live', title: 'Watching the game folder' }, '●');
+  // A file changed on disk (dev server) or in a committed revision (Studio Server): reload what it touches.
+  function changed(file: string, by?: string) {
+    const outside = Date.now() > ownUntil;
+    if (outside && /\.(ts|json)$/.test(file))
+      toast(by ? `${file} changed by ${by}` : `${file} changed on disk`, 'info');
+    rooms.onFileChanged(file);
+    assets.onFileChanged(file);
+    scenario.onFileChanged(file);
+    if (file === 'storyboard.json' && outside) storyboard.onDiskChange();
+    if (file === 'notes.json' && outside) void store.load();
+    // Another member's voice row (H10): read again, so the next edit is made from it.
+    if (file === 'voices.json' && outside) void voices.load();
+    if (
+      outside &&
+      /\.(ts|json)$/.test(file) &&
+      file !== 'notes.json' &&
+      file !== 'storyboard.json' &&
+      file !== 'groupings.json'
+    )
+      check.schedule(1000);
+  }
+  // A shared Studio: the revision, who is here, the leases, the refusals (hosted.ts).
+  const shared = me
+    ? hostedStudio({
+        me,
+        rooms: info.rooms,
+        room: () => rooms.room,
+        where: () =>
+          current === 'rooms' ? `Rooms · ${rooms.room}` : (TABS.find(([t]) => t === current)?.[1] ?? current),
+        changed,
+        previewReady: () => rooms.previewReady(),
+      })
+    : null;
   const assistant = new AssistantPanel({
     info,
     demo,
@@ -305,28 +388,37 @@ async function start() {
       h('h1', null, 'Studio'),
       h('span', { class: 'game' }, info.title, h('span', { class: 'muted' }, ` · games/${info.id}`)),
       nav,
+      // On a shared Studio, the member's own last change (4.2.2): the room view follows its preview.
       undoButtons(() => {
         void rooms.load();
-        rooms.reloadFrame();
+        if (!hosting.hosted) rooms.reloadFrame();
         check.schedule(300);
       }),
-      h(
-        'a',
-        {
-          class: 'play',
-          href: `${BASE}?dev`,
-          target: '_blank',
-          rel: 'noopener',
-          title: demo ? 'Play with your edits (dev tools on)' : undefined,
-        },
-        'Play ↗',
-      ),
-      assistantBtn,
-      live,
+      gameLink('?dev', 'Play ↗', { class: 'play', title: demo ? 'Play with your edits (dev tools on)' : undefined }),
+      // The Assistant on a hosted Studio comes with its own route on the server (not in this version).
+      hosting.hosted ? null : assistantBtn,
+      shared ? shared.bar : live,
     ),
+    ...(shared ? [shared.banner] : []),
     h('main', null, ...Object.values(panes)),
     assistant.el,
   );
+  if (shared && me) {
+    check.follow(shared.head, shared.onHead);
+    // The published builds (4.2.2): beside the game in the Play tab.
+    play.el
+      .querySelector('.playside')
+      ?.append(
+        buildsPanel({ owner: me.role === 'owner', dev: me.role !== 'reviewer' }),
+        gitPanel({ owner: me.role === 'owner' }),
+        ...(me.role !== 'reviewer' ? [assetsPanel()] : []),
+      );
+    // Comments (4.2.3): in the Notes tab, a reviewer's too.
+    notes.el.prepend(commentsPanel({ owner: me.role === 'owner' }));
+    const frame = rooms.el.querySelector<HTMLIFrameElement>('iframe.engine');
+    rooms.el.querySelector('.stage .bar')?.append(shared.roomChip, ...(frame ? [shared.previewLabel(frame)] : []));
+    rooms.el.querySelector('select[aria-label="Room"]')?.addEventListener('change', () => shared.roomShown());
+  }
   show(current);
   void check.run();
   // The storyboard (panel ids for the notes) and the notes (shown in every tab) are read at start.
@@ -342,6 +434,7 @@ async function start() {
     // `a` toggles the Assistant when nothing is being typed.
     const t = e.target as HTMLElement | null;
     if (
+      !hosting.hosted &&
       e.key === 'a' &&
       !e.metaKey &&
       !e.ctrlKey &&
@@ -353,22 +446,16 @@ async function start() {
     }
   });
 
-  // Changes on disk (an AI, an editor, git): reload what they touch. The demo has no disk to watch.
-  if (demo || !live) return;
-  const es = new EventSource('/__studio/api/events');
+  // Changes on disk (an AI, an editor, git): reload what they touch. The demo has no disk to watch; a hosted Studio
+  // follows its revisions (hostedStudio).
+  if (demo || !live || shared) return;
+  const es = new EventSource(apiUrl('events'));
   es.onopen = () => live.classList.add('on');
   es.onerror = () => live.classList.remove('on');
+  // The dev server says which file changed on disk; the Studio Server, which operation committed (live.ts).
   es.onmessage = (m) => {
     const ev = JSON.parse(m.data) as StudioEvent;
-    if (ev.type !== 'changed') return;
-    const outside = Date.now() > ownUntil;
-    if (outside && /\.(ts|json)$/.test(ev.file)) toast(`${ev.file} changed on disk`, 'info');
-    rooms.onFileChanged(ev.file);
-    assets.onFileChanged(ev.file);
-    if (ev.file === 'storyboard.json' && outside) storyboard.onDiskChange();
-    if (ev.file === 'notes.json' && outside) void store.load();
-    if (outside && /\.(ts|json)$/.test(ev.file) && ev.file !== 'notes.json' && ev.file !== 'storyboard.json')
-      check.schedule(1000);
+    if (ev.type === 'changed') changed(ev.file);
   };
 }
 

@@ -3,6 +3,7 @@ import type { App } from '../dom/app';
 import type { Id, Layout, Point } from '../core/types';
 import { FLOOR } from '../core/define';
 import { Overlay, type Handle } from './overlay';
+import { putLayout, studioOrigin } from './save-layout';
 import { must } from '../core/must';
 
 type Drag = { h: Handle; start: Point; orig: unknown };
@@ -73,10 +74,13 @@ export class Editor {
   // -------------------------------------------------------------- Studio bridge
   // Inside the Studio (an iframe of /__studio/), the editor tells the parent page what is selected, whether the
   // layout has unsaved changes and when it was saved; the Studio can ask it to select, place or save something.
+  // Hosted (4.2.1), the Studio is another origin (save-layout.ts): messages go there only, and the Studio writes.
+  private studioOrigin = studioOrigin();
+  private hosted = this.studioOrigin !== location.origin && window.parent !== window;
 
   private post(msg: Record<string, unknown>) {
     if (window.parent === window) return;
-    window.parent.postMessage({ source: 'web-scumm-editor', room: this.room.id, ...msg }, location.origin);
+    window.parent.postMessage({ source: 'web-scumm-editor', room: this.room.id, ...msg }, this.studioOrigin);
   }
 
   private bridge() {
@@ -88,9 +92,10 @@ export class Editor {
         kind?: 'prop' | 'hotspot' | 'actor';
         id?: string;
         at?: Point;
+        nonce?: string;
       };
-      if (e.origin !== location.origin || m?.source !== 'web-scumm-studio') return;
-      if (m.type === 'save') void this.save();
+      if (e.origin !== this.studioOrigin || m?.source !== 'web-scumm-studio') return;
+      if (m.type === 'save') void this.save(typeof m.nonce === 'string' ? m.nonce : undefined);
       else if ((m.type === 'select' || m.type === 'create') && m.kind && m.id) {
         if (m.type === 'create' && this.missing().some((x) => x.kind === m.kind && x.id === m.id))
           this.addMissing({ kind: m.kind, id: m.id }, m.at);
@@ -447,28 +452,21 @@ export class Editor {
   // -------------------------------------------------------------- saving
 
   /**
-   * Writes layout/<room>.json through the dev server. Without one (a Studio demo build, or no /__layout endpoint),
+   * Writes layout/<room>.json through the Studio's API (`putLayout`). Without one (a Studio demo build, no dev server),
    * the layout goes to the Studio around this view (postMessage; it keeps it with the demo's edits) or, standalone,
    * straight into the demo's edits in localStorage: the engine applies them on the next load.
    */
-  async save() {
+  async save(nonce?: string) {
+    // Hosted: only the Studio's own Save (a request with a nonce) gets the layout; this pane's Save says so.
+    if (this.hosted && nonce === undefined) return void (this.status.state = 'save with "Save layout" in the Studio');
     const L = roundLayout(this.L);
     this.app.engine.layouts[this.room.id] = L;
     let error = '';
-    let offline = import.meta.env.VITE_STUDIO_DEMO === '1';
+    let offline = import.meta.env.VITE_STUDIO_DEMO === '1' || this.hosted;
     if (!offline) {
-      try {
-        const token = new URLSearchParams(location.search).get('token');
-        const r = await fetch(`/__layout/${this.room.id}${token ? `?token=${encodeURIComponent(token)}` : ''}`, {
-          method: 'POST',
-          headers: { 'content-type': 'application/json' },
-          body: JSON.stringify(L),
-        });
-        if (r.status === 404 || r.status === 405) offline = true;
-        else if (!r.ok) error = await r.text();
-      } catch {
-        offline = true;
-      }
+      const r = await putLayout(this.room.id, L);
+      if ('offline' in r) offline = true;
+      else error = r.error ?? '';
     }
     const done = () => {
       this.dirty = false;
@@ -482,7 +480,7 @@ export class Editor {
       this.post({ type: 'saved', ok: true });
     } else if (window.parent !== window) {
       done();
-      this.post({ type: 'saved', ok: true, layout: L });
+      this.post({ type: 'saved', ok: true, layout: L, nonce });
     } else if (this.opts.saveOffline) {
       await this.opts.saveOffline(this.room.id, L);
       done();

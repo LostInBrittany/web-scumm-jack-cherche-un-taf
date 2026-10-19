@@ -1,5 +1,236 @@
 # Changelog
 
+## 4.2.2 — 2026-10-19
+
+"Playable Workshop" (LOG #206–#217): the second of the three 4.2.x steps (D40, D42). On a hosted Studio, everyone
+plays the shared revision without a dev server: the processing worker builds a preview of each revision, and a save
+carried into another revision asks before it is resumed (ADR 0026). Every diagnostic names its revision; the header
+gives the game's health at the head and, when it breaks, the revision that broke it. Undo and redo come back, each
+member's own. The team publishes immutable, numbered builds with signed manifests, prepares the game's assets on the
+worker (sprite sheets and uploads stay local until 4.2.3), and an operator backs the Studio up, ships its journal to
+the bucket (the RPO is in `/readyz`) and restores it. Vite has left the Studio Server. It stays **experimental**
+until its people's passes are made (`studio-hosted`, `studio-collab`, and 4.2.2's `studio-preview` and
+`studio-assets-hosted`). Nothing a game or a player uses changed: the public API, the content format and the save
+envelope are 4.2.0's (D40). The tag is signed with the maintainer's SSH key on their yes of 18 October, « yes sign
+4.2.2 » (D37, D42).
+
+### Changes
+
+- **Dependencies (4.2.2)**: zod 4.6.7, Playwright 1.64.1, @axe-core/playwright 4.14, @vitest/coverage-v8 5.0.5; the
+  bridge's locks follow zod. Nothing changes for a player, an author or a host.
+
+- **The hosted Studio shows the preview of a revision (4.2.2)**: after each change the processing worker builds the
+  game at the head (a new job kind, `preview`; a burst of changes builds its last revision only), the Studio stores its
+  files by content and serves them on the game's origin at `/preview/<rev>/`, behind the game session. The room view
+  loads a newer preview once it is built, unless a placement is not saved; the label under it names the revision
+  shown, the one building, and a revision that does not build, with its reason. The editing tools enter the preview's
+  build (`VITE_STUDIO_PREVIEW`); the player's build is unchanged.
+- **Vite has left the Studio Server (4.2.2)**: 4.2.1's live preview (Vite in middleware mode on the game's origin) is
+  gone, with its allow-list of engine paths; the game's origin serves a revision's built files and the prepared assets
+  of the prepared set and `publicDir`, and the published builds. The worker still needs the engine's Vite to build.
+
+- **A save made in another revision asks before it is resumed (4.2.2, ADR 0026)**: in a hosted Studio's preview, a
+  save records the revision and the fingerprint of the content it was made in (beside it: the save format does not
+  change). Resumed where the content differs, on Continue or from a slot, the game asks: Resume here (it may fail if
+  this revision removed what the save refers to), Restart, or Stay in the save's own revision. The same content under
+  another revision number asks nothing. Escape cancels the question. The player's builds are unchanged.
+
+- **A plan for the playable workshop** (4.2.2): `docs/dev/PLAN-4.2.2-ATELIER-JOUABLE.md`, eight guarantees each with
+  its limit and its test, the pull requests in order, the exit criteria, and decision D42 (the preview's path, the
+  fresh rebuild, the RPO target, public builds).
+
+- **Every diagnostic says its revision (4.2.2)**: on a hosted Studio each read answer carries the revision it was made
+  at (`x-studio-revision`); the Check tab shows it, and marks its results stale as soon as the head moves on.
+- **Lint, the solver and the playtests run on the processing worker (4.2.2)**, with the game's own commands (before,
+  a hosted Studio ran them on the data it read back, without them); the solver is bounded to 45 s there.
+
+- **The game's health by revision, and the revision that broke it (4.2.2)**: a hosted Studio's header says the
+  verdict at a revision (the validator, then the solver from a new game, on the processing worker, after each burst
+  of changes). When a revision fails where the last judged one passed, a bisection names the first failing revision,
+  with what its operation did and its files, in ⌈log₂ n⌉ checks; a dev can ask for one (`POST /api/health/bisect`). A
+  solver cut short says "unknown", never "valid".
+
+- **Personal undo on a shared Studio (4.2.2)**: Undo and Redo come back on a hosted Studio, each member's own: their
+  last operation is undone by a new revision (its files back to their content before), whatever the others wrote
+  meanwhile; refused when another wrote one of its files since (409) or holds its span (423). A new edit drops the
+  member's redo; the stacks are kept in the database.
+
+- **Published builds (4.2.2)**: a hosted Studio's Play tab publishes the head as an immutable, numbered build of the
+  player's game, served at `/play/<n>/` on the game's origin; `/play/` is the last green build (its revision judged
+  valid). Each build's manifest (revision, engine, snapshot and file hashes) is signed with the Studio's job key; an
+  owner can rebuild one fresh and compare it byte for byte. `publicBuilds` (off by default) opens `/play/` without a
+  session.
+
+- **The asset tools on the processing worker, qualified (4.2.2)**: their Python packages are locked with hashes for
+  Clever Cloud's native runtime (`ops/studio/worker-requirements.lock`) and installed by the worker's build hook
+  (STUDIO-SERVER gives the variable); measured on the spike's worker: 7 s to install, 4 s for a full `prepare` of the
+  sample game (`docs/dev/QUALIF-4.2.2-ASSETS.md`).
+
+- **Prepare assets on a hosted Studio (4.2.2)**: the Play tab's "Prepare assets" (a dev) runs `prepare` on the
+  processing worker from the head's art and sounds, under the project's exclusive lease; the prepared set is kept by
+  the Studio and served before `publicDir`, and the game's `assets.gen.json` is written as one operation. Sprite sheets
+  and uploads stay on a local Studio (4.2.3).
+
+- **Backup, restore and the journal shipped (4.2.2)**: a hosted Studio ships each confirmed operation to the bucket
+  (`/readyz` gives the RPO); `studio-server backup` writes the project's tables in one snapshot, `restore --replay`
+  brings them back into an empty database then replays the journal shipped since, each operation checked against the
+  head it continues (`replay` resumes a replay that stopped); `gc` lists (and with `--delete`
+  deletes) the blobs no row names and the worker's old staging.
+
+- **The gates of 4.2.2**: two human passes asked from 4.2.2 on, `studio-preview` (people play the shared revision of a
+  hosted Studio without a dev server, carry a save across revisions, read the health chip, undo their own work,
+  publish a build) and `studio-assets-hosted` (prepare on the worker, its set played); a mutation set
+  `studio-workshop` (undo, health, previews, builds, prepared assets, backup, the journal shipped, the collection),
+  measured until its survivors are read.
+
+## 4.2.1 — 2026-10-18
+
+"Shared Floor" (LOG #188–#205): the Studio online for a team, the first of three 4.2.x steps (D40). One game per
+server, several people at once: they log in through an OpenID Connect provider (Keycloak or another), get a role in
+the Studio, and edit the same game live, each change one operation of a durable journal, each part of the game held
+by one member at a time. The game's code runs in a separate processing worker that holds no secret, and the game is
+played on its own origin, apart from anyone's Studio session. It is deployed as two native Node.js applications on
+Clever Cloud with PostgreSQL and Cellar, from the repository or from the new `web-scumm-studio-server` archive. It
+is **experimental** until its two people's passes are made (`studio-hosted`, `studio-collab`): the game in the Studio
+is a live preview, not frozen at a revision (per-revision previews come in 4.2.2), and a real Safari has not tried
+the game's frame yet. Nothing a game or a player uses changed: the public API, the content format and the save
+envelope are 4.2.0's (D40). An author may notice that the Studio and the tools that write a game need Node 22.13+
+(their writes go through the journal, in SQLite) and refuse an edit that would add a validation error
+(UPGRADING §34). The tag is signed with the maintainer's SSH key on their yes of 18 October (D37).
+
+### Fixed
+
+- **The e2e run tolerates WebKit's "Context is stopped"** during its teardown (WebKit stopping its context as the run
+  ends, a Cache API call cut short): reported as a warning, as `e2e:pwa` does since 4.1.20, only for an error that
+  came after every check passed, on WebKit, in that exact form.
+
+### Changes
+
+- **A plan to put the Studio online for a team** (4.2.1 → 4.2.3): `docs/dev/PLAN-4.2.1-4.2.3-STUDIO-SERVER.md`, behind
+  OpenID Connect on Clever Cloud's native Node.js runtime, with ADR 0025 and decisions D39 to D41.
+
+- **The Studio's operation core moves to `studio-server/src/ops/`** (4.2.1, neutral). `core.ts`, `source.ts`,
+  `apply.ts` and `errors.ts` leave `tools/studio/` for the Studio Server's package, where the transactional operations of
+  the next pull requests grow. Nothing an author sees changes: the dev server, the MCP server, `npm run studio-apply`
+  and the demo Studio run the same code from its new place. The browser Studio now names its API through one constant
+  (`src/studio/api-base.ts`) instead of spelling `/__studio/api` in six modules.
+
+- **Every Studio write is one journaled operation** (4.2.1). The files an edit touches are written together or not at
+  all, durably, and an edit a crash interrupted is finished when the Studio opens again (`.cache/studio-journal/`).
+  A change made outside the Studio (an editor, an agent, git) is recorded before the next edit touches that file;
+  a file another process rewrote while an edit was prepared is a 409, never a lost write.
+- **One guard for every edit, on the game as it would be** (4.2.1): text edits, layouts, new entities and voices are
+  refused (422) when they would add a validation error, like structured values since 3.4. Nothing is written first and
+  taken back any more.
+- **Adding a prop, hotspot or actor is one step of undo** (4.2.1): the room and its layout come back together.
+
+- **The authoring tools write a game through the Studio's journal** (4.2.1):
+  - `npm run ids`, `i18n`, `voices` (import), `import-layout`, `provenance -- --lock`, `page:storyboard -- --md`,
+    `prompts` and `remix` write their game files as one operation of the journal;
+  - asset uploads (sheets, cells, decors, sounds) too. Backups and the cells a cut produced land together, or none
+    of them;
+  - a Studio open on the same game sees each operation, and a file it rewrote meanwhile is a 409.
+  - The batch tools (`ids`, `i18n`, `provenance`) are journaled, not guarded: they rename paths, which changes the
+    text of existing validation errors.
+- **The placement editor saves through the Studio's API** (4.2.1): `PUT /__studio/api/room/<id>/layout`, one guarded
+  operation. The dev server's `/__layout` route is gone; `layoutWriter()` stays exported as a deprecated plugin that
+  does nothing.
+
+- **`studio-server`, the Studio as a server** (4.2.1, first part; authentication comes next and it serves the loopback
+  only until then). `studio-server serve --config <file>` serves the Studio's API under `/api/`, with:
+  - the journal's cursor (`/api/revision`, `/api/ops?epoch&after`);
+  - the probes `/livez`, `/startz` (started) and `/readyz` (serving writes);
+  - a service lease so that one instance serves the writes;
+  - operation ids from the client (`x-studio-op`): a retry gets the same answer and is applied once.
+
+  Other commands:
+  - `studio-server import <dir>` makes a game the instance's project;
+  - `studio-server export <dir>` writes the game at its head with a manifest of hashes.
+
+  On Postgres and an S3 store (Cellar), the database and the blobs are the truth and the instance's folder is rebuilt
+  at start and checked every 30 s.
+
+- **The Studio Server behind OpenID Connect** (4.2.1).
+  - **Login:** with Keycloak or any OIDC provider (Authorization Code + PKCE). The rights live in the Studio: owner,
+    dev or reviewer, given by one-time invitations to a verified email (`studio-server invite`, `POST
+    /api/invitations`). The owner's routes: members, roles, sessions, audit.
+  - **Mutations:** a mutation from the browser needs the exact `Origin` and the `X-Studio-Request` header. The CLI and
+    MCP use Bearer access tokens for the Studio's audience, obtained with `studio-server login --server <url>` (device
+    flow).
+  - **Access ends:**
+    - at the next request when a member is removed;
+    - at once on the provider's back-channel logout;
+    - within 15 min when the provider disables the user, or when it stays unreachable (the session is then
+      suspended until it answers).
+  - **Without OIDC:** the server stays on the loopback.
+
+- **A hosted Studio never runs the game's code itself** (4.2.1, ADR 0028).
+  - **With OIDC**, validation and the loads behind the Studio's reads run in `studio-worker`, a separate application
+    with no secret of the platform. Configure `worker: { url, instance }` and the secret `STUDIO_WORKER_KEY`; create
+    the keys with `studio-server worker-keys --out <folder>`. The worker needs `WORKER_PUBLIC_KEY` and
+    `WORKER_INSTANCE`.
+  - **Captures** are unavailable on a hosted Studio for now.
+  - **Without OIDC** (the local server, on the loopback), nothing changes.
+  - A game that imports files outside its own folder cannot run on a hosted Studio.
+
+- **Working together on a shared Studio** (4.2.1).
+  - **Each file has a span:** a room (its code and layout), a language, the story, the items, and so on. A write
+    takes the spans it touches. If another member is editing one of them, the write is refused (423) with their
+    name, and the client keeps its draft. A lease lasts 2 min and is renewed by the heartbeat
+    (`POST /api/presence`). Members can take spans ahead (`POST /api/leases`) and release them.
+  - **Owners** can take a span over (audited) and take the whole game for an exclusive change.
+  - **`GET /api/events`** streams every revision (with its files and spans), the leases and who is here. A stream
+    closes as soon as its member is removed or logged out, or when its token ends.
+  - **Undo** is not available on a shared Studio until 4.2.2.
+
+- **The game runs on its own origin** (4.2.1): a hosted Studio serves everything that runs the game on `playUrl`, never
+  on the Studio's origin. The Studio opens it with a one-time ticket (`POST /api/play-ticket`). The game's access ends
+  at the next request when the member is removed or their Studio session ends.
+
+- **A guide to put a Studio online** (4.2.1): `docs/en/STUDIO-SERVER.md` (French: `docs/fr/STUDIO-SERVER.md`) deploys
+  the Studio Server and its worker as two native Node.js applications on Clever Cloud, with PostgreSQL, Cellar and
+  Keycloak or another OpenID provider. An example configuration (`ops/studio/studio.config.example.json`), a test
+  Keycloak realm (`ops/studio/keycloak/realm.json`) and an optional local stack (`ops/studio/compose.yml`) come with
+  it. `npm run studio-server` and `npm run studio-worker` start them; `serve` also takes its configuration from
+  `STUDIO_CONFIG_JSON`.
+
+- **The hosted Studio is tested against a real Postgres and S3 in CI** (4.2.1): a `studio-hosted` job runs its hosted
+  tests on every change to the Studio Server; its code counts in the coverage, with floors on its trust boundaries.
+
+- **The Studio Server's journal is held by mutation testing** (4.2.1): the set `studio-ops` (the journal, its durable
+  writes, the spans) is gated, every surviving mutant killed by a test or named.
+
+- **The Studio Server's trust boundaries are held by mutation testing** (4.2.1): the set `studio-auth` (the gate,
+  the OpenID client, the routes and store of authentication, the spans' leases, the game's origin) is gated, every
+  surviving mutant killed by a test or named.
+
+- **The Studio Server is tested against a real Keycloak in CI** (4.2.1): a login through Keycloak's own form, the
+  identity it gives, a back-channel logout Keycloak sends, and a user an admin disables.
+
+- **The hosted Studio opens in a browser** (4.2.1): the Studio Server serves the Studio's page
+  (`npm run studio-client` builds it; `CC_POST_BUILD_HOOK` on Clever Cloud), which talks to `/api` and logs in
+  through the provider. The game runs on its own origin as a live preview (Vite behind the game's session, not frozen
+  at a revision): the Rooms editor and the Play tab open there with a ticket, and the editor hands its layout to the
+  Studio, which writes it as the member. Undo, the Assistant and the Assets tab are not on a hosted Studio yet; the Play tab's
+  inspector panels need the local Studio. New optional settings `publicDir` and `clientDir`
+  (`docs/en/STUDIO-SERVER.md`).
+
+- **The Studio Server as a release archive** (4.2.1): `web-scumm-studio-server-<version>.tgz` carries the commands
+  `web-scumm-studio-server` and `web-scumm-studio-worker`, the Studio's page already built, and its own dependencies
+  (their versions locked in its `npm-shrinkwrap.json` and SBOM for an install from the registry; from the archive file
+  npm resolves them from their ranges, and `web-scumm-studio-server deps` says what an install resolved). Install it beside the engine of the same version
+  (`docs/en/STUDIO-SERVER.md`, "From the release archives"). Two people's passes join the sheet from 4.2.1:
+  `studio-hosted` (a real Clever Cloud deployment, a real Safari) and `studio-collab` (three people, a cut, a redeploy).
+
+- **The shared Studio's screens** (4.2.1): on a hosted Studio, a visitor sees a login page and someone who is not a
+  member sees "access not granted", with nothing of the game; a session the identity provider has not confirmed for
+  15 min shows "identity provider unreachable". In the header: the exact revision the editors and reads are at, who is
+  here and where, and your name with the spans, the members (owner) and the logout. A write refused because another
+  member holds its span (423) or because its file changed (409) keeps the draft to copy and try again; an owner may
+  take a span over. The owner's Members screen changes roles, removes members, ends sessions, makes invitation links
+  and shows the audit log. A cut of the connection is shown, and what was committed meanwhile is read back from the
+  journal; a write cut off is sent again with the same id and applies once. A note's author is the session's.
+
 ## 4.2.0 — 2026-10-16
 
 "Stable World" (LOG #185–#187): 4.1.20's code, the version changed (plan 4.1.20 §12, D34), one Field Kit fix, and

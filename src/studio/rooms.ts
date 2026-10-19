@@ -8,6 +8,7 @@ import type { Id, Layout, RoomDef, Rule } from '@engine/core/types';
 import { must } from '../engine/core/must';
 import { api, type EntityKind, type GameInfo, imgUrl, type RoomData, type TextRef } from './api';
 import { type FormCtx, objectEditor } from './forms';
+import { gameElsewhere } from './game-origin';
 import { type BridgeHost, EditorBridge, focusPath } from './rooms-bridge';
 import { entitySheet, roomSheet, type SheetHost } from './rooms-sheet';
 import { entityDef, entityName, isInteractive, KIND_LABEL, type Sel } from './rooms-text';
@@ -154,7 +155,7 @@ export class RoomsTab {
       h(
         'button',
         {
-          onclick: () => this.bridge.post({ source: 'web-scumm-studio', type: 'save' }),
+          onclick: () => this.bridge.save(),
           title: 'Save the layout edited in the view',
         },
         'Save layout',
@@ -205,6 +206,11 @@ export class RoomsTab {
     this.bridge.reload();
   }
 
+  /** A newer preview of the game is ready (hosted Studio): the view loads it unless a placement is not saved. */
+  previewReady() {
+    this.bridge.reloadIfClean();
+  }
+
   /** Scrolls to and flashes the editor of a content path (`on[3]`, `talk.lou[1].do[0]`…), once the room is shown. */
   focusPath(path: string, tries = 20) {
     focusPath(this.el, path, tries);
@@ -250,11 +256,13 @@ export class RoomsTab {
   onFileChanged(file: string) {
     if (!this.data) return;
     if (file === `layout/${this.roomId}.json`) {
-      // Vite reloads the view by itself when the layout module changes; make sure it does.
+      // Vite reloads the view by itself when the layout module changes; make sure it does. A hosted Studio's view
+      // loads the revision's preview once it is built (previewReady).
       const since = Date.now();
-      setTimeout(() => {
-        if (this.bridge.lastReady < since) this.reloadFrame();
-      }, 1200);
+      if (!gameElsewhere())
+        setTimeout(() => {
+          if (this.bridge.lastReady < since) this.reloadFrame();
+        }, 1200);
       void this.load();
     } else if (file.endsWith('.ts') || file === 'assets.gen.json') {
       void this.load();
@@ -538,11 +546,13 @@ export class RoomsTab {
         this.bridge.selectWhenReady(this.sel);
         await this.load();
         this.bridge.post({ source: 'web-scumm-studio', type: 'select', kind, id: nid });
-        // The view reloads by itself (the room module changed); force it if it doesn't.
+        // The view reloads by itself (the room module changed); force it if it doesn't. Hosted: once the revision's
+        // preview is built (previewReady).
         const since = Date.now();
-        setTimeout(() => {
-          if (this.bridge.lastReady < since) this.reloadFrame();
-        }, 1500);
+        if (!gameElsewhere())
+          setTimeout(() => {
+            if (this.bridge.lastReady < since) this.reloadFrame();
+          }, 1500);
       } catch (x) {
         err.textContent = (x as Error).message;
       }

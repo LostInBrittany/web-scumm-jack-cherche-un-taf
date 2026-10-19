@@ -1,6 +1,7 @@
 // node scripts/pack.mjs [--out=.cache/pack] [--publish-dry-run] (3.9): the engine as npm packages, from the files git tracks. 4.1.1:
 // `web-scumm-bridge`, the reference Reality Bridge, a package of its own (a game that does not run one never installs it).
 // 4.1.9: `web-scumm-connectors`, the connectors of the world outside, a fourth package (an operator's, never a game's).
+// 4.2.1: `web-scumm-studio-server`, the Studio online and its worker, a fifth (an operator's, beside the engine).
 // `web-scumm`: the engine (src/), its pages, its tools and the `web-scumm` command, the game template; never a game
 // of this repository, a test, a doc page or a build. `create-web-scumm`: `npx create-web-scumm <folder>`, which runs
 // `web-scumm create`. Both are packed (`npm pack`) into <out>/, ready for `npm install <tarball>` or `npm publish`.
@@ -8,7 +9,7 @@ import { execFileSync } from 'node:child_process';
 import { cpSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { buildSync } from 'esbuild';
-import { bridgeManifest, connectorsManifest, lockFor, lockProblems } from './pack-manifests.mjs';
+import { bridgeManifest, connectorsManifest, lockFor, lockProblems, studioServerManifest } from './pack-manifests.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const out = resolve(ROOT, process.argv.find((a) => a.startsWith('--out='))?.slice(6) ?? '.cache/pack');
@@ -30,6 +31,11 @@ function writeLocked(dir, manifest, lockFile) {
 const SHIP = [
   /^src\//,
   /^tools\//,
+  // The Studio's operation core (4.2.1): the dev server, `ids` and the MCP server import it.
+  /^studio-server\//,
+  // Its journal's SQL layer (4.2.1), from the Bridge: the store, SQLite and the migrations runner, and the proxies'
+  // allowlist; nothing else.
+  /^bridge\/src\/(store|store-async|store-sql|store-sqlite|migrations|allowlist)\.ts$/,
   /^cli\//,
   /^games\/_template\//,
   /^public\/(icons|fonts)\//,
@@ -38,6 +44,8 @@ const SHIP = [
   /^vite\.config\.ts$/,
   /^tsconfig\.json$/,
   /^requirements\.txt$/,
+  // The processing worker's Python lock (4.2.3 PR 0, H7): its build hook installs it from the engine's package.
+  /^ops\/studio\/worker-requirements\.lock$/,
   /^LICENSE$/,
 ];
 // The Bridge's development tools (Biscuit's samples, the Rust cross-check) stay in the repository.
@@ -218,13 +226,109 @@ writeFileSync(
 const WIN = process.platform === 'win32';
 const npm = (a, o) =>
   execFileSync(WIN ? 'npm.cmd' : 'npm', WIN ? a.map((x) => (/\s/.test(x) ? `"${x}"` : x)) : a, { ...o, shell: WIN });
-for (const d of [engine, create, bridge, connectors])
+
+// The Studio Server (4.2.1, docs/en/STUDIO-SERVER.md): two commands that run the server and the processing worker of
+// the engine installed beside it (its sources, Vite, tsx), and the Studio's page built once here (`npm run
+// studio-client`: studio.html and its code, no game). Its own dependencies are locked; the engine is a peer.
+const studio = join(out, 'web-scumm-studio-server');
+mkdirSync(join(studio, 'bin'), { recursive: true });
+npm(['run', 'studio-client', '--silent'], { cwd: ROOT, stdio: ['ignore', 'ignore', 'inherit'] });
+cpSync(join(ROOT, '.cache', 'studio-client'), join(studio, 'client'), { recursive: true });
+writeFileSync(
+  join(studio, 'bin', 'launch.mjs'),
+  `// Runs one of the engine's Studio Server commands with the engine installed beside this package, of the same version:
+// node itself, with tsx's loader (no second process between the command and the server: a signal reaches it once) and
+// a resolve hook (resolve.mjs) that finds this package's own dependencies from here, wherever npm put them; the Studio's
+// page built in this package unless WEB_SCUMM_STUDIO_CLIENT names another.
+import { spawn } from 'node:child_process';
+import { readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { fileURLToPath, pathToFileURL } from 'node:url';
+
+export function launch(entry) {
+  const here = dirname(fileURLToPath(import.meta.url));
+  const own = JSON.parse(readFileSync(join(here, '..', 'package.json'), 'utf8'));
+  let engine;
+  try {
+    engine = dirname(createRequire(import.meta.url).resolve('web-scumm/package.json'));
+  } catch {
+    console.error(\`\${own.name}: the engine is not installed: npm install web-scumm-\${own.version}.tgz beside it\`);
+    process.exit(2);
+  }
+  const version = JSON.parse(readFileSync(join(engine, 'package.json'), 'utf8')).version;
+  if (version !== own.version) {
+    console.error(\`\${own.name} \${own.version} runs with web-scumm \${own.version}, not \${version}\`);
+    process.exit(2);
+  }
+  const tsx = pathToFileURL(createRequire(join(engine, 'package.json')).resolve('tsx/esm')).href;
+  const hooks = pathToFileURL(join(here, 'register.mjs')).href;
+  const child = spawn(
+    process.execPath,
+    ['--import', hooks, '--import', tsx, join(engine, entry), ...process.argv.slice(2)],
+    {
+      stdio: 'inherit',
+      env: { ...process.env, WEB_SCUMM_STUDIO_CLIENT: process.env.WEB_SCUMM_STUDIO_CLIENT ?? join(here, '..', 'client') },
+    },
+  );
+  child.on('error', (e) => {
+    console.error(\`\${own.name}: \${e.message}\`);
+    process.exit(1);
+  });
+  // A terminal's Ctrl-C reaches the whole group, the server included: forwarded only when this process alone got it.
+  for (const signal of ['SIGTERM', 'SIGINT'])
+    process.on(signal, () => {
+      if (signal === 'SIGINT' && process.stdin.isTTY) return;
+      child.kill(signal);
+    });
+  child.on('exit', (code, signal) => process.exit(code ?? (signal === 'SIGINT' ? 130 : signal === 'SIGTERM' ? 143 : 1)));
+}
+`,
+);
+writeFileSync(
+  join(studio, 'bin', 'register.mjs'),
+  `// The resolve hook of resolve.mjs, registered before the server's first import (node --import).
+import { register } from 'node:module';
+register('./resolve.mjs', import.meta.url);
+`,
+);
+writeFileSync(
+  join(studio, 'bin', 'resolve.mjs'),
+  `// The server's own dependencies (this package's \\\`dependencies\\\`) are resolved from this package, never from where the
+// engine's sources happen to sit: npm may nest them under it (an install from the registry, with its shrinkwrap), hoist
+// them (an install from the archive file), or a strict layout keep them apart.
+import { readFileSync } from 'node:fs';
+const pkg = new URL('../package.json', import.meta.url);
+const OWN = new Set(Object.keys(JSON.parse(readFileSync(pkg, 'utf8')).dependencies ?? {}));
+export function resolve(specifier, context, next) {
+  const name = specifier.startsWith('@') ? specifier.split('/').slice(0, 2).join('/') : specifier.split('/')[0];
+  if (OWN.has(name)) return next(specifier, { ...context, parentURL: pkg.href });
+  return next(specifier, context);
+}
+`,
+);
+writeFileSync(
+  join(studio, 'bin', 'server.mjs'),
+  `#!/usr/bin/env node\n// web-scumm-studio-server <serve|import|export|invite|worker-keys|login|token|backup|restore|replay|gc> …: the Studio Server (docs/en/STUDIO-SERVER.md).\nimport { launch } from './launch.mjs';\nlaunch('studio-server/src/server/main.ts');\n`,
+);
+writeFileSync(
+  join(studio, 'bin', 'worker.mjs'),
+  `#!/usr/bin/env node\n// web-scumm-studio-worker: the Studio Server's processing worker, with no secret of the platform (ADR 0028).\nimport { launch } from './launch.mjs';\nlaunch('studio-server/src/worker/main.ts');\n`,
+);
+writeLocked(studio, studioServerManifest(root), 'scripts/locks/web-scumm-studio-server.json');
+cpSync(join(ROOT, 'LICENSE'), join(studio, 'LICENSE'));
+writeFileSync(
+  join(studio, 'README.md'),
+  `# web-scumm-studio-server\n\nThe web-scumm Studio Server: one game, several people, online, with OpenID Connect, PostgreSQL and S3; and its processing worker. Install it beside the engine of the same version: \`npm install web-scumm-${root.version}.tgz web-scumm-studio-server-${root.version}.tgz\`. Then \`npx web-scumm-studio-server serve --config studio.config.json\` and \`npx web-scumm-studio-worker\`. Documentation: https://github.com/wanoo/web-scumm (docs/en/STUDIO-SERVER.md).\n`,
+);
+
+for (const d of [engine, create, bridge, connectors, studio])
   npm(['pack', '--pack-destination', out, '--silent'], { cwd: d, stdio: ['ignore', 'inherit', 'inherit'] });
 console.log(
-  `packed into ${out}: web-scumm ${root.version} (${files.length} files), create-web-scumm, web-scumm-bridge (one module, its policies), web-scumm-connectors (one module, its MIME worker)`,
+  `packed into ${out}: web-scumm ${root.version} (${files.length} files), create-web-scumm, web-scumm-bridge (one module, its policies), web-scumm-connectors (one module, its MIME worker), web-scumm-studio-server (two commands, the Studio's page)`,
 );
 // --publish-dry-run (4.1.8): what `npm publish` would send, for each package, without sending it (release-check).
 if (process.argv.includes('--publish-dry-run'))
-  for (const dir of [engine, create, bridge, connectors]) {
+  for (const dir of [engine, create, bridge, connectors, studio]) {
     npm(['publish', '--dry-run', '--ignore-scripts'], { cwd: dir, stdio: 'inherit' });
   }

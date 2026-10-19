@@ -25,7 +25,21 @@ describe('the plan of a change', () => {
     ['a painter', ['src/engine/dom/render-canvas.ts'], gates('e2e', 'reference', 'node24', 'windows')],
     ['the music', ['src/engine/dom/director.ts'], gates('e2e', 'reference', 'node24', 'windows')],
     ['the worker update', ['src/engine/dom/update.ts'], gates('e2e', 'pwaFirefox', 'upgrade', 'node24', 'windows')],
-    ['the Studio', ['src/studio/main.ts'], gates('e2e', 'node24', 'windows')],
+    ['the Studio', ['src/studio/main.ts'], gates('e2e', 'node24', 'studioHosted', 'windows')],
+    ['the hosted Studio in a browser', ['scripts/e2e-studio-hosted.ts'], gates('studioHosted')],
+    [
+      'the Studio Server',
+      ['studio-server/migrations/0005.up.sql'],
+      gates('secondGame', 'freshInstall', 'upgrade', 'reference', 'node24', 'windows', 'studioHosted'),
+    ],
+    ['its hosted tests', ['tests/studio-server.test.ts'], gates('node24', 'windows', 'studioHosted')],
+    ['its CI S3 identity', ['ops/studio/ci/seaweedfs-s3.json'], gates('node24', 'windows', 'studioHosted')],
+    ['its Keycloak realm', ['ops/studio/keycloak/realm.json'], gates('node24', 'windows', 'studioHosted')],
+    [
+      "the journal's SQL layer",
+      ['bridge/src/migrations.ts'],
+      gates('reality', 'freshInstall', 'node24', 'windows', 'studioHosted'),
+    ],
     ['the sample game', ['games/demo/rooms/x.ts'], gates('e2e', 'node24', 'windows')],
     ['the reference chapter', ['games/reference/index.ts'], gates('reference', 'node24')],
     ['the template', ['games/_template/index.ts'], gates('secondGame', 'freshInstall', 'upgrade', 'node24', 'windows')],
@@ -93,7 +107,7 @@ describe('the plan of a change', () => {
     expect(on(fullPlan())).toEqual(gates('all', ...GATES));
   });
 
-  it.skip('knows every tracked file (a new folder gets its rule before it gets the full CI by accident)', () => {
+  it('knows every tracked file (a new folder gets its rule before it gets the full CI by accident)', () => {
     const files = execFileSync('git', ['ls-files'], { encoding: 'utf8' }).split('\n').filter(Boolean);
     expect(files.length).toBeGreaterThan(100);
     expect(files.filter((f) => classify(f).why === 'a path the plan does not know')).toEqual([]);

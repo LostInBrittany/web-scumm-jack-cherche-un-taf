@@ -579,3 +579,38 @@ Rien à changer : la 4.2.0 est le code de la 4.1.20 avec la version changée et 
 la 4.2.0, le SemVer strict : une 4.2.x ne fait que corriger, une mineure 4.x ne fait qu'ajouter. Le moteur s'installe
 toujours depuis l'archive de la release (`releases/download/v4.2.0/…`) ; la publication npm arrive dans une 4.2.x
 ultérieure. Ce que la 4.2.0 dit stable, limité ou expérimental est dans `docs/fr/SUPPORT.md` (D38).
+
+## 34. De la 4.2.0 à la 4.2.1 « Shared Floor »
+
+Rien à changer dans un jeu : l'API publique, le format du contenu et l'enveloppe de sauvegarde sont ceux de la 4.2.0
+(D40). Ce qu'un auteur peut remarquer :
+
+- **Node 22.13 ou plus récent pour le Studio et les outils qui écrivent un jeu** (`ids`, `i18n`, `voices`,
+  `import-layout`, `provenance`, les modifications du Studio) : leurs écritures passent désormais par le même journal
+  que celles du Studio hébergé, gardé en local sous `.cache/studio-journal/` dans SQLite (`node:sqlite`, Node 22.13+).
+  Jouer et construire un jeu tournent toujours sur 22.12.
+- **Une modification qui ajouterait une erreur de validation est refusée** (422, avec les erreurs), dans le Studio et
+  ses outils : le jeu sur disque reste valide.
+- **L'éditeur de placement enregistre par l'API du Studio** (`PUT /__studio/api/room/<id>/layout`) ; la route
+  `/__layout` a disparu et `layoutWriter()` (dans `tools/vite/plugins.ts`) ne fait plus rien, gardé pour qu'une
+  configuration qui le nomme se charge encore.
+
+Le moteur s'installe depuis `releases/download/v4.2.1/…`. Pour mettre un Studio en ligne pour une équipe, voir
+`docs/fr/STUDIO-SERVER.md` (expérimental en 4.2.1).
+
+## 35. De la 4.2.1 à la 4.2.2 « Playable Workshop »
+
+Rien à changer dans un jeu : l'API publique, le format du contenu et l'enveloppe de sauvegarde sont ceux de la 4.2.0
+(D40). Le moteur s'installe depuis `releases/download/v4.2.2/…`. Pour un Studio hébergé :
+
+- **Vite a quitté le serveur** : l'origine du jeu sert les prévisualisations que construit l'application de
+  traitement, une par révision. Celle-ci a besoin du Vite du moteur pour construire (son installation l'inclut).
+- **La base migre au démarrage** (migrations 0006 à 0010 : prévisualisations, santé, annulation, builds, ensembles
+  préparés).
+- **Les outils d'assets sur l'application de traitement** : réglez son `CC_POST_BUILD_HOOK` comme le dit
+  `docs/fr/STUDIO-SERVER.md` (leurs paquets Python, verrouillés par empreintes) ; sans lui, « Prepare assets » (le
+  bouton de l'onglet Play) échoue et montre l'erreur de l'application de traitement. Ce worker se déploie depuis le
+  dépôt : installé depuis les archives, il ne peut pas lancer `prepare` en 4.2.2 (la 4.2.3 livre le verrou).
+- **Les builds** : `/play/<n>/` demande une session, sauf si `publicBuilds` est activé (désactivé par défaut).
+- **La sauvegarde** : le journal part de lui-même dans le bucket ; faites un `studio-server backup` quotidien, gardé
+  hors de l'instance (STUDIO-SERVER, « Sauvegarde et restauration »).

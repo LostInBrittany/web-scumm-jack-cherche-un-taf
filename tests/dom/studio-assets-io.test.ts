@@ -34,7 +34,9 @@ describe('post', () => {
     const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     expect(url).toBe('/__studio/api/assets/cell');
     expect(init.method).toBe('POST');
-    expect(init.headers).toEqual({ 'content-type': 'application/json' });
+    expect(new Headers(init.headers).get('content-type')).toBe('application/json');
+    // The Studio's own header: a hosted Studio refuses a write without it (plan §3.4, policy A).
+    expect(new Headers(init.headers).get('x-studio-request')).toBe('1');
     expect(JSON.parse(String(init.body))).toEqual({ sheetId: 'hero', cell: 'r1c1', data: 'data:x', key: 'auto' });
   });
 

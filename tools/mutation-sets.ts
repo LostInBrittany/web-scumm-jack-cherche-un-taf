@@ -89,6 +89,34 @@ export const SETS = {
   // store-sql.ts). Gated since 4.1.20 (PR 2a). Its tests need a database: BRIDGE_PG_URL (the mutation workflow gives
   // one).
   'reality-store-postgres': ['bridge/src/store-postgres.ts'],
+  // The Studio Server (4.2.1, plan §11): the journal that loses no confirmed change, and the trust boundaries (who is
+  // who, who may write which span, who reaches the game's origin). Measured until their survivors are read.
+  'studio-ops': [
+    'studio-server/src/ops/journal.ts',
+    'studio-server/src/ops/durable.ts',
+    'studio-server/src/ops/spans.ts',
+  ],
+  'studio-auth': [
+    'studio-server/src/server/auth/gate.ts',
+    'studio-server/src/server/auth/oidc.ts',
+    'studio-server/src/server/auth/routes.ts',
+    'studio-server/src/server/auth/store.ts',
+    'studio-server/src/server/leases.ts',
+    'studio-server/src/server/play.ts',
+  ],
+  // The playable workshop (4.2.2, plan §2.8): the personal undo, the health by revision and its bisection, the previews
+  // by revision, the published builds and their signed manifests, the prepared assets, the backup, the journal shipped
+  // and the collection. Gated since 4.2.3 (PR 10): its survivors read one by one.
+  'studio-workshop': [
+    'studio-server/src/ops/undo.ts',
+    'studio-server/src/ops/backup.ts',
+    'studio-server/src/ops/ship.ts',
+    'studio-server/src/ops/gc.ts',
+    'studio-server/src/server/health.ts',
+    'studio-server/src/server/previews.ts',
+    'studio-server/src/server/builds.ts',
+    'studio-server/src/server/prepared.ts',
+  ],
 };
 export type MutationSet = keyof typeof SETS;
 /** The tests a set's mutants are judged by (vitest `include` globs). */
@@ -158,6 +186,39 @@ export const TESTS: Record<MutationSet, string[]> = {
     'tests/code-wheel.test.ts',
   ],
   speedrun: ['tests/speedrun-*.test.ts', 'tests/critical-minigame-outcome.test.ts'],
+  // studio-server.test.ts's local part opens journals and migrates too: durable.ts's writes are judged there as well.
+  'studio-ops': [
+    'tests/studio-journal*.test.ts',
+    'tests/studio-durable-mutants.test.ts',
+    'tests/studio-server.test.ts',
+    'tests/studio-collab.test.ts',
+  ],
+  'studio-auth': [
+    'tests/studio-gate-mutants.test.ts',
+    'tests/studio-store-mutants.test.ts',
+    'tests/studio-routes-mutants.test.ts',
+    'tests/studio-oidc-mutants.test.ts',
+    'tests/studio-leases-mutants.test.ts',
+    'tests/studio-play-mutants.test.ts',
+    'tests/studio-auth.test.ts',
+    'tests/studio-collab.test.ts',
+    'tests/studio-play.test.ts',
+  ],
+  'studio-workshop': [
+    'tests/studio-undo.test.ts',
+    'tests/studio-health.test.ts',
+    'tests/studio-previews.test.ts',
+    'tests/studio-builds.test.ts',
+    'tests/studio-prepared.test.ts',
+    'tests/studio-backup.test.ts',
+    // The previews' serving (a range, a 416, what is never served) is tested there, against a real template build.
+    'tests/studio-client.test.ts',
+    // 4.2.3 PR 10: the survivors' short tests.
+    'tests/studio-workshop-backup-mutants.test.ts',
+    'tests/studio-workshop-health-mutants.test.ts',
+    'tests/studio-workshop-previews-mutants.test.ts',
+    'tests/studio-workshop-prepared-mutants.test.ts',
+  ],
 };
 
 /** The sets `all` runs and the gate judges: every set, each a job of its own in ci, the nightly, the candidate and the release. */
@@ -177,9 +238,20 @@ export const GATED: MutationSet[] = [
   // 4.1.20 PR 2b–2e: its 488 survivors read family by family (badges, email, terminal, the rest): 473 killed by
   // tests/connectors-*-edge-mutants.test.ts, 15 named (docs/dev/mutants.json). Run in 4 shards.
   'connectors-edge',
+  // 4.2.1: its survivors read (168 of 181 killed, 13 named in docs/dev/mutants.json), its tests
+  // tests/studio-journal-mutants and tests/studio-durable-mutants.
+  'studio-ops',
+  // 4.2.1: its survivors read (564 of 577 killed, 13 named in docs/dev/mutants.json), its unit tests
+  // tests/studio-{gate,store,routes,oidc,leases,play}-mutants.
+  'studio-auth',
+  // 4.2.3 PR 10: its 104 survivors read (94 killed by tests/studio-workshop-{backup,health,previews,prepared}-mutants,
+  // 10 named in docs/dev/mutants.json).
+  'studio-workshop',
 ];
 /** Measured on demand (`gh workflow run mutation -f set=…`) and every night, gating nothing until their survivors are read. */
-// Empty since 4.1.20 (plan §7.5): every set is gated; a set added later is measured here until its survivors are read.
+// Empty in 4.1.20 (plan §7.5): every set was gated; a set added later is measured here until its survivors are read.
+// Empty again since 4.2.1: the Studio Server's two sets are gated. 4.2.2's workshop was measured here until 4.2.3
+// (PR 10) read its survivors.
 export const MEASURED: MutationSet[] = [];
 
 /**

@@ -1,0 +1,10 @@
+{
+ "stems": {
+  "melody": "night-market-stems/melody.mp3",
+  "chords": "night-market-stems/chords.mp3",
+  "bass": "night-market-stems/bass.mp3"
+ },
+ "bpm": 96.0,
+ "beatsPerBar": 4,
+ "pcmBytes": 48960024
+}

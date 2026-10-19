@@ -1,0 +1,11 @@
+{
+  "boards": [
+    { "id": "start", "title": "The garden", "room": "start", "goal": "Take the bucket.",
+      "panels": [
+        { "id": "start-1", "title": "Arrival", "lines": [{ "who": "hero", "text": "A garden. A quiet one. For now." }] },
+        { "id": "start-2", "title": "The bucket", "action": "Take bucket", "lines": [{ "who": "hero", "text": "Mine now." }] },
+        { "id": "start-3", "title": "The gate", "action": "Use bucket with gate", "lines": [{ "who": "hero", "text": "Bucket on head. Gate opened. Adventure started." }] }
+      ],
+      "hints": ["Try taking the bucket.", "The gate. With the bucket. Trust me."] }
+  ]
+}

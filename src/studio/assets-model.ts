@@ -4,6 +4,7 @@
 // and the tests run them bare.
 import type { AssetCell, AssetPrompt, AssetSheet, AssetSound, AssetsListing, GameInfo } from './api';
 import { must } from '../engine/core/must';
+import { apiUrl } from './api-base';
 
 export type Sel =
   | { type: 'sheet'; id: string }
@@ -78,9 +79,7 @@ export function assetUrl(
   base: string,
 ): string | null {
   if (!demo)
-    return x.file
-      ? `/__studio/api/assets/file/${x.file.split('/').map(encodeURIComponent).join('/')}?v=${x.mtime}`
-      : null;
+    return x.file ? apiUrl(`assets/file/${x.file.split('/').map(encodeURIComponent).join('/')}?v=${x.mtime}`) : null;
   return x.asset ? `${base}assets/${x.asset}` : null;
 }
 

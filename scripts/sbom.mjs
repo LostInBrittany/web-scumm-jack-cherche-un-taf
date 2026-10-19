@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // node scripts/sbom.mjs --pack=<dir> --out=<dir> (4.1.19, plan §6.3): the CycloneDX SBOM of each of the four archives
 // the candidate packed, made in the candidate from what the archives hold, never in the release after an install:
-//   - web-scumm-bridge and web-scumm-connectors: their own lock (npm-shrinkwrap.json, inside the archive), read by
+//   - web-scumm-bridge, web-scumm-connectors and web-scumm-studio-server (4.2.1): their own lock (npm-shrinkwrap.json,
+//     inside the archive; the Studio Server's engine, an optional peer, is the engine's own SBOM), read by
 //     `npm sbom --package-lock-only`: nothing resolved;
 //   - web-scumm (the engine): its archive carries no lock (a game resolves its own); its dependencies as the root lock
 //     resolves them, the way scripts/locks.mjs makes a lock (the root lock copied beside its manifest, `npm install
@@ -50,7 +51,13 @@ function named(sbom, name, tgz) {
 }
 
 const done = [];
-for (const name of ['web-scumm-bridge', 'web-scumm-connectors', 'web-scumm', 'create-web-scumm']) {
+for (const name of [
+  'web-scumm-bridge',
+  'web-scumm-connectors',
+  'web-scumm-studio-server',
+  'web-scumm',
+  'create-web-scumm',
+]) {
   const tgz = join(pack, `${name}-${root.version}.tgz`);
   if (!existsSync(tgz)) throw new Error(`${tgz}: missing`);
   const dir = unpacked(tgz);

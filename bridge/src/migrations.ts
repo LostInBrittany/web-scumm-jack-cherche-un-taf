@@ -6,16 +6,16 @@ import { readdirSync, readFileSync } from 'node:fs';
 /** Where the migrations are: beside `src/` in this repository and in the packed web-scumm-bridge. */
 const DIR = new URL('../migrations/', import.meta.url);
 
-/** The steps this Bridge knows, in order: their version and both directions. */
-function migrationSteps(): { version: number; up: string; down: string }[] {
-  return readdirSync(DIR)
+/** The steps in `dir` (the Bridge's by default), in order: their version and both directions. */
+function migrationSteps(dir: URL = DIR): { version: number; up: string; down: string }[] {
+  return readdirSync(dir)
     .map((f) => /^(\d{4})\.up\.sql$/.exec(f)?.[1])
     .filter((v): v is string => v !== undefined)
     .sort()
     .map((v) => ({
       version: Number(v),
-      up: readFileSync(new URL(`${v}.up.sql`, DIR), 'utf8'),
-      down: readFileSync(new URL(`${v}.down.sql`, DIR), 'utf8'),
+      up: readFileSync(new URL(`${v}.up.sql`, dir), 'utf8'),
+      down: readFileSync(new URL(`${v}.down.sql`, dir), 'utf8'),
     }));
 }
 
@@ -41,8 +41,12 @@ export async function schemaVersion(db: MigrationTarget): Promise<number> {
  * Brings a database to `to` (the latest by default), up or down, one step per transaction. Returns the versions
  * applied (negative when undone). Refuses a database newer than every step this Bridge has.
  */
-export async function migrate(db: MigrationTarget, o: { to?: number; now?: number } = {}): Promise<number[]> {
-  const steps = migrationSteps();
+export async function migrate(
+  db: MigrationTarget,
+  o: { to?: number; now?: number; dir?: URL } = {},
+): Promise<number[]> {
+  // `dir` (4.2.1): another component's steps through the same runner (the Studio Server's journal).
+  const steps = migrationSteps(o.dir);
   const latest = steps.at(-1)?.version ?? 0;
   const to = o.to ?? latest;
   const at = await schemaVersion(db);

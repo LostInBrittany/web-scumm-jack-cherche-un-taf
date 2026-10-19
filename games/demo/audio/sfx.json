@@ -1,0 +1,58 @@
+{
+  "_doc": "The sample game's sound effects, built from the shared Mega Drive palette (tools/audio/palette.json) by `npm run audio -- sfx games/demo/audio/sfx.json` into audio/sfx/*.mp3 (docs/en/AUDIO.md). One row = 1/60 s. FM vol 0-127, PSG vol 0-15.",
+  "rate": 60,
+  "sfx": {
+    "click": {"desc": "a dry UI click", "rows": 8, "tracks": [
+      {"ch": "PSG1", "ins": "lead", "events": [{"row": 0, "note": "C6", "vol": 11}, {"row": 2, "off": true}]}]},
+    "select": {"desc": "two rising blips (something chosen)", "rows": 14, "tracks": [
+      {"ch": "PSG1", "ins": "lead", "events": [{"row": 0, "note": "E5", "vol": 11}, {"row": 3, "off": true}, {"row": 5, "note": "A5", "vol": 12}, {"row": 10, "off": true}]}]},
+    "success": {"desc": "a bright rising arpeggio (something done right)", "rows": 40, "tracks": [
+      {"ch": "FM1", "ins": "e_piano", "events": [{"row": 0, "note": "C5", "vol": 120}, {"row": 5, "note": "E5"}, {"row": 10, "note": "G5"}, {"row": 15, "note": "C6", "vol": 127}, {"row": 36, "off": true}]},
+      {"ch": "PSG1", "ins": "arp_pluck", "events": [{"row": 15, "note": "C6", "vol": 9, "fx": [["00", "47"]]}, {"row": 30, "off": true}]}]},
+    "error": {"desc": "two falling buzzes (that does not work)", "rows": 30, "tracks": [
+      {"ch": "FM1", "ins": "synth_lead", "events": [{"row": 0, "note": "A3", "vol": 118, "fx": [["02", "0C"]]}, {"row": 8, "off": true}, {"row": 11, "note": "F3", "vol": 118, "fx": [["02", "0C"]]}, {"row": 24, "off": true}]}]},
+    "door_open": {"desc": "a latch, then a wooden creak", "rows": 40, "tracks": [
+      {"ch": "NOISE", "ins": "noise_hat", "events": [{"row": 0, "note": "C6", "vol": 12}]},
+      {"ch": "FM1", "ins": "muted_pluck", "events": [{"row": 3, "note": "D2", "vol": 118, "fx": [["01", "03"]]}, {"row": 28, "off": true}]},
+      {"ch": "FM2", "ins": "muted_pluck", "events": [{"row": 6, "note": "A2", "vol": 90, "fx": [["01", "02"]]}, {"row": 26, "off": true}]}]},
+    "door_close": {"desc": "a wooden thud and the latch", "rows": 30, "tracks": [
+      {"ch": "FM1", "ins": "finger_bass", "events": [{"row": 0, "note": "C2", "vol": 127, "fx": [["02", "10"]]}, {"row": 10, "off": true}]},
+      {"ch": "NOISE", "ins": "noise_snare", "events": [{"row": 0, "note": "C6", "vol": 13}]},
+      {"ch": "PSG1", "ins": "lead", "events": [{"row": 12, "note": "G5", "vol": 8}, {"row": 14, "off": true}]}]},
+    "latch": {"desc": "two quick metal clicks", "rows": 16, "tracks": [
+      {"ch": "FM1", "ins": "bell", "events": [{"row": 0, "note": "C6", "vol": 100}, {"row": 2, "off": true}, {"row": 6, "note": "G6", "vol": 110}, {"row": 9, "off": true}]},
+      {"ch": "NOISE", "ins": "noise_hat", "events": [{"row": 0, "note": "C6", "vol": 10}, {"row": 6, "note": "C6", "vol": 12}]}]},
+    "coins": {"desc": "coins tinkling", "rows": 30, "tracks": [
+      {"ch": "FM1", "ins": "bell", "events": [{"row": 0, "note": "E6", "vol": 118}, {"row": 4, "note": "B6", "vol": 122}, {"row": 8, "note": "E7", "vol": 127}, {"row": 26, "off": true}]},
+      {"ch": "PSG1", "ins": "arp_pluck", "events": [{"row": 2, "note": "E6", "vol": 10, "fx": [["00", "47"]]}, {"row": 16, "off": true}]}]},
+    "cloth": {"desc": "a soft swish of cloth", "rows": 24, "tracks": [
+      {"ch": "NOISE", "ins": "noise_ohat", "events": [{"row": 0, "note": "C5", "vol": 9}, {"row": 8, "note": "C4", "vol": 7}]}]},
+    "paper": {"desc": "paper crackling", "rows": 24, "tracks": [
+      {"ch": "NOISE", "ins": "noise_hat", "events": [{"row": 0, "note": "C6", "vol": 10}, {"row": 4, "note": "C6", "vol": 8}, {"row": 7, "note": "C6", "vol": 11}, {"row": 12, "note": "C6", "vol": 7}, {"row": 15, "note": "C6", "vol": 9}]}]},
+    "ring": {"desc": "a phone ringing: two bell notes alternating", "rows": 70, "tracks": [
+      {"ch": "FM1", "ins": "bell", "events": [{"row": 0, "note": "A6", "vol": 118}, {"row": 4, "note": "C#7"}, {"row": 8, "note": "A6"}, {"row": 12, "note": "C#7"}, {"row": 16, "note": "A6"}, {"row": 20, "note": "C#7"}, {"row": 24, "off": true}, {"row": 36, "note": "A6"}, {"row": 40, "note": "C#7"}, {"row": 44, "note": "A6"}, {"row": 48, "note": "C#7"}, {"row": 52, "note": "A6"}, {"row": 56, "note": "C#7"}, {"row": 60, "off": true}]}]},
+    "drop": {"desc": "something dropped on the floor", "rows": 24, "tracks": [
+      {"ch": "FM1", "ins": "slap_bass", "events": [{"row": 0, "note": "G3", "vol": 124, "fx": [["02", "18"]]}, {"row": 6, "off": true}, {"row": 9, "note": "E3", "vol": 100, "fx": [["02", "18"]]}, {"row": 13, "off": true}]},
+      {"ch": "NOISE", "ins": "noise_hat", "events": [{"row": 0, "note": "C6", "vol": 11}, {"row": 9, "note": "C6", "vol": 7}]}]},
+    "bell": {"desc": "one clear bell", "rows": 60, "tracks": [
+      {"ch": "FM1", "ins": "bell", "events": [{"row": 0, "note": "C6", "vol": 127}, {"row": 56, "off": true}]},
+      {"ch": "FM2", "ins": "bell", "events": [{"row": 0, "note": "G6", "vol": 80}, {"row": 40, "off": true}]}]},
+    "glass": {"desc": "glass clinking", "rows": 36, "tracks": [
+      {"ch": "FM1", "ins": "bell", "events": [{"row": 0, "note": "A7", "vol": 118}, {"row": 2, "note": "E7"}, {"row": 30, "off": true}]},
+      {"ch": "NOISE", "ins": "noise_crash", "events": [{"row": 0, "note": "C6", "vol": 8}]}]},
+    "metal": {"desc": "a metallic clang", "rows": 40, "tracks": [
+      {"ch": "FM1", "ins": "orch_hit", "events": [{"row": 0, "note": "F#4", "vol": 127}, {"row": 30, "off": true}]},
+      {"ch": "FM2", "ins": "bell", "events": [{"row": 0, "note": "F#5", "vol": 100, "fx": [["02", "02"]]}, {"row": 30, "off": true}]},
+      {"ch": "NOISE", "ins": "noise_crash", "events": [{"row": 0, "note": "C6", "vol": 11}]}]},
+    "shuffle": {"desc": "cards or feet shuffling", "rows": 28, "tracks": [
+      {"ch": "NOISE", "ins": "noise_snare", "events": [{"row": 0, "note": "C6", "vol": 8}, {"row": 5, "note": "C6", "vol": 6}, {"row": 10, "note": "C6", "vol": 9}, {"row": 15, "note": "C6", "vol": 6}, {"row": 20, "note": "C6", "vol": 8}]}]},
+    "chips": {"desc": "crunchy chips", "rows": 24, "tracks": [
+      {"ch": "NOISE", "ins": "noise_hat", "events": [{"row": 0, "note": "C6", "vol": 13}, {"row": 5, "note": "C6", "vol": 11}, {"row": 9, "note": "C6", "vol": 13}, {"row": 14, "note": "C6", "vol": 10}]},
+      {"ch": "FM1", "ins": "muted_pluck", "events": [{"row": 0, "note": "C5", "vol": 70}, {"row": 2, "off": true}, {"row": 9, "note": "D5", "vol": 70}, {"row": 11, "off": true}]}]},
+    "pluck": {"desc": "a plucked string", "rows": 36, "tracks": [
+      {"ch": "FM1", "ins": "muted_pluck", "events": [{"row": 0, "note": "E4", "vol": 124}, {"row": 30, "off": true}]}]},
+    "bong": {"desc": "a deep gong", "rows": 90, "tracks": [
+      {"ch": "FM1", "ins": "bell", "events": [{"row": 0, "note": "C3", "vol": 127}, {"row": 84, "off": true}]},
+      {"ch": "FM2", "ins": "finger_bass", "events": [{"row": 0, "note": "C2", "vol": 110}, {"row": 40, "off": true}]}]}
+  }
+}

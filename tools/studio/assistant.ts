@@ -17,7 +17,7 @@ import {
   type Provider,
 } from './assistant-loop';
 import { coreBackend } from './backend';
-import { createStudio, StudioError, type Studio } from './core';
+import { createStudio, StudioError, type Studio } from '../../studio-server/src/ops/core';
 
 const MAX_BODY = 4 * 1024 * 1024;
 const KINDS = new Set(['openai', 'anthropic', 'ollama']);

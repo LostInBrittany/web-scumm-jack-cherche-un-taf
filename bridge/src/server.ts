@@ -8,7 +8,7 @@
 // limits and body limit as every other route.
 import { createHmac, timingSafeEqual } from 'node:crypto';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
-import { isIP } from 'node:net';
+import { inAllowlist } from './allowlist';
 import { type Bridge, BridgeError } from './bridge';
 import type { DailyRequest, DailyResponse } from './daily';
 import { type RunQueue, runsRoute } from './runs';
@@ -57,20 +57,8 @@ const DAILY = (method: string | undefined, path: string) =>
   (method === 'POST' && path === '/v1/commit') ||
   (method === 'GET' && /^\/v1\/reveal\/[\w-]{1,64}$/.test(path));
 
-/** Whether an address is in an allowlist of addresses and IPv4 networks (`a.b.c.d/n`). */
-export function inAllowlist(address: string, list: readonly string[]): boolean {
-  const ip = address.replace(/^::ffff:(?=\d+\.\d+\.\d+\.\d+$)/, '');
-  const v4 = (a: string) => a.split('.').reduce((n, x) => (n << 8) + Number(x), 0) >>> 0;
-  return list.some((entry) => {
-    const [net, bits] = entry.split('/');
-    if (!net) return false;
-    if (bits === undefined) return net.replace(/^::ffff:/, '') === ip;
-    if (isIP(net) !== 4 || isIP(ip) !== 4) return false;
-    const n = Number(bits);
-    const mask = n === 0 ? 0 : (~0 << (32 - n)) >>> 0;
-    return (v4(ip) & mask) === (v4(net) & mask);
-  });
-}
+// Kept here too (4.2.1): `inAllowlist` moved to allowlist.ts, which the engine's package ships for the Studio Server.
+export { inAllowlist };
 const LOOPBACK = ['127.0.0.1', '::1'];
 
 /** Token buckets per address (4.1.2): one for the routes anyone may call, one for failed authentications. */

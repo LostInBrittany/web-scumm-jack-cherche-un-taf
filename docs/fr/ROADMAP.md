@@ -599,6 +599,24 @@ par la baseline ; un script de liens. Laissé pour plus tard, dit comme tel : le
 (`docs/dev/passes/4.1.8.md`), l'accélération du workflow de release (son propre lot), les 845 lignes de l'onglet
 assistant.
 
+## v4.2.2 « Playable Workshop » (livrée en octobre 2026) : le jeu partagé joué, jugé, publié
+
+La deuxième étape 4.2.x (D42) : une prévisualisation construite par l'application de traitement pour chaque révision,
+et des sauvegardes qui demandent avant de changer de révision (ADR 0026) ; des diagnostics avec leur révision, la santé
+du jeu par révision et la bissection qui nomme la révision qui l'a cassé ; l'annulation personnelle ; des builds
+immuables aux manifestes signés ; les assets préparés sur l'application de traitement ; la sauvegarde, la restauration
+et le journal envoyé au bucket, avec son RPO. Vite a quitté le serveur. Expérimental jusqu'à ses passes (`studio-hosted`,
+`studio-collab`, `studio-preview`, `studio-assets-hosted`). Ensuite : la 4.2.3, la coordination avancée.
+
+## v4.2.1 « Shared Floor » (livrée en octobre 2026) : le Studio en ligne pour une équipe
+
+La première des trois étapes 4.2.x (D39 à D41) : un Studio Server pour un jeu et plusieurs personnes, derrière
+OpenID Connect, sur le runtime Node.js natif de Clever Cloud avec PostgreSQL et Cellar. Un journal durable, des pans
+tenus par un membre à la fois, un flux en direct de ce qui change, une application de traitement sans secret, le jeu
+sur sa propre origine, les écrans du Studio partagé, et une archive de release. Expérimental jusqu'à ce que ses passes
+`studio-hosted` et `studio-collab` soient faites. Ensuite : la 4.2.2, l'atelier jouable (prévisualisations par révision, builds,
+annulation personnelle ; son plan est #144), puis la 4.2.3.
+
 ## v4.2.0 « Stable World » (livrée en octobre 2026) : le SemVer strict, un périmètre stable réduit
 
 Le code de la 4.1.20 avec la version changée, et un correctif du Field Kit (`v4.2.0-rc.2`). Le SemVer strict à partir

@@ -4,6 +4,9 @@
 written to files under `games/<id>/`, the same files an AI assistant or a teammate edits with git. The Studio shows the
 real engine (the room rendered by `src/engine/dom`), so what you see is what players get.
 
+To put a game's Studio online for a team (logins, roles, several people at once), see
+[STUDIO-SERVER](STUDIO-SERVER.md).
+
 ## Local and LAN security
 
 `npm run studio` and `npm run dev` listen on `127.0.0.1`: another machine cannot reach their file-writing routes.
@@ -92,6 +95,12 @@ A provider call never follows a redirect, gives up after 60 s, and reads at most
   puzzle-order dimension drawn; **Coverage and bias** over many seeds; the rooms' **Anchors**, and one added from the
   Rooms tab's selection. A manifest that cannot make a world shows the validator's reasons. Computed with the engine's
   compiler (`src/studio/remix-model.ts`): the Studio never shows a world the player would not play.
+- **Map** (4.2.3): the scenario's groupings, chapters, puzzles and characters (`games/<id>/groupings.json`), each a
+  list of what the game already names (a room, a rule or topic id, `item:<id>`, `char:<id>`, `objective:<id>`,
+  `checkpoint:<id>`) with the `file:line` that writes it, or "not declared" when the game does not know it; then the rooms,
+  characters, items, objectives and checkpoints no grouping names yet (ids written by code, and line or step ids, are
+  not in the IR's provenance: they show as "not declared"). A grouping only refers: saving it writes `groupings.json` alone, never the content. The map is
+  derived at each read (from the IR's provenance and the groupings), never stored.
 - **Notes**: the shared log (`games/<id>/notes.json`), one entry per author ("you", or the AI's name), about a panel
   id, a room id, `room.entity`, or anything (empty: general). The whole log, newest first, grouped by `about` (tagged
   room / panel / entity, with "Open in Rooms" / "Open in Storyboard"); filters: free text, about (rooms with their
@@ -150,6 +159,8 @@ All paths are relative to the current game (`GAME`). Errors return `{ error }` w
 | POST `room/:id/add` | `{ kind: 'prop' \| 'hotspot' \| 'actor', id, name?, img?, char?, at: [x, y], look? }` → inserts the entry in the room file (the section is created if absent), the optional first look line, and a place in the layout (prop: foot at `at`, height 60; hotspot: 60 × 60 box centred on `at`; actor: feet at `at`); `{ ok, line, changed }`. `name` is required for props and hotspots |
 | GET/PUT `storyboard` | `storyboard.json` (`{ boards: [] }` if absent). PUT needs `{ boards: [...] }`, returns `{ ok, changed }`: an unchanged storyboard is not rewritten, a changed one is written compactly (what fits on 120 columns stays on one line) |
 | POST `storyboard/markdown` | → writes `games/<id>/storyboard.md` from the saved `storyboard.json` (same text as `npm run page:storyboard -- --md`); `{ ok, file, bytes, boards, panels }`; 404 without a `storyboard.json` |
+| GET `diff/<from>..<to>` | 4.2.3: what changed between two revisions, by what the game names: `{ files: [{ path, change: added\|removed\|changed, ids?: { added, removed, changed: [{ id, fields }] }, values?: { added, removed, changed }, opaque?, cut? }] }` (2,000 revisions at most; the Check tab's "Changes between revisions") |
+| GET `groupings`, PUT `groupings`, GET `map` | 4.2.3: the groupings file `{ groupings: [{ id, kind: chapter\|puzzle\|character, title, refs }] }` (checked: ids unique and lowercase, kinds known, references without spaces; 500 at most of each), and the map derived from it and the IR: `{ groupings: [{ …, refs: [{ ref, kind, at? }] }], ungrouped: { <kind>: [refs] } }` |
 | GET `notes`, POST `notes` | GET → `{ entries: Note[] }`; POST `{ about?, author?, text }` → the new `Note = { id, about, author, text, at, edited? }` (author defaults to `you`, `at` is an ISO date), appended to `notes.json` (created on first write) |
 | PUT `notes/:id` | `{ text, about? }` → the updated `Note` (text trimmed, `edited` set to now; `at`, `author` and the order unchanged); 400 empty text, 404 unknown id |
 | DELETE `notes/:id` | → `{ ok }`, the note removed from `notes.json`; 404 unknown id |
@@ -167,14 +178,14 @@ All paths are relative to the current game (`GAME`). Errors return `{ error }` w
 | POST `assets/decor` | `{ name, data }` (PNG or JPEG) → `art/decor/<name>.<ext>`, the old picture kept as `<name>_v<N>.<ext>`; `{ ok, file, backup? }` |
 | POST `assets/sound` | `{ kind: 'music' \| 'sfx', file, data }` → `audio/<kind>/<file>` (any format ffmpeg reads), the old file kept as a backup; `{ ok, file, backup? }` |
 | POST `assets/prepare` | runs `npm run assets` → `{ ok, code, output }`; with `?stream=1`, the output as plain text while it runs, ending with `[exit <code>]` |
-| PUT `room/:id/value` | `{ path, value, dry? }` → `{ ok, line, changed, diff, dry? }`: a structured value written as code at `path` (3.4; `value` absent removes it); 422 `{ error, errors, diff }` when the write adds validation errors (it is taken back) |
+| PUT `room/:id/value` | `{ path, value, dry? }` → `{ ok, line, changed, diff, dry? }`: a structured value written as code at `path` (3.4; `value` absent removes it); 422 `{ error, errors, diff }` when the write would add validation errors (since 4.2.1 nothing is written: the guard judges the game as it would be) |
 | PUT `room/@game/value` | the same for the game file's `defineGame({...})` (4.1.12), objectives only: `objectives`, `objectives.<id>` or one of its fields; any other path is 400 |
 | GET `ir` | the game's IR (4.1.12, `docs/en/DSL.md`): its logic as data with the `file:line` of each id (`provenance`) and the trusted extensions' hash; the same JSON as `npm run ir -- --json` |
 | POST `undo`, POST `redo`, GET `history` | → `{ ok, file, what }` or `{ ok: false, reason }`; 409 when the file changed since; `history` → `{ undo: [what], redo: [what] }` |
 | GET `voices[/:lang]`, PUT `voices/:lang/:id`, GET `voices/:lang/csv` | the voice table `{ lang, langs, statuses, rows }`; `{ status?, note?, actor? }` → `{ ok }` (into `voices.json`); `{ lang, csv }` |
 | GET `events` | server-sent events: `{ type: 'hello', game }` on connection, then `{ type: 'changed', file }` when a file of the game folder changes on disk (`file` relative to it, e.g. `rooms/house.ts`; dotfiles and `private/` are ignored; 150 ms debounce per file) |
 
-The same operations exist as plain functions in `tools/studio/core.ts`, used by the Vite plugin, by the tests and by
+The same operations exist as plain functions in `studio-server/src/ops/core.ts`, used by the Vite plugin, by the tests and by
 the MCP server: `gameInfo()`, `getRoom(id)`, `setLayout(id, layout)`, `setText(id, path, value)`, `addEntity(id, e)`,
 `getStoryboard()`, `setStoryboard(sb)`, `exportStoryboardMarkdown()`, `getNotes()`, `addNote(n)`, `editNote(id, { text, about? })`,
 `deleteNote(id)`, `validate()`, `solve(from?)`,
@@ -182,7 +193,14 @@ the MCP server: `gameInfo()`, `getRoom(id)`, `setLayout(id, layout)`, `setText(i
 for any other game folder. They never exit the process: errors are thrown as `StudioError` (with `status`). The game is
 re-imported on every call so that edits on disk are seen: by default with tsx's scoped loader (fast, in process);
 `importInChild` (a child node + tsx process) is the fallback where in-process imports are cached, e.g. inside Vitest.
-Writes are serialized. Shared types are in `tools/studio/types.ts`; the storyboard schema, its normalisation and the
+Writes are serialized. Since 4.2.1 each write is one operation of the game's journal
+(`studio-server/src/ops/journal.ts`, kept in `.cache/studio-journal/`): every file it touches is written at once or
+not at all, durably (fsync), and an operation a crash interrupted is finished when the Studio opens again. Every write
+whose files the validator reads is guarded on the game as it would be after it (422 when it adds validation errors;
+text edits included since 4.2.1). Adding a prop, hotspot or actor writes the room and its layout as one operation,
+undone in one step. A change made outside the Studio (an editor, an agent, git) is recorded before the next write
+touches that file, and a file another process rewrote while an edit was being prepared is a 409. Shared types are in
+`tools/studio/types.ts`; the storyboard schema, its normalisation and the
 Markdown export are in `tools/pages/storyboard-data.ts` (pure, shared by the page generator, the core and the UI).
 
 ### Texts
@@ -230,6 +248,11 @@ the Storyboard and Rooms tabs are laid out the same way since 4.1.8, every file 
   old file is kept as `<name>_v<N>`. Backups are not cells (the listing and the prompts ignore them).
 - **Demo mode**: the listing comes from the snapshot (`assets` in `snapshot.json`), the thumbnails and sounds from the
   prepared files of `public/assets` (unused cells have no preview); uploads and Prepare are hidden.
+- **Hosted Studio** (Studio Server, 4.2.3): the same tab, served by `studio-server/src/server/hosted-assets.ts` under
+  `/api/assets`. Uploads are bounded (10 MiB; PNG, JPEG or WebP images, Ogg, MP3 or WAV sounds, read from their
+  bytes); the cutting, the keying and **Prepare assets (on the server)** are jobs of the processing worker, under the
+  project's exclusive lease, shown in a small panel with a **Cancel** button (a job cancelled before its write leaves
+  nothing). The uploaded sheet itself is not kept there. See docs/en/STUDIO-SERVER.md.
 
 ## Demo mode
 The Studio also runs without any server, on a static host: https://wanoo.github.io/web-scumm/studio.html is the demo
@@ -257,8 +280,9 @@ game's Studio, built by the CI. Same UI, same engine view and placement editor; 
 - **Engine view**: in a demo build the dev tools also load with `?edit` / `?dev` (and only then: the player's game is
   the same). They apply the same patches to the game and the layouts at start. Save layout in the editor posts the
   layout to the Studio around it (`postMessage`, message `saved` with `layout`), which keeps it as a `layout` patch;
-  the editor opened alone writes the patch to `localStorage` itself. On the dev server, the editor still writes
-  `layout/<room>.json`; it falls back to the same path only when `/__layout` does not exist.
+  the editor opened alone writes the patch to `localStorage` itself. On the dev server, the editor writes
+  `layout/<room>.json` through the Studio's API (`PUT /__studio/api/room/<id>/layout`, one guarded operation of the
+  journal since 4.2.1); it falls back to the patch only when that API does not exist.
 - **Banner**: "Demo: your edits stay in this browser", **Download patch** (`studio-patch-<game>.json`: `{ format:
   'web-scumm-studio-patch', version, game, created, patches }`) and **Reset demo** (drops every edit).
 - **Apply**: `npm run studio-apply patch.json` replays a downloaded patch on your copy through the core (`setText`,

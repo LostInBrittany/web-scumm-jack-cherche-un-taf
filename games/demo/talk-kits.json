@@ -1,0 +1,6 @@
+{
+  "grandpa": { "profil": "grandpa/r3c3", "face": "grandpa/r3c1", "assis": "grandpa_seated/r2c1" },
+  "grandma": { "profil": "grandma/r3c3", "face": "grandma/r3c1" },
+  "neighbor": { "profil": "neighbor/r3c3", "face": "neighbor/r3c1" },
+  "seller": { "profil": "seller/r3c3", "face": "seller/r3c1" }
+}

@@ -84,8 +84,7 @@ describe('the no-op memo changes nothing but the engine runs', () => {
         expect(plain.profile.memo).toMatchObject({ applied: false, reason: 'turned off' });
       }, 300_000);
 
-  it.skip('the demo: same proof, a third of the engine runs, every skip checked', async () => {
-    // @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
+  it('the demo: same proof, a third of the engine runs, every skip checked', async () => {
     const { game, layouts, commands } = await import('../games/demo');
     const plain = await solve(structuredClone(game), layouts, { mode: 'prove', commands, memo: false });
     const memo = await solve(structuredClone(game), layouts, { mode: 'prove', commands, memoVerify: 1 });

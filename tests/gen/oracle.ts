@@ -8,9 +8,7 @@ import type { GameDef, Layout } from '@engine/core/types';
 import type { CustomCommands } from '@engine/core/custom';
 import type { SolveOptions, SolveResult } from '@engine/tools/solve';
 import { loadLayouts } from '@engine/tools/load';
-// @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
 import { game as demo, layouts as demoLayouts, commands as demoCommands } from '../../games/demo';
-// @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
 import { game as reference } from '../../games/reference/game';
 import { randomGame } from './random-game';
 

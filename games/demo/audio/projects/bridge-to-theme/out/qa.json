@@ -1,0 +1,68 @@
+{
+ "channels": {
+  "FM1": {
+   "role": "lead",
+   "active_s": 5.5,
+   "rms_db": -20.3,
+   "centroid_hz": 1226,
+   "target": -20,
+   "pitch_match": "6/6"
+  },
+  "FM2": {
+   "role": "double",
+   "active_s": 5.5,
+   "rms_db": -28.3,
+   "centroid_hz": 616,
+   "target": -30,
+   "pitch_match": "2/2"
+  },
+  "FM3": {
+   "role": "bass",
+   "active_s": 5.5,
+   "rms_db": -17.9,
+   "centroid_hz": 210,
+   "target": -20,
+   "pitch_match": "8/8"
+  },
+  "FM4": {
+   "role": "harmony",
+   "active_s": 5.5,
+   "rms_db": -28.3,
+   "centroid_hz": 498,
+   "target": -27,
+   "pitch_match": "2/2"
+  },
+  "FM5": {
+   "role": "counter",
+   "active_s": 0
+  },
+  "FM6": {
+   "role": "harmony",
+   "active_s": 0
+  },
+  "PSG1": {
+   "role": "echo",
+   "active_s": 0
+  },
+  "PSG2": {
+   "role": "arp",
+   "active_s": 0
+  },
+  "PSG3": {
+   "role": "accent",
+   "active_s": 0
+  },
+  "NOISE": {
+   "role": "noise",
+   "active_s": 0
+  }
+ },
+ "issues": [],
+ "mix": {
+  "duration_s": 5.47,
+  "peak": 0.472,
+  "rms_db": -15.6,
+  "stereo_diff_db": -0.1
+ },
+ "build_log": []
+}

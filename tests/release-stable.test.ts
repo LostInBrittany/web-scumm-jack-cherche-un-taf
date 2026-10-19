@@ -11,6 +11,8 @@ import {
   jsonObjects,
   MINIMUM,
   PACKAGES,
+  packagesFor,
+  passesAsked,
   pinProblems,
   pinsOf,
   preflight,
@@ -237,7 +239,7 @@ describe('ship preflight-stable', () => {
     });
     for (const id of ['signing-key', 'signing-key-on-github', 'allowed-signers', 'immutable-releases', 'tag-ruleset'])
       expect(state(rows, id), id).toBe('missing');
-    for (const p of PACKAGES) {
+    for (const p of packagesFor('4.2.0')) {
       expect(state(rows, `${p}:archive`)).toBe('ok');
       expect(state(rows, `${p}:name`)).toBe('ok');
       expect(state(rows, `${p}:bootstrap`)).toBe('missing');
@@ -268,7 +270,7 @@ describe('ship preflight-stable', () => {
       root: d,
       candidate: { run: '1', problems: [], pack },
     });
-    for (const p of PACKAGES) {
+    for (const p of packagesFor('4.2.0')) {
       expect(state(rows, `${p}:name`)).toBe('blocked');
       expect(rows.find((r: { id: string }) => r.id === `${p}:name`).say).toMatch(/ECONNRESET|network aborted/);
       expect(state(rows, `${p}:bootstrap`)).toBeUndefined();
@@ -283,7 +285,7 @@ describe('ship preflight-stable', () => {
       root: d,
       candidate: { run: '1', problems: [], pack },
     });
-    for (const p of PACKAGES) expect(state(free, `${p}:name`)).toBe('ok');
+    for (const p of packagesFor('4.2.0')) expect(state(free, `${p}:name`)).toBe('ok');
   });
 
   it('reads user.signingkey as git does: a file, a ~/ path, or key:: and the key itself', () => {
@@ -426,6 +428,16 @@ describe('ship preflight-stable', () => {
     });
     expect(state(rows, 'tag-ruleset')).toBe('missing');
     expect(state(rows, 'signing-key-on-github')).toBe('missing');
+  });
+});
+
+describe('what a release is asked', () => {
+  it('the Studio Server archive from 4.2.1 on, and the two passes it came with', () => {
+    expect(packagesFor('4.2.0')).not.toContain('web-scumm-studio-server');
+    expect(packagesFor('4.2.1-rc.1')).toContain('web-scumm-studio-server');
+    expect(passesAsked('4.2.0')).toHaveLength(13);
+    expect(passesAsked('4.2.1')).toHaveLength(15);
+    expect(passesAsked('4.2.1')).toContain('studio-collab');
   });
 });
 

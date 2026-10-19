@@ -22,7 +22,7 @@ import type { GameInfo } from '../src/studio/api';
 import { CMD_SPECS, type COND_KINDS } from '../src/studio/schema';
 import { sample } from './fixtures/samples';
 import { coreBackend } from '../tools/studio/backend';
-import { createStudio, importInChild } from '../tools/studio/core';
+import { createStudio, importInChild } from '../studio-server/src/ops/core';
 import { callTool } from '../tools/studio/tools';
 import { quest, questLayouts } from './fixtures/objectives';
 

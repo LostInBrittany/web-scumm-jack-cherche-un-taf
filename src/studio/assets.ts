@@ -1,7 +1,8 @@
 // Assets tab: every image and sound of the game (games/<id>/art, audio), where each one is used, its art prompt, and
 // the uploads: a generated sheet (cut by tools/cut-sheet.py), one cell, a decor, a sound. Nothing is ever deleted: a
 // replaced file is kept as `<name>_v<N>` next to it. Listing through `api.assets()` (the demo reads its snapshot);
-// uploads and "Prepare assets" talk to /__studio/api/assets/* on the dev server only (tools/studio/assets.ts).
+// uploads and "Prepare assets" talk to the API's assets/* (the dev server's tools/studio/assets.ts; on a hosted Studio
+// since 4.2.3, studio-server's hosted-assets.ts, where Prepare and the cutting are jobs of the processing worker).
 // 4.1.8, programme §4.7 (the Studio's biggest owners split into model / IO / view): this file keeps the state, the
 // listing and Prepare (the IO against `api`), and the tree / centre / side orchestration; the pure functions are in
 // assets-model.ts, the uploads' plumbing in assets-io.ts, the views in assets-view.ts (shared), assets-sheets.ts,
@@ -14,6 +15,9 @@ import { cellPanel, renderSheet, type SheetsHost, uploadDialog } from './assets-
 import { renderSounds } from './assets-sounds';
 import { h, toast } from './ui';
 import { must } from '../engine/core/must';
+import { hosting, studioFetch } from './api-base';
+import { post } from './assets-io';
+import { jobText } from './jobs';
 
 export interface AssetsCtx {
   info: GameInfo;
@@ -39,7 +43,7 @@ export class AssetsTab {
   private prepBtn = h(
     'button',
     { class: 'primary', onclick: () => void this.prepare() },
-    'Prepare assets (npm run assets)',
+    hosting.hosted ? 'Prepare assets (on the server)' : 'Prepare assets (npm run assets)',
   );
   private prepState = h('span', { class: 'as-chip' });
   private summary = h('span', { class: 'muted small' });
@@ -252,15 +256,45 @@ export class AssetsTab {
 
   // -------------------------------------------------------------- prepare
 
+  /** A hosted Studio's Prepare (4.2.3): a job of the processing worker, its states in the drawer, cancellable. */
+  private async prepareHosted() {
+    this.prepBtn.disabled = true;
+    this.drawer.hidden = false;
+    this.drawer.open = true;
+    this.drawerOut.textContent = 'Prepare assets, on the server\n';
+    let ok = false;
+    try {
+      const r = await post<{ rev: number; files: number; log: string }>('prepare', {}, (j) => {
+        this.drawerOut.textContent += `${jobText(j)}\n`;
+      });
+      this.drawerOut.textContent += `${r.log}\nprepared from revision ${r.rev}: ${r.files} files\n`;
+      ok = true;
+      toast(`Assets prepared (${r.files} files)`, 'ok');
+    } catch (e) {
+      this.drawerOut.textContent += `${(e as Error).message}\n`;
+      toast((e as Error).message, 'error');
+    } finally {
+      this.prepBtn.disabled = false;
+    }
+    this.ctx.ownWrite();
+    await this.load(true);
+    if (ok) this.ctx.prepared?.();
+  }
+
   /** POST assets/prepare?stream=1: `npm run assets` with its output live in the drawer. */
   private async prepare() {
+    if (hosting.hosted) return this.prepareHosted();
     this.prepBtn.disabled = true;
     this.drawer.hidden = false;
     this.drawer.open = true;
     this.drawerOut.textContent = '$ npm run assets\n';
     let code = 1;
     try {
-      const r = await fetch('/__studio/api/assets/prepare?stream=1', { method: 'POST' });
+      const r = await studioFetch('assets/prepare?stream=1', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: '{}',
+      });
       if (!r.ok || !r.body) throw new Error(`${r.status} ${r.statusText}`);
       const reader = r.body.getReader();
       const dec = new TextDecoder();

@@ -23,6 +23,7 @@ export const GATES = [
   'secondGame',
   'freshInstall',
   'upgrade',
+  'studioHosted',
 ] as const;
 export type Gate = (typeof GATES)[number];
 /** Every gate, plus `all` when one file (or `--all`) asked for everything. */
@@ -40,6 +41,7 @@ export const JOB_OF: Record<Gate, string> = {
   secondGame: 'second-game',
   freshInstall: 'fresh-install',
   upgrade: 'upgrade',
+  studioHosted: 'studio-hosted',
 };
 
 interface Rule {
@@ -73,6 +75,11 @@ export const RULES: readonly Rule[] = [
   { re: /\.md$/, gates: [], why: 'documentation' },
   { re: /^(LICENSE[^/]*|\.gitignore|\.git-blame-ignore-revs|\.mcp\.json)$/, gates: [], why: 'repository metadata' },
   { re: /^\.(claude|cursor)\//, gates: [], why: 'agent configuration' },
+  {
+    re: /^clevercloud\//,
+    gates: [],
+    why: "Clever Cloud's own files (the daily backup's cron, 4.2.3): read when deployed",
+  },
   { re: /^\.github\//, gates: [], why: 'another workflow or a template (not run by ci)' },
 
   // The engine, by the part a change can break; the rest of src/engine is the core: everything.
@@ -93,9 +100,19 @@ export const RULES: readonly Rule[] = [
     why: 'the PWA and the storage',
   },
   { re: /^src\/engine\//, gates: 'all', why: 'the engine core' },
-  { re: /^src\/studio\//, gates: ['e2e', ...UNIT], why: 'the Studio (the canvas row edits a stage)' },
+  {
+    re: /^src\/studio\//,
+    gates: ['e2e', 'studioHosted', ...UNIT],
+    why: 'the Studio (the canvas row edits a stage; studio-hosted runs it on the Studio Server)',
+  },
 
   // The Reality Bridge and its sample game.
+  // The Studio Server's journal runs on these (4.2.1): its SQL store and its migrations runner.
+  {
+    re: /^bridge\/src\/(store-sql|store-sqlite|migrations)\.ts$/,
+    gates: ['reality', 'freshInstall', ...UNIT, 'studioHosted'],
+    why: "the Bridge's SQL layer, also the Studio Server journal's",
+  },
   { re: /^bridge\//, gates: ['reality', 'freshInstall', ...UNIT], why: 'the Reality Bridge (also a package)' },
   {
     re: /^(connectors\/|games\/signals\/|scripts\/(e2e-reality|reality-spike)\.mjs$|tools\/(reality-xcheck|solve-reality|reality-fixtures)\.ts$)/,
@@ -109,7 +126,7 @@ export const RULES: readonly Rule[] = [
   // The Bridge's qualification profile (4.1.18): brought up by its own workflow (qualify.yml) and the candidate's
   // `deployment-smoke`; here its static test only.
   {
-    re: /^(ops\/|scripts\/ops-qualify\.mjs$|scripts\/ops-qualify\/)/,
+    re: /^(ops\/(?!studio\/(ci|keycloak)\/)|scripts\/ops-qualify\.mjs$|scripts\/ops-qualify\/)/,
     gates: [...UNIT],
     why: 'the qualification profile',
   },
@@ -128,6 +145,11 @@ export const RULES: readonly Rule[] = [
 
   // The browser scripts.
   { re: /^scripts\/e2e-pwa\.mjs$/, gates: ['e2e', 'pwaFirefox'], why: 'the PWA e2e' },
+  {
+    re: /^scripts\/(e2e-studio-(hosted|collab)\.ts|lib\/studio-stack\.ts)$/,
+    gates: ['studioHosted'],
+    why: 'the hosted Studio in a browser',
+  },
   { re: /^scripts\/e2e(\/|[^/]*\.mjs$)/, gates: ['e2e', 'reference', 'secondGame'], why: 'the browser e2e' },
   { re: /^tests\/visual\//, gates: ['e2e', 'reference'], why: 'the visual references' },
   { re: /^(scripts\/start\.mjs|tests\/run-tool\.ts)$/, gates: [...UNIT], why: 'what Windows runs differently' },
@@ -139,7 +161,17 @@ export const RULES: readonly Rule[] = [
     why: 'a repository tool',
   },
   { re: /^tools\/audio(\/|\.py$)/, gates: ['e2e', 'reference', 'node24'], why: 'the audio pipeline' },
+  {
+    re: /^studio-server\//,
+    gates: [...AUTHORING, 'studioHosted'],
+    why: 'the Studio Server and its operation core (4.2.1)',
+  },
   { re: /^(tools|scripts)\//, gates: [...AUTHORING], why: 'the authoring pipeline' },
+  {
+    re: /^(tests\/studio-(server|worker|collab|keycloak|client)\.test\.ts|ops\/studio\/(ci|keycloak)\/)/,
+    gates: [...UNIT, 'studioHosted'],
+    why: 'the hosted Studio against Postgres and S3 (4.2.1)',
+  },
   { re: /^tests\//, gates: [...UNIT], why: 'the unit tests' },
 ];
 

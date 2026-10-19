@@ -13,7 +13,7 @@ import type {
   ProviderKind,
 } from '../../tools/studio/assistant-loop';
 import type { DocName, ToolBackend } from '../../tools/studio/tools';
-import { api, type GameInfo } from './api';
+import { api, studioFetch, type GameInfo } from './api';
 import type { BrowserApi } from './api-browser';
 import { h, select, toast } from './ui';
 import { must } from '../engine/core/must';
@@ -723,7 +723,7 @@ export class AssistantPanel {
     emit: (ev: AssistantEvent) => void,
     signal: AbortSignal,
   ) {
-    const r = await fetch('/__studio/api/assistant/chat', {
+    const r = await studioFetch('assistant/chat', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       signal,
@@ -807,7 +807,7 @@ export class AssistantPanel {
       const about = this.aboutKey(c);
       if (this.ctx.demo) await api.addNote({ about, author: 'you', text, task: true });
       else {
-        const r = await fetch('/__studio/api/assistant/task', {
+        const r = await studioFetch('assistant/task', {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify({ about, text }),

@@ -63,10 +63,9 @@ describe('the 3.3 reference proof', () => {
 });
 
 describe('chapter boundaries', () => {
-  it.skip('the abstract shared search finds exactly the boundaries of the explicit search run from each start (demo, two chapters)', async () => {
+  it('the abstract shared search finds exactly the boundaries of the explicit search run from each start (demo, two chapters)', async () => {
     const { projectState } = await import('@engine/tools/solve');
-    // @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
-    const { game: demo, layouts, commands } = (await import('../games/demo')) as typeof import('../games/jack');
+    const { game: demo, layouts, commands } = await import('../games/demo');
     const cps = Object.entries(demo.checkpoints!).filter(([, c]) => c.goals?.length);
     const exp = { canonicalPlayers: false, mobility: false } as const;
     let startsExp = (await solve(demo, layouts, { mode: 'prove', goal: cps[0][1].goals, commands, ...exp })).boundaries;

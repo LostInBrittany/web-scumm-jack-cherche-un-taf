@@ -5,7 +5,6 @@
 // npm run remix -- --record=20: the playtest seeds (4.1.15): the first N seeds of the published sample, each world
 // solved and its witness replayed into a session that carries the world; written to games/<id>/playtests/
 // remix-<seed>.session.json, where `npm run playtests` replays them (each in its own world).
-import { mkdirSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { flushExit } from './flush';
 import { cachedSolve } from './proof-cache';
@@ -17,6 +16,7 @@ import { describeVariant, sampleSeed } from '../src/engine/tools/remix';
 import { replay } from '../src/engine/tools/replay';
 import { validate } from '../src/engine/tools/validate';
 import { loadLayouts } from '../src/engine/tools/load';
+import { writeGame } from './game-write';
 
 const argv = process.argv.slice(2);
 const after = (k: string) => {
@@ -71,8 +71,9 @@ async function recordPlaytests(n: number): Promise<never> {
   const layouts = loadLayouts(resolve(GAME_DIR, 'layout'));
   const c = compileGameManifest(g);
   const dir = resolve(GAME_DIR, 'playtests');
-  mkdirSync(dir, { recursive: true });
   let failed = 0;
+  // Every session recorded, then written as one operation of the game's journal (tools/game-write.ts).
+  const sessions: { file: string; text: string }[] = [];
   for (let i = 0; i < n; i++) {
     const v = compileVariant(c, g.remix, sampleSeed(i), REMIX_ALGORITHM_VERSION, 'remix');
     const world = applyVariant(g, v);
@@ -85,11 +86,12 @@ async function recordPlaytests(n: number): Promise<never> {
     const r = await replay(world, layouts, { start: { kind: 'new' }, log: s.steps }, { commands: cmds });
     const file = join(dir, `remix-${v.seed}.session.json`);
     const out = { kind: 'web-scumm-session', game: g.id, v: g.saveVersion, at: 0, session: r.session, trace: [] };
-    writeFileSync(file, `${JSON.stringify(out)}\n`);
+    sessions.push({ file, text: `${JSON.stringify(out)}\n` });
     console.log(
       `${r.ended && r.divergedAt === undefined ? '✔' : '✗'}  ${v.seed} (world ${v.hash.slice(0, 12)}): ${s.path.length} steps → ${file}`,
     );
     if (!r.ended || r.divergedAt !== undefined) failed++;
   }
+  await writeGame(`remix: ${sessions.length} playtest session(s)`, sessions, { guard: false });
   return flushExit(failed ? 1 : 0);
 }

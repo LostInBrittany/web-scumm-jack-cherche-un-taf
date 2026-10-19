@@ -1,0 +1,53 @@
+{
+  "title": "Swan Theme (after Tchaikovsky)",
+  "author": "web-scumm (tools/audio): Tchaikovsky's Swan Lake oboe theme (public domain), notes, harmony and arrangement written for the project (compose.py)",
+  "slug": "swan-theme",
+  "comment": "The demo's theme since 3.7: the Swan Lake oboe theme over held strings, its answer, the harp's descending sequence, then the rise to the cadence. B minor, 80 BPM, 17 bars. source.mid comes from compose.py, written for the project: no third-party transcription.",
+  "source": "source.mid",
+  "bars": 17,
+  "rows_per_beat": 8,
+  "pattern_rows": 64,
+  "hz": 60,
+  "extra_bars": 1,
+  "stop_at_end": true,
+  "sections": { "THEME": [1, 4], "ANSWER": [5, 8], "HARP": [9, 12], "RISE": [13, 17] },
+  "channels": {
+    "FM1": { "name": "FM1 Lead", "role": "lead", "pan": "C", "parts": [
+      { "track": 1, "voice": "high", "bars": "THEME", "ins": "synth_lead", "vol": 127, "vibrato": "23" },
+      { "track": 1, "voice": "high", "bars": "ANSWER", "ins": "horn_section", "vol": 127, "vibrato": "23" },
+      { "track": 1, "voice": "high", "bars": "HARP", "ins": "lead_brass", "vol": 127, "vibrato": "23" },
+      { "track": 1, "voice": "high", "bars": "RISE", "ins": "bright_strings", "vol": 127, "vibrato": "34" }
+    ] },
+    "FM2": { "name": "FM2 Strings L", "role": "double", "pan": "L", "fx_init": [["E5", "86"]], "parts": [
+      { "track": 2, "voice": "high", "bars": [1, 12], "ins": "soft_pad", "vol": 122 },
+      { "track": 2, "voice": "high", "bars": "RISE", "ins": "bright_strings", "vol": 122, "vibrato": "23" }
+    ] },
+    "FM3": { "name": "FM3 Bass", "role": "bass", "pan": "C", "parts": [
+      { "track": 5, "voice": "low", "bars": [1, 17], "ins": "finger_bass", "vol": 127 }
+    ] },
+    "FM4": { "name": "FM4 Strings", "role": "harmony", "pan": "C", "parts": [
+      { "track": 3, "voice": "high", "bars": [1, 12], "ins": "soft_pad", "vol": 122 },
+      { "track": 3, "voice": "high", "bars": "RISE", "ins": "horn_section", "vol": 122 }
+    ] },
+    "FM5": { "name": "FM5 Harp R", "role": "counter", "pan": "R", "parts": [
+      { "track": 4, "voice": "high", "bars": [1, 17], "ins": "e_piano", "vol": 116 }
+    ] },
+    "FM6": { "name": "FM6 Horn", "role": "harmony", "pan": "C", "parts": [
+      { "track": 2, "voice": "high", "bars": "RISE", "ins": "horn_section", "vol": 116, "transpose": -12 }
+    ] },
+    "PSG1": { "name": "PSG1 Echo", "role": "echo", "parts": [
+      { "track": 1, "voice": "high", "bars": "THEME", "ins": "echo", "vol": 8, "delay_rows": 4 },
+      { "track": 1, "voice": "high", "bars": "HARP", "ins": "echo", "vol": 8, "delay_rows": 4, "transpose": 12 }
+    ] },
+    "PSG2": { "name": "PSG2 Harp arp", "role": "arp", "parts": [
+      { "track": 4, "voice": "high", "bars": "HARP", "ins": "arp_pluck", "vol": 10, "weak_vol": 8 }
+    ] },
+    "PSG3": { "name": "PSG3 Shimmer", "role": "accent", "parts": [
+      { "track": 2, "voice": "high", "bars": [13, 16], "ins": "chord", "vol": 7 }
+    ] },
+    "NOISE": { "name": "Noise", "role": "noise", "parts": [] }
+  },
+  "stems": { "melody": ["FM1", "PSG1"], "strings": ["FM2", "FM4", "FM6", "PSG3"], "harp": ["FM5", "PSG2"], "bass": ["FM3", "NOISE"] },
+  "drums": null,
+  "extras": []
+}

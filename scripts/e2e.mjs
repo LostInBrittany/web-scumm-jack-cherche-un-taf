@@ -52,6 +52,7 @@ const harness = await launch(url, {
   renderer,
 });
 let ok = true;
+let teardownFrom = -1;
 const axeFound = [];
 try {
   if (axeCheck) axeFound.push(...(await harness.axe('title')));
@@ -121,6 +122,8 @@ try {
     console.log(`e2e: a manual save survived a reload (${r.store})`);
   }
   console.log('e2e: done');
+  // Errors collected from here on come with the browser's teardown.
+  teardownFrom = harness.errors.length;
 } catch (e) {
   ok = false;
   console.error('e2e: FAILED —', e.message);
@@ -132,9 +135,23 @@ try {
 } finally {
   await harness.close();
 }
-if (harness.errors.length) {
-  console.error(`e2e: ${harness.errors.length} browser error(s):`);
-  harness.errors.forEach((e) => console.error('  ' + e));
+// WebKit's "Context is stopped" (as in scripts/e2e-pwa.mjs since 4.1.20; here first on #139, 18 Oct 2026): the
+// browser's context stopping as the run ends, a Cache API call cut short. Reported, not counted, only when it came
+// during the teardown, after every check passed, and only in its seen form on WebKit; anything else is a failure.
+const contextStopped = (e, i) =>
+  teardownFrom >= 0 &&
+  i >= teardownFrom &&
+  (process.env.E2E_BROWSER ?? 'chromium') === 'webkit' &&
+  /^pageerror (\w+: )?Cache API operation failed: Context is stopped on /.test(String(e));
+const stopped = harness.errors.filter(contextStopped);
+if (stopped.length) {
+  console.log(`e2e: webkit: "Context is stopped" during the teardown (reported, not counted)`);
+  if (process.env.GITHUB_ACTIONS) console.log('::warning::e2e webkit: "Context is stopped" during the teardown');
+}
+const browserErrors = harness.errors.filter((e, i) => !contextStopped(e, i));
+if (browserErrors.length) {
+  console.error(`e2e: ${browserErrors.length} browser error(s):`);
+  browserErrors.forEach((e) => console.error('  ' + e));
   ok = false;
 }
 process.exit(ok ? 0 : 1);

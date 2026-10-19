@@ -82,6 +82,8 @@ export interface SlotMeta {
   room: GameState['room'];
   roomName: string;
   v: number;
+  /** Where it was made, in a build that declares its revision (4.2.2, ADR 0026: dom/revision.ts). */
+  revision?: { rev: number; fingerprint: string };
 }
 
 /** Manual save slots (`GameDef.saves.slots`), durable and verified like the autosave. Numbered from 1. @extension */

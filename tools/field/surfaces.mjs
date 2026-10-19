@@ -83,28 +83,36 @@ export function surfacesOf({ candidate, site, declared, version, config }) {
   };
   const fill = (g) => g.replaceAll('{pkg}', pkg);
   const claimed = new Set();
-  const surfaces = Object.entries(declared.surfaces).map(([id, s]) => {
-    const take = s.artifacts.map((g) => globRe(fill(g)));
-    const drop = s.exclusions.map((e) => globRe(fill(e.path)));
-    const artifactDigests = {};
-    for (const [name, digest] of Object.entries(all).sort(([a], [b]) => (a < b ? -1 : 1))) {
-      if (!take.some((r) => r.test(name))) continue;
-      claimed.add(name);
-      if (drop.some((r) => r.test(name))) continue;
-      artifactDigests[name] = digest;
-    }
-    for (const g of s.artifacts)
-      if (!Object.keys(all).some((n) => globRe(fill(g)).test(n)))
-        throw new Error(`${id}: ${g} names no file of this candidate`);
-    const surface = {
-      id,
-      artifactDigests,
-      configDigest: config(s.config),
-      exclusions: s.exclusions,
-      dependencies: s.dependencies,
-    };
-    return { ...surface, surfaceDigest: sha256(stable(surface)) };
-  });
+  // A surface whose pass came later (`since`, 4.2.1) is not one of an older candidate.
+  const atLeast = (a, b) => {
+    const [x, y] = [a, b].map((v) => v.replace(/-.*$/, '').split('.').map(Number));
+    for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] > y[i];
+    return true;
+  };
+  const surfaces = Object.entries(declared.surfaces)
+    .filter(([, s]) => !s.since || atLeast(version, s.since))
+    .map(([id, s]) => {
+      const take = s.artifacts.map((g) => globRe(fill(g)));
+      const drop = s.exclusions.map((e) => globRe(fill(e.path)));
+      const artifactDigests = {};
+      for (const [name, digest] of Object.entries(all).sort(([a], [b]) => (a < b ? -1 : 1))) {
+        if (!take.some((r) => r.test(name))) continue;
+        claimed.add(name);
+        if (drop.some((r) => r.test(name))) continue;
+        artifactDigests[name] = digest;
+      }
+      for (const g of s.artifacts)
+        if (!Object.keys(all).some((n) => globRe(fill(g)).test(n)))
+          throw new Error(`${id}: ${g} names no file of this candidate`);
+      const surface = {
+        id,
+        artifactDigests,
+        configDigest: config(s.config),
+        exclusions: s.exclusions,
+        dependencies: s.dependencies,
+      };
+      return { ...surface, surfaceDigest: sha256(stable(surface)) };
+    });
   const status = declared.status.map((e) => globRe(fill(e.path)));
   const loose = Object.keys(all).filter((n) => !claimed.has(n) && !status.some((r) => r.test(n)));
   if (loose.length)

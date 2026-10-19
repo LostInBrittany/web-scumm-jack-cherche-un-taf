@@ -6,9 +6,10 @@ import type { GameIR } from '@engine/core/ir';
 import type { WorldVariant } from '@engine/core/remix/compile';
 import { newSeedCode } from '@engine/core/remix/seed-code';
 import { frozenParam } from '@engine/dom/remix-menu';
-import { api, BASE } from './api';
+import { api } from './api';
 import { exportWorld, RemixModel, readSeed } from './remix-model';
 import { h, toast } from './ui';
+import { gameLink } from './game-origin';
 
 /** What the tab asks of the Studio: the Rooms tab's selection (for "anchor from the scene"). */
 export interface RemixHost {
@@ -188,17 +189,9 @@ export class RemixTab {
       broken.length ? h('p', { class: 'error' }, `Breaks: ${broken.join('; ')}`) : null,
       table(['lock', 'dimension', 'value'], rows),
       orders.map((o) => this.orderSvg(o!.groups, o!.edges)),
-      h(
-        'a',
-        { href: `${BASE}?seed=${encodeURIComponent(v.seed)}`, target: '_blank', rel: 'noopener' },
-        'Play this seed ↗',
-      ),
+      gameLink(`?seed=${encodeURIComponent(v.seed)}`, 'Play this seed ↗'),
       ' ',
-      h(
-        'a',
-        { href: `${BASE}?world=${frozenParam(v)}`, target: '_blank', rel: 'noopener' },
-        'Play this frozen world ↗',
-      ),
+      gameLink(`?world=${frozenParam(v)}`, 'Play this frozen world ↗'),
       ' ',
       h('button', { type: 'button', onclick: () => this.download(v) }, 'Export the frozen world'),
       h('h4', null, 'Compare'),

@@ -11,6 +11,9 @@ attenuated Biscuit, limits, a log without content) is ADR 0008 (`docs/dev/adr/00
 | SSH | [ssh.md](ssh.md) | an SSH server (`ssh2`), password = pairing code, or a declared key |
 | Open Badges | [open-badge.md](open-badge.md) | an HTTP form; the badge's documents fetched under a network policy |
 
+The Studio Server (4.2.1), not a connector, has its own page: [studio-server.md](studio-server.md) (the API, OpenID
+Connect, sessions and tokens, members, the journal's leases).
+
 Shared by all four. The connector is a process of its own (`web-scumm-connector <id>`), never in the game's bundle nor
 in its DSL; it holds one Biscuit attenuated to its signals; it never runs a host process, `eval`, `vm` or code from a
 string (`tests/connectors-abuse.test.ts`, static and at run time under `--disallow-code-generation-from-strings`); it

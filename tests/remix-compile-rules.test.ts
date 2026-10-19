@@ -400,8 +400,7 @@ describe('seed codes: range, prefix, isSeed, WebCrypto', () => {
 });
 
 describe('a stored world of another algorithm', () => {
-  it.skip('is refused for its algorithm, even with a correct hash of its own', async () => {
-    // @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
+  it('is refused for its algorithm, even with a correct hash of its own', async () => {
     const { game: demo } = await import('../games/demo/game');
     const { compileGameManifest } = await import('@engine/core/remix/apply');
     const { loadVariant } = await import('@engine/core/remix/compile');

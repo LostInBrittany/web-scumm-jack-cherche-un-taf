@@ -18,6 +18,7 @@
       "bridge/**/*.ts",
       "connectors/**/*.ts",
       "connectors/**/*.mjs",
+      "studio-server/**/*.ts",
       "vite.config.ts",
       "vitest.config.ts",
       "vitest.mutation.config.ts",

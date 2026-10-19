@@ -3,6 +3,7 @@
 // worker. Each step is also exported on its own. `src/main.ts` is the reference caller (docs/en/UPGRADING.md §8).
 import { App } from './dom/app';
 import type { SaveStore } from './core/ports';
+import type { BuildRevision } from './dom/revision';
 import type { CustomCommands } from './core/custom';
 import type { GameDef, Id, Layout } from './core/types';
 import type { AssetManifest } from './dom/assets';
@@ -24,8 +25,8 @@ export interface SwModule {
 }
 
 /**
- * What `bootGame` starts the game with: the game, its layouts and manifest, minigames, commands, locales, root, store
- * and service worker.
+ * What `bootGame` starts the game with: the game, its layouts and manifest, minigames, commands, locales, root, store,
+ * service worker, and the revision a preview is of.
  * @public
  */
 export interface BootOptions {
@@ -60,6 +61,11 @@ export interface BootOptions {
    * fingerprint; without these, its extensions part is unknown (`????????`).
    */
   build?: { trustedExtensions?: string; engine?: string };
+  /**
+   * The revision this build is of (4.2.2, ADR 0026: a hosted Studio's preview): saves record where they were made,
+   * and one made in other content asks before it is resumed. `url` is another revision's build. Default none.
+   */
+  revision?: BuildRevision;
   /** `window.__game = app` (console debugging, e2e drivers); default true. */
   expose?: boolean;
   /** The page's URL parameters; default `location.search`. */
@@ -225,6 +231,8 @@ export async function bootGame(o: BootOptions): Promise<App> {
     languages: others.length ? { current: lang ?? base, available: [base, ...others] } : undefined,
   });
   opened?.attach(app);
+  // Saves across revisions (ADR 0026): its module only for a build that declares one.
+  if (o.revision) await (await import('./dom/revision')).installRevision(app, o.revision);
   if (o.expose !== false) (globalThis as unknown as { __game?: App }).__game = app;
   // The world link (4.1.1): its module only for a game that declares `reality`; simulated in the dev tools.
   if (game.reality)

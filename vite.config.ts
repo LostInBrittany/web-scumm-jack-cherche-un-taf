@@ -6,7 +6,7 @@ import { join, resolve, sep } from 'node:path';
 import { VitePWA } from 'vite-plugin-pwa';
 import { GAME, GAME_DIR, PROJECT } from './tools/game.ts';
 import { studioPlugin } from './tools/studio/plugin.ts';
-import { assetsVersion, BASE, layoutWriter, sealBuild, sitePlugin, studioDemo } from './tools/vite/plugins.ts';
+import { assetsVersion, BASE, sealBuild, sitePlugin, studioDemo } from './tools/vite/plugins.ts';
 import { engineVersion, trustedExtensionsHash } from './tools/extensions.ts';
 
 // The engine's own files by their real path (4.1.18): Windows' 8.3 short names would leave the page and its root apart.
@@ -56,6 +56,12 @@ const gameUsesReality = (() => {
   return walk(GAME_DIR).some((f) => /\breality\s*:/.test(readFileSync(f, 'utf8')));
 })();
 
+/**
+ * The hosted Studio's page alone (4.2.1, `npm run studio-client`): studio.html and its code, no game, no public files,
+ * no service worker. The Studio Server serves it (studio-server/src/server/client.ts).
+ */
+const STUDIO_CLIENT = process.env.STUDIO_CLIENT === '1';
+
 export default defineConfig({
   // The engine's pages (index.html, studio.html) are next to this file, wherever it is installed.
   root: r('.'),
@@ -68,85 +74,87 @@ export default defineConfig({
     __TRUSTED_EXTENSIONS__: JSON.stringify(trustedExtensionsHash(GAME_DIR)),
     __ENGINE_VERSION__: JSON.stringify(engineVersion()),
   },
-  plugins: [
-    sitePlugin(),
-    layoutWriter(),
-    studioPlugin(),
-    studioDemo(),
-    sealBuild(),
-    // Service worker: the app is cached on install, images and sounds on first use (then served without network).
-    VitePWA({
-      registerType: 'prompt',
-      injectRegister: false,
-      manifest: false,
-      workbox: {
-        globPatterns: ['**/*.{js,css,html,ttf,webmanifest}', 'icons/*.png'],
-        // assets/tools/: the Studio and the dev tools (STUDIO=1 builds), never needed by a player offline.
-        globIgnores: [
-          'assets/img/**',
-          'assets/audio/**',
-          'assets/video/**',
-          'data/**',
-          'assets/tools/**',
-          'studio-demo/**',
-          'fonts/**',
-          ...(gameUsesReality ? [] : ['assets/reality/**']),
-        ],
-        navigateFallback: 'index.html',
-        cleanupOutdatedCaches: true,
-        // The worker claims the page at its first activation (the warm-up's fetches must pass through it to be cached);
-        // an update never activates on its own: the banner asks, after a durable save (dom/update.ts).
-        clientsClaim: true,
-        skipWaiting: false,
-        runtimeCaching: [
-          {
-            urlPattern: /\/assets\/img\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'jeu-images',
-              expiration: { maxEntries: 2000, maxAgeSeconds: 90 * 86400 },
-              cacheableResponse: { statuses: [0, 200] },
-            },
+  ...(STUDIO_CLIENT ? { publicDir: false as const } : {}),
+  plugins: STUDIO_CLIENT
+    ? []
+    : [
+        sitePlugin(),
+        studioPlugin(),
+        studioDemo(),
+        sealBuild(),
+        // Service worker: the app is cached on install, images and sounds on first use (then served without network).
+        VitePWA({
+          registerType: 'prompt',
+          injectRegister: false,
+          manifest: false,
+          workbox: {
+            globPatterns: ['**/*.{js,css,html,ttf,webmanifest}', 'icons/*.png'],
+            // assets/tools/: the Studio and the dev tools (STUDIO=1 builds), never needed by a player offline.
+            globIgnores: [
+              'assets/img/**',
+              'assets/audio/**',
+              'assets/video/**',
+              'data/**',
+              'assets/tools/**',
+              'studio-demo/**',
+              'fonts/**',
+              ...(gameUsesReality ? [] : ['assets/reality/**']),
+            ],
+            navigateFallback: 'index.html',
+            cleanupOutdatedCaches: true,
+            // The worker claims the page at its first activation (the warm-up's fetches must pass through it to be cached);
+            // an update never activates on its own: the banner asks, after a durable save (dom/update.ts).
+            clientsClaim: true,
+            skipWaiting: false,
+            runtimeCaching: [
+              {
+                urlPattern: /\/assets\/img\//,
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'jeu-images',
+                  expiration: { maxEntries: 2000, maxAgeSeconds: 90 * 86400 },
+                  cacheableResponse: { statuses: [0, 200] },
+                },
+              },
+              {
+                urlPattern: /\/assets\/audio\//,
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'jeu-sons',
+                  rangeRequests: true,
+                  expiration: { maxEntries: 600, maxAgeSeconds: 90 * 86400 },
+                  cacheableResponse: { statuses: [200] },
+                },
+              },
+              {
+                urlPattern: /\/assets\/video\//,
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'jeu-videos',
+                  rangeRequests: true,
+                  expiration: { maxEntries: 10 },
+                  cacheableResponse: { statuses: [200] },
+                },
+              },
+              // public/fonts: the full fonts behind a subset (DotGothic16), cached the first time a character needs them.
+              {
+                urlPattern: /\/fonts\//,
+                handler: 'CacheFirst',
+                options: {
+                  cacheName: 'jeu-polices',
+                  expiration: { maxEntries: 10 },
+                  cacheableResponse: { statuses: [200] },
+                },
+              },
+              {
+                urlPattern: /\/data\//,
+                handler: 'NetworkFirst',
+                options: { cacheName: 'jeu-donnees', networkTimeoutSeconds: 4 },
+              },
+            ],
           },
-          {
-            urlPattern: /\/assets\/audio\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'jeu-sons',
-              rangeRequests: true,
-              expiration: { maxEntries: 600, maxAgeSeconds: 90 * 86400 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          {
-            urlPattern: /\/assets\/video\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'jeu-videos',
-              rangeRequests: true,
-              expiration: { maxEntries: 10 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          // public/fonts: the full fonts behind a subset (DotGothic16), cached the first time a character needs them.
-          {
-            urlPattern: /\/fonts\//,
-            handler: 'CacheFirst',
-            options: {
-              cacheName: 'jeu-polices',
-              expiration: { maxEntries: 10 },
-              cacheableResponse: { statuses: [200] },
-            },
-          },
-          {
-            urlPattern: /\/data\//,
-            handler: 'NetworkFirst',
-            options: { cacheName: 'jeu-donnees', networkTimeoutSeconds: 4 },
-          },
-        ],
-      },
-    }),
-  ],
+        }),
+      ],
   // File-writing Studio routes are intentionally loopback-only by default. `npm run dev:lan` / `studio:lan` opt in
   // to LAN access (the Studio adds an authentication token in that mode).
   server: { port: 5173, host: process.env.WEB_SCUMM_LAN === '1' ? true : '127.0.0.1' },
@@ -177,9 +185,12 @@ export default defineConfig({
     target: 'es2020',
     assetsInlineLimit: 0,
     ...(PROJECT ? { outDir: resolve(PROJECT, 'dist'), emptyOutDir: true } : {}),
+    ...(STUDIO_CLIENT ? { outDir: r('./.cache/studio-client'), emptyOutDir: true } : {}),
     // Rolldown (Vite 8, 4.1.8): the option is `rolldownOptions`; `rollupOptions` is kept as a deprecated alias.
     rolldownOptions: {
-      input: { index: r('./index.html'), ...(process.env.STUDIO === '1' ? { studio: r('./studio.html') } : {}) },
+      input: STUDIO_CLIENT
+        ? { studio: r('./studio.html') }
+        : { index: r('./index.html'), ...(process.env.STUDIO === '1' ? { studio: r('./studio.html') } : {}) },
       // Code only the Studio or the dev tools use goes to assets/tools/ (left out of the service worker's precache).
       output: {
         entryFileNames: (c: { name: string }) =>
@@ -205,17 +216,17 @@ export default defineConfig({
     // whether the tests tell a right result from a wrong one.
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts', 'bridge/src/**/*.ts'],
+      include: ['src/**/*.ts', 'bridge/src/**/*.ts', 'studio-server/src/**/*.ts'],
       exclude: ['src/**/*.d.ts'],
       reporter: ['text-summary', 'json-summary', 'html'],
       reportsDirectory: '.cache/coverage',
       thresholds: {
         // The floor measured at 4.1.0 (the browser-only parts of src/, the player's UI and the Studio's, are covered
         // by the e2e, not here).
-        lines: 73,
-        statements: 72,
+        lines: 74,
+        statements: 73,
         functions: 71,
-        branches: 68,
+        branches: 69,
         // What a save, a session, a condition and a migration rest on: every branch.
         'src/engine/core/cond.ts': { branches: 100 },
         'src/engine/core/diff.ts': { branches: 100 },
@@ -234,6 +245,31 @@ export default defineConfig({
         'src/engine/reality/protocol.ts': { lines: 95, branches: 96 },
         'src/engine/reality/client.ts': { lines: 98, branches: 90 },
         'src/engine/reality/http-port.ts': { lines: 98, branches: 95 },
+        // The Studio Server's trust boundaries (4.2.1): the journal, the gate and its provider, the leases, the game's
+        // origin, the worker's jobs. Two points under what was measured when they arrived; they may only rise.
+        'studio-server/src/ops/backup.ts': { lines: 95, branches: 80 },
+        'studio-server/src/ops/gc.ts': { lines: 98, branches: 83 },
+        'studio-server/src/ops/ship.ts': { lines: 98, branches: 78 },
+        'studio-server/src/ops/journal.ts': { lines: 96, branches: 95 },
+        'studio-server/src/ops/spans.ts': { lines: 100, branches: 100 },
+        'studio-server/src/ops/undo.ts': { lines: 98, branches: 98 },
+        'studio-server/src/ops/validate-dir.ts': { lines: 100, branches: 90 },
+        'studio-server/src/server/auth/gate.ts': { lines: 96, branches: 96 },
+        'studio-server/src/server/auth/oidc.ts': { lines: 98, branches: 95 },
+        'studio-server/src/server/auth/routes.ts': { lines: 98, branches: 94 },
+        'studio-server/src/server/auth/store.ts': { lines: 93, branches: 97 },
+        'studio-server/src/server/config.ts': { lines: 83, branches: 83 },
+        'studio-server/src/server/http.ts': { lines: 90, branches: 81 },
+        'studio-server/src/server/leases.ts': { lines: 98, branches: 98 },
+        'studio-server/src/server/live.ts': { lines: 86, branches: 59 },
+        'studio-server/src/server/play.ts': { lines: 100, branches: 94 },
+        'studio-server/src/server/builds.ts': { lines: 97, branches: 94 },
+        'studio-server/src/server/health.ts': { lines: 97, branches: 89 },
+        'studio-server/src/server/prepared.ts': { lines: 98, branches: 76 },
+        'studio-server/src/server/previews.ts': { lines: 94, branches: 87 },
+        'studio-server/src/server/remote-executor.ts': { lines: 95, branches: 85 },
+        'studio-server/src/worker/job.ts': { lines: 100, branches: 100 },
+        'studio-server/src/worker/snapshot.ts': { lines: 95, branches: 88 },
         'bridge/src/bridge.ts': { lines: 97, branches: 96 },
         'bridge/src/store.ts': { lines: 96, branches: 92 },
         'bridge/src/server.ts': { lines: 94, branches: 86 },

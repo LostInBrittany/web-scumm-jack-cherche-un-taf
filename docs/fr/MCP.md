@@ -1,7 +1,7 @@
 # MCP : le Studio pour n'importe quel assistant IA
 
 `npm run mcp` lance un serveur [Model Context Protocol](https://modelcontextprotocol.io) en **stdio** qui expose les
-opérations du Studio (`tools/studio/core.ts`, voir STUDIO.md) comme des outils. N'importe quel client MCP (Claude Code,
+opérations du Studio (`studio-server/src/ops/core.ts`, voir STUDIO.md) comme des outils. N'importe quel client MCP (Claude Code,
 Claude Desktop, Cursor, Codex CLI, Gemini CLI, un agent maison) lit et modifie alors un jeu exactement comme le Studio,
 et l'humain voit le résultat en direct dans `npm run studio` (qui surveille les fichiers).
 
@@ -93,6 +93,31 @@ args = ["--prefix", "/chemin/web-scumm", "run", "-s", "mcp"]
 ### Tout autre client
 Commande `npm run -s mcp` (ou `npx tsx tools/mcp/server.ts`) avec le dépôt comme répertoire de travail, transport
 stdio. Node 22.12+.
+
+## Un Studio hébergé (4.2.3)
+
+Sur un Studio Server (`docs/fr/STUDIO-SERVER.md`), un agent travaille comme un membre, à travers les vérifications du
+serveur : son rôle, les pans que d'autres tiennent (un 423 qu'il lit), le journal (ses écritures sont des révisions au
+nom du membre). Deux façons :
+
+- **À distance, en HTTP** : le `/mcp` du serveur (Streamable HTTP de MCP, sans état). Un client qui suit
+  l'autorisation de MCP trouve le fournisseur OIDC à `/.well-known/oauth-protected-resource/mcp` (RFC 9728) ; le
+  jeton qu'il obtient doit porter l'`oidc.audience` du Studio (un fournisseur qui la tire du `resource` de MCP donne
+  `<public>/mcp` : mettez cette URL dans `oidc.audience` ; Keycloak demande un mapper d'audience, et un client
+  enregistré pour l'agent). Sinon, donnez-lui en un : `npm run studio-server -- token --server <url>` affiche un jeton
+  d'accès, envoyé en `Authorization: Bearer <jeton>` ; il dure quelques minutes (`oidc.maxTokenSeconds`), une longue
+  session va donc mieux sur le serveur stdio ci-dessous. Le cookie de session du navigateur n'y est jamais accepté. Un
+  message JSON-RPC par requête (pas de lot).
+  ```json
+  { "mcpServers": { "web-scumm": { "type": "http", "url": "https://studio.example.fr/mcp", "headers": { "Authorization": "Bearer <jeton>" } } } }
+  ```
+- **En local, en stdio, tourné vers le serveur** : `npm run studio-server -- login --server <url>` une fois, puis
+  `npm run -s mcp -- --server <url>` (le jeton se renouvelle seul ; https seulement).
+
+Ce que seule une machine avec le dépôt sait faire n'y est pas proposé : les captures, la suite de tests, les
+documents, les prompts d'assets. Un agent n'envoie pas la révision qu'il a lue : ses écritures sont faites par le
+serveur sur le fichier tel qu'il est (le garde les vérifie), pas refusées parce que quelqu'un l'a écrit depuis (ADR
+0029).
 
 ## Une session type
 1. `read_doc CONTENT_GUIDE`, `list_rooms`, `get_storyboard`, `get_notes`.

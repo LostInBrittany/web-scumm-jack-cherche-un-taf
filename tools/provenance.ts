@@ -2,7 +2,6 @@
 // were reviewed. `--lock` writes games/<id>/provenance.lock.json (each file's SHA-256 and size with its entry's claims)
 // after a review; `validate --release` then refuses any file or claim that changed since (docs/en/TOOLS.md "Asset
 // provenance"). Exit codes: 0 clean, 1 something to review (coverage, lock, licences).
-import { writeFileSync } from 'node:fs';
 import {
   entryOf,
   licenceVerdict,
@@ -23,6 +22,7 @@ import {
   type ProvenanceLock,
 } from './provenance-files';
 import { resolve } from 'node:path';
+import { writeGame } from './game-write';
 
 const { game } = await loadGameModule();
 const prov = readJson<Provenance>(PROVENANCE);
@@ -52,7 +52,7 @@ if (process.argv.includes('--lock')) {
     process.exit(1);
   }
   const lock = makeLock(keys, prov, files);
-  writeFileSync(LOCK, JSON.stringify(lock, null, 1) + '\n');
+  await writeGame('provenance lock', [{ file: LOCK, text: JSON.stringify(lock, null, 1) + '\n' }], { guard: false });
   console.log(
     `✔  [${GAME}] provenance.lock.json: ${Object.keys(lock.assets).length} files locked (${(Object.values(lock.assets).reduce((n, a) => n + a.bytes, 0) / 1e6).toFixed(1)} MB)`,
   );

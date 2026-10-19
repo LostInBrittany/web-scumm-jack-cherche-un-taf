@@ -30,11 +30,16 @@ export function append(el: Element, kids: (Kid | Kid[])[]) {
 }
 
 let stack: HTMLElement | undefined;
+/** The bottom-right stack the toasts (and a job's panel, jobs.ts) go in. */
+export function toastStack(): HTMLElement {
+  if (!stack?.isConnected)
+    stack = document.body.appendChild(h('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
+  return stack;
+}
 /** A short message at the bottom right. */
 export function toast(text: string, kind: 'ok' | 'error' | 'info' = 'ok', ms = 2600) {
-  stack ??= document.body.appendChild(h('div', { class: 'toasts', role: 'status', 'aria-live': 'polite' }));
   const t = h('div', { class: `toast ${kind}` }, text);
-  stack.append(t);
+  toastStack().append(t);
   setTimeout(
     () => {
       t.classList.add('out');

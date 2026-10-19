@@ -315,6 +315,12 @@ jobs:
           cp .candidate/sbom/web-scumm-connectors.cdx.json "web-scumm-connectors-$TAG-sbom.cdx.json"
           cp .candidate/sbom/create-web-scumm.cdx.json "create-web-scumm-$TAG-sbom.cdx.json"
           extra="$extra web-scumm-connectors-$TAG-sbom.cdx.json create-web-scumm-$TAG-sbom.cdx.json"
+          # The Studio Server (4.2.1) and its SBOM; a tag older than 4.2.1 has none.
+          if ls .candidate/pack/web-scumm-studio-server-*.tgz >/dev/null 2>&1; then
+            cp .candidate/pack/web-scumm-studio-server-*.tgz .
+            cp .candidate/sbom/web-scumm-studio-server.cdx.json "web-scumm-studio-server-$TAG-sbom.cdx.json"
+            extra="$extra $(ls web-scumm-studio-server-*.tgz) web-scumm-studio-server-$TAG-sbom.cdx.json"
+          fi
           cp .candidate/image/web-scumm-bridge-image.tar "web-scumm-bridge-image-$TAG.tar"
           cp .candidate/image/web-scumm-bridge-image.json "web-scumm-bridge-image-$TAG.json"
           cp .candidate/image/web-scumm-bridge-image.cdx.json "web-scumm-bridge-image-$TAG-sbom.cdx.json"
@@ -377,6 +383,7 @@ jobs:
             web-scumm-connectors-*.tgz
             web-scumm-connectors-*-sbom.cdx.json
             create-web-scumm-*-sbom.cdx.json
+            web-scumm-studio-server-*
             web-scumm-bridge-image-*
       - run: |
           # A pre-release tag (`v4.1.8-rc.1`, 4.1.8) is published as a GitHub pre-release: same files, same checks.

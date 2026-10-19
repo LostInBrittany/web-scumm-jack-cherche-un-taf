@@ -23,7 +23,7 @@ import {
   writePasses,
 } from '../tools/field/field';
 import { ATTESTATION, makeBundle, verifyBundle } from '../tools/field/bundle';
-import { type FieldReport, PASS_IDS } from '../tools/field/schema';
+import { type FieldReport, PASS_IDS, passesFor } from '../tools/field/schema';
 import { BUDGET, readTarGz, writeTarGz } from '../tools/field/tar';
 import { hardSecrets, redact, reportLeaks } from '../tools/field/secrets';
 
@@ -60,7 +60,7 @@ function folder(edit: Partial<Record<(typeof PASS_IDS)[number], (r: FieldReport,
     JSON.stringify({ format: 'web-scumm-qualification-surfaces', schema: 1, surfaces: {} }),
   );
   writeFileSync(join(dir, SITE_FILES), JSON.stringify({ format: 'web-scumm-site-files', files: [] }));
-  for (const id of PASS_IDS) {
+  for (const id of passesFor('4.1.18')) {
     const r = blankReport(id, '4.1.18', manifest);
     edit[id]?.(r, dir);
     writeFileSync(join(dir, `${id}.json`), JSON.stringify(r, null, 1));
@@ -87,7 +87,7 @@ describe('field:check', () => {
   it('accepts the thirteen reports field:init writes, all not run', () => {
     const { problems, reports } = checkDir(folder());
     expect(problems).toEqual([]);
-    expect(reports.map((r) => r.status)).toEqual(PASS_IDS.map(() => 'not-run'));
+    expect(reports.map((r) => r.status)).toEqual(passesFor('4.1.18').map(() => 'not-run'));
   });
 
   it('reads the candidate files field:init writes beside the reports as no report (4.2.0-rc.1)', () => {
@@ -196,6 +196,44 @@ describe('field:check', () => {
       'safari-ios-offline-update: required, not passed (nor carried by an approved, signed attestation)',
       '--require=nope: not a pass',
     ]);
+  });
+});
+
+describe('the passes of a release', () => {
+  it('4.2.1 asks fifteen, its two new ones in the sheet; an older release keeps its thirteen', () => {
+    const reports = passesFor('4.2.1').map((id) => blankReport(id, '4.2.1', manifest));
+    const section = renderPasses(reports, manifest);
+    expect(section).toContain('0 passed, 0 failed, 0 blocked, 15 not run, of 15.');
+    expect(section).toContain('(`studio-hosted`)');
+    expect(section).toContain('(`studio-collab`)');
+    const older = renderPasses(
+      passesFor('4.1.18').map((id) => blankReport(id, '4.1.18', manifest)),
+      manifest,
+    );
+    expect(older).toContain('of 13.');
+    expect(older).not.toContain('studio-hosted');
+  });
+
+  it('4.2.3 asks nineteen: an agent through the remote MCP, and a second OIDC provider', () => {
+    const section = renderPasses(
+      passesFor('4.2.3').map((id) => blankReport(id, '4.2.3', manifest)),
+      manifest,
+    );
+    expect(section).toContain('of 19.');
+    expect(section).toContain('(`studio-mcp-remote`)');
+    expect(section).toContain('(`studio-oidc-generic`)');
+    expect(passesFor('4.2.2')).not.toContain('studio-mcp-remote');
+  });
+
+  it('4.2.2 asks seventeen: the workshop played and its assets prepared, hosted', () => {
+    const section = renderPasses(
+      passesFor('4.2.2').map((id) => blankReport(id, '4.2.2', manifest)),
+      manifest,
+    );
+    expect(section).toContain('of 17.');
+    expect(section).toContain('(`studio-preview`)');
+    expect(section).toContain('(`studio-assets-hosted`)');
+    expect(passesFor('4.2.1')).not.toContain('studio-preview');
   });
 });
 
@@ -609,7 +647,8 @@ describe('the second reading (4.1.18): what could pass for a pass, or leak', () 
     const other = { ...manifest, artifacts: [{ name: 'pack/web-scumm-4.1.17.tgz', sha256: '1'.repeat(64) }] };
     const dir = tmp();
     writeFileSync(join(dir, MANIFEST), JSON.stringify(other));
-    for (const id of PASS_IDS) writeFileSync(join(dir, `${id}.json`), JSON.stringify(blankReport(id, '4.1.18', other)));
+    for (const id of passesFor('4.1.18'))
+      writeFileSync(join(dir, `${id}.json`), JSON.stringify(blankReport(id, '4.1.18', other)));
     expect(checkDir(dir).problems).toEqual(['release 4.1.18: the candidate packed 4.1.17']);
   });
 

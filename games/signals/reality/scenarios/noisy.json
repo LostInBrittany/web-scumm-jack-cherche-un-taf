@@ -1,0 +1,1 @@
+{ "signals": ["mail.answer.wrong", "hook.bell", "mail.answer.correct", "hook.bell"] }

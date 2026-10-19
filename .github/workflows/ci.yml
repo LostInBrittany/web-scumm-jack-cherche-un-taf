@@ -316,6 +316,99 @@ jobs:
           npm install --omit=optional --ignore-scripts --no-audit --no-fund ../pack/web-scumm-connectors-*.tgz
           npx web-scumm-connector --help | grep -q 'usage: web-scumm-connector'
           ! find node_modules -name '*.node' | grep -q .
+  # The hosted Studio (4.2.1): the journal on Postgres with its blobs in S3, the service lease, the processing worker
+  # through presigned URLs, the spans' leases racing on Postgres, and the login, back-channel logout and a disabled
+  # user against a real Keycloak (tests/studio-keycloak.test.ts, the realm of ops/studio/keycloak/). S3 is SeaweedFS
+  # (its S3 gateway checks SigV4 and presigned URLs, as Cellar does; MinIO no longer publishes free images), its test
+  # identity in ops/studio/ci/. A service container takes no command: SeaweedFS and Keycloak start in steps.
+  # Gate: `studioHosted`.
+  studio-hosted:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      RUN: ${{ fromJSON(needs.plan.outputs.plan).studioHosted }}
+      STUDIO_TEST_PG_URL: postgres://studio:studio@127.0.0.1:5432/studio
+      STUDIO_TEST_S3: http://studio-ci:studio-ci-secret-not-for-production@127.0.0.1:8333/studio-ci
+    services:
+      postgres:
+        image: mirror.gcr.io/library/postgres:16@sha256:65b16a8b326e0cfbdf33fa7e783f2a0cb352a61448616ccccfd616ef42aa0f65
+        env:
+          POSTGRES_USER: studio
+          POSTGRES_PASSWORD: studio
+          POSTGRES_DB: studio
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U studio" --health-interval 2s --health-timeout 5s --health-retries 30
+    steps:
+      - if: env.RUN != 'true'
+        run: echo "::notice::studio-hosted not needed by the plan (no Studio Server path changed)"
+      - if: env.RUN == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: env.RUN == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - if: env.RUN == 'true'
+        run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 20
+      # The asset tools (4.2.2 PR 6b): "Prepare assets" runs them in the worker's child of the e2e stack.
+      - if: env.RUN == 'true'
+        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: '3.12'
+      - if: env.RUN == 'true'
+        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 20
+      - if: env.RUN == 'true'
+        run: bash scripts/ci-ffmpeg.sh
+      - if: env.RUN == 'true'
+        name: S3 (SeaweedFS)
+        run: |
+          docker run -d --name seaweedfs -p 127.0.0.1:8333:8333 \
+            -v "$PWD/ops/studio/ci/seaweedfs-s3.json:/etc/s3.json:ro" \
+            mirror.gcr.io/chrislusf/seaweedfs@sha256:4e61d15fd35994cb1e43e1e553dff106794841fd9a99ade2fc8c8bfce4d7872d \
+            server -s3 -s3.port=8333 -s3.config=/etc/s3.json -dir=/data
+          # Ready means writable: the bucket made (asked again until it is listed: a second create of an existing bucket
+          # fails), then one object written and read back (ops/studio/ci/s3-ready.ts).
+          bucket() { docker exec seaweedfs sh -c 'echo "s3.bucket.list" | weed shell' 2>/dev/null | grep -q studio-ci; }
+          for i in $(seq 1 90); do
+            bucket && break
+            docker exec seaweedfs sh -c 'echo "s3.bucket.create -name studio-ci" | weed shell' >/dev/null 2>&1 || true
+            sleep 1
+          done
+          bucket || { echo "no bucket"; docker logs seaweedfs; exit 1; }
+          for i in $(seq 1 60); do npx tsx ops/studio/ci/s3-ready.ts && exit 0; sleep 1; done
+          echo "the bucket is not writable"; docker logs seaweedfs; exit 1
+      - if: env.RUN == 'true'
+        name: Keycloak (the test realm)
+        # Pinned by digest; it reaches this runner as host.docker.internal for its back-channel logouts.
+        run: |
+          docker run -d --name keycloak -p 127.0.0.1:8080:8080 --add-host=host.docker.internal:host-gateway \
+            -e KC_BOOTSTRAP_ADMIN_USERNAME=admin -e KC_BOOTSTRAP_ADMIN_PASSWORD=admin-ci-only \
+            -v "$PWD/ops/studio/keycloak:/opt/keycloak/data/import:ro" \
+            quay.io/keycloak/keycloak@sha256:09a381c715ab0b111835b70f2905955274843a219c6f27efb348e4d9f4086858 \
+            start-dev --import-realm
+          for i in $(seq 1 120); do
+            curl -fsS -m 2 -o /dev/null http://127.0.0.1:8080/realms/web-scumm/.well-known/openid-configuration && exit 0
+            sleep 2
+          done
+          docker logs keycloak; exit 1
+      - if: env.RUN == 'true'
+        env:
+          STUDIO_TEST_KEYCLOAK: http://127.0.0.1:8080
+          STUDIO_TEST_KEYCLOAK_ADMIN: admin:admin-ci-only
+        run: npx vitest run tests/studio-server.test.ts tests/studio-worker.test.ts tests/studio-collab.test.ts tests/studio-keycloak.test.ts --maxWorkers=1 --no-file-parallelism
+      # The hosted Studio in a browser (4.2.1 PR 7): its page, the game on its own origin (another site), the editor's
+      # solicited save, the wall between the two; Chromium over http, Firefox over https. Not WebKit here: on Linux it
+      # stores no cookie a frame of another host sets (even one site), unlike Safari; it is run on macOS.
+      - if: env.RUN == 'true'
+        run: for i in 1 2 3; do (npx playwright install --with-deps chromium firefox) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 10
+      - if: env.RUN == 'true'
+        run: npm run studio-client && npm run e2e:studio-hosted && npm run e2e:studio-hosted -- --browser=firefox && npm run e2e:studio-collab && npm run e2e:studio-collab -- --browser=firefox
   # The Bridge's distributed profile (4.1.10, D20): the store contract, the tenants crossed and the fan-out across
   # instances, on a real Postgres 16 (a service container, pinned by digest). The truth for Postgres: the maintainer's
   # machine runs it only with a local server (docs/en/REALITY-OPS.md). Gate: `reality`.
@@ -484,11 +577,12 @@ jobs:
       # `/` in paths, the shell's tools): named here, said in SUPPORT, ported by `fix/418-windows-tests`. Since 4.1.9
       # also the connectors' Telnet and SSH tests, and the two that drive them (the SDK's contract, the abuse run):
       # they time sockets, idle limits and a thousand connections the POSIX way, not yet ported (SUPPORT says so).
+      # Since 4.2.1 also the Studio Server's processing worker, which runs on Linux only (process groups, `kill(-pid)`).
       # Then the game's gates and the build (`build` would run `check` a second time).
       - if: env.RUN == 'true'
         run: npx tsx tools/select-game.ts && npm run -s tsc -- --noEmit
       - if: env.RUN == 'true'
-        run: npm run test:node -- --exclude tests/bridge.test.ts --exclude tests/file-size.test.ts --exclude tests/prompts.test.ts --exclude tests/status.test.ts --exclude tests/studio-demo.test.ts --exclude tests/tooling.test.ts --exclude tests/connectors-terminal.test.ts --exclude tests/connectors-ssh.test.ts --exclude tests/connectors-sdk.test.ts --exclude tests/connectors-abuse.test.ts
+        run: npm run test:node -- --exclude tests/bridge.test.ts --exclude tests/file-size.test.ts --exclude tests/prompts.test.ts --exclude tests/status.test.ts --exclude tests/studio-demo.test.ts --exclude tests/tooling.test.ts --exclude tests/connectors-terminal.test.ts --exclude tests/connectors-ssh.test.ts --exclude tests/connectors-sdk.test.ts --exclude tests/connectors-abuse.test.ts --exclude tests/studio-worker.test.ts --exclude tests/studio-client.test.ts
       - if: env.RUN == 'true'
         run: npm run build:game
       - name: The production server answers
@@ -920,7 +1014,7 @@ jobs:
   # may be `skipped` where it does not run (an ordinary pull request). The candidate single required check: the
   # ruleset still requires the seventeen names until a few runs of this job have been green (the maintainer's move).
   pr-gate:
-    needs: [plan, check, coverage, mutation-plan, mutation, mutation-merge, reality-xcheck, connectors, bridge-postgres, reality, node-24, windows, second-game, e2e, pwa-firefox, fresh-install, external-consumer, upgrade, reference, cross-runtime]
+    needs: [plan, check, coverage, mutation-plan, mutation, mutation-merge, reality-xcheck, connectors, bridge-postgres, studio-hosted, reality, node-24, windows, second-game, e2e, pwa-firefox, fresh-install, external-consumer, upgrade, reference, cross-runtime]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5

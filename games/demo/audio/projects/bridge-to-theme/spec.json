@@ -1,0 +1,112 @@
+{
+  "title": "Bridge to the theme",
+  "author": "web-scumm (tools/audio): written for the project (night-market/compose.py)",
+  "slug": "bridge-to-theme",
+  "comment": "Market (D major) to the theme (B minor): two bars, D then F#, played once at the transition (3.7).",
+  "source": "source.mid",
+  "bars": 2,
+  "rows_per_beat": 8,
+  "pattern_rows": 64,
+  "hz": 60,
+  "extra_bars": 0,
+  "stop_at_end": true,
+  "sections": {
+    "ALL": [
+      1,
+      2
+    ]
+  },
+  "channels": {
+    "FM1": {
+      "name": "FM1 Lead",
+      "role": "lead",
+      "pan": "C",
+      "parts": [
+        {
+          "track": 1,
+          "voice": "high",
+          "bars": "ALL",
+          "ins": "horn_section",
+          "vol": 127,
+          "vibrato": "23"
+        }
+      ]
+    },
+    "FM2": {
+      "name": "FM2 Pad L",
+      "role": "double",
+      "pan": "L",
+      "parts": [
+        {
+          "track": 2,
+          "voice": "high",
+          "bars": "ALL",
+          "ins": "soft_pad",
+          "vol": 122
+        }
+      ]
+    },
+    "FM3": {
+      "name": "FM3 Bass",
+      "role": "bass",
+      "pan": "C",
+      "parts": [
+        {
+          "track": 4,
+          "voice": "low",
+          "bars": "ALL",
+          "ins": "finger_bass",
+          "vol": 127
+        }
+      ]
+    },
+    "FM4": {
+      "name": "FM4 Pad R",
+      "role": "harmony",
+      "pan": "R",
+      "parts": [
+        {
+          "track": 3,
+          "voice": "high",
+          "bars": "ALL",
+          "ins": "soft_pad",
+          "vol": 122
+        }
+      ]
+    },
+    "FM5": {
+      "name": "FM5",
+      "role": "counter",
+      "pan": "C",
+      "parts": []
+    },
+    "FM6": {
+      "name": "FM6",
+      "role": "harmony",
+      "pan": "C",
+      "parts": []
+    },
+    "PSG1": {
+      "name": "PSG1",
+      "role": "echo",
+      "parts": []
+    },
+    "PSG2": {
+      "name": "PSG2",
+      "role": "arp",
+      "parts": []
+    },
+    "PSG3": {
+      "name": "PSG3",
+      "role": "accent",
+      "parts": []
+    },
+    "NOISE": {
+      "name": "Noise",
+      "role": "noise",
+      "parts": []
+    }
+  },
+  "drums": null,
+  "extras": []
+}

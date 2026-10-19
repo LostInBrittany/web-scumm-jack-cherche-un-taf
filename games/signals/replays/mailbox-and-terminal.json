@@ -1,0 +1,33 @@
+{
+ "about": "The mailbox and the terminal (4.1.9): a letter that says \"open the door\" opens the shed, a command typed on the shed's terminal (Telnet, then SSH) lights the lamp, a letter nobody can read changes nothing. Recorded connector inputs and the signals they made: replayed with no network by tests/connectors-replays.test.ts, and proved finishable by npm run solve:reality.",
+ "inputs": [
+  {
+   "connector": "email",
+   "raw": "From: Robin <robin@player.example>\r\nTo: Gate <gate+p-0123456789abcdef@garden.example>\r\nSubject: The shed\r\nMessage-ID: <replay-1@player.example>\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nDear gate, please open the door of the shed.\r\n"
+  },
+  {
+   "connector": "email",
+   "raw": "From: Robin <robin@player.example>\r\nTo: Gate <gate+p-0123456789abcdef@garden.example>\r\nSubject: ???\r\nMessage-ID: <replay-2@player.example>\r\nContent-Type: text/html\r\n\r\n<p>Squiggles. <b>More squiggles.</b></p>\r\n"
+  },
+  {
+   "connector": "telnet",
+   "lines": [
+    "status",
+    "lamp on"
+   ]
+  },
+  {
+   "connector": "ssh",
+   "lines": [
+    "cat /notes/lamp.txt",
+    "lamp on"
+   ]
+  }
+ ],
+ "signals": [
+  "letter.door",
+  "letter.unclear",
+  "terminal.lamp",
+  "terminal.lamp"
+ ]
+}

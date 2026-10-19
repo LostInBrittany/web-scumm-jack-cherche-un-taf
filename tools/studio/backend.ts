@@ -1,10 +1,10 @@
-// The Studio core (tools/studio/core.ts) as a `ToolBackend` (tools/studio/tools.ts): what the MCP server and the
+// The Studio core (studio-server/src/ops/core.ts) as a `ToolBackend` (tools/studio/tools.ts): what the MCP server and the
 // Assistant relay of the dev server run the tools against. Node only.
 import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { buildPrompts } from '../prompts';
-import type { Studio } from './core';
+import type { Studio } from '../../studio-server/src/ops/core';
 import { errorResult, jsonResult, textResult, type ToolBackend, type ToolResult } from './tools';
 
 export interface CoreBackendOptions {

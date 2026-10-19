@@ -1,0 +1,11 @@
+{
+ "stems": {
+  "melody": "swan-theme-stems/melody.mp3",
+  "strings": "swan-theme-stems/strings.mp3",
+  "harp": "swan-theme-stems/harp.mp3",
+  "bass": "swan-theme-stems/bass.mp3"
+ },
+ "bpm": 80.0,
+ "beatsPerBar": 4,
+ "pcmBytes": 82944032
+}

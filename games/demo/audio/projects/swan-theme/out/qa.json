@@ -1,0 +1,87 @@
+{
+ "channels": {
+  "FM1": {
+   "role": "lead",
+   "active_s": 52.2,
+   "rms_db": -21.9,
+   "centroid_hz": 1543,
+   "target": -20,
+   "pitch_match": "34/34"
+  },
+  "FM2": {
+   "role": "double",
+   "active_s": 52.1,
+   "rms_db": -28.6,
+   "centroid_hz": 528,
+   "target": -30,
+   "pitch_match": "17/17"
+  },
+  "FM3": {
+   "role": "bass",
+   "active_s": 51.2,
+   "rms_db": -18.3,
+   "centroid_hz": 189,
+   "target": -20,
+   "pitch_match": "33/33"
+  },
+  "FM4": {
+   "role": "harmony",
+   "active_s": 52.3,
+   "rms_db": -27.1,
+   "centroid_hz": 384,
+   "target": -27,
+   "pitch_match": "17/17"
+  },
+  "FM5": {
+   "role": "counter",
+   "active_s": 51.2,
+   "rms_db": -29.1,
+   "centroid_hz": 1309,
+   "target": -32,
+   "pitch_match": "4/4"
+  },
+  "FM6": {
+   "role": "harmony",
+   "active_s": 16.3,
+   "rms_db": -29.4,
+   "centroid_hz": 381,
+   "target": -27,
+   "pitch_match": "5/5"
+  },
+  "PSG1": {
+   "role": "echo",
+   "active_s": 24.1,
+   "rms_db": -44.5,
+   "centroid_hz": 1221,
+   "target": -41,
+   "pitch_match": "15/15"
+  },
+  "PSG2": {
+   "role": "arp",
+   "active_s": 8.5,
+   "rms_db": -40.3,
+   "centroid_hz": 551,
+   "target": -40
+  },
+  "PSG3": {
+   "role": "accent",
+   "active_s": 1.5,
+   "rms_db": -43.8,
+   "centroid_hz": 611,
+   "target": -43,
+   "pitch_match": "4/4"
+  },
+  "NOISE": {
+   "role": "noise",
+   "active_s": 0
+  }
+ },
+ "issues": [],
+ "mix": {
+  "duration_s": 54.0,
+  "peak": 0.612,
+  "rms_db": -16.0,
+  "stereo_diff_db": -0.1
+ },
+ "build_log": []
+}

@@ -1,0 +1,59 @@
+{
+  "licences": {
+    "allow": [
+      "CC BY 4.0"
+    ]
+  },
+  "assets": [
+    {
+      "match": "img:*",
+      "source": "The sample game's art (games/demo/art, D13), reframed for the reference chapter: image generation from the prompts in games/demo/prompts.md, sheets cut and cleaned by hand (npm run assets)",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "LICENSE-ASSETS: attribution \"Artwork by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:*",
+      "source": "The sample game's Mega Drive renders of the recipes in games/demo/audio/sfx.json (npm run audio, docs/en/AUDIO.md)",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final"
+    },
+    {
+      "match": "music:swan_theme.mp3",
+      "source": "The oboe theme of Tchaikovsky's Swan Lake (public domain), written out and arranged for the project: games/demo/audio/projects/swan-theme (compose.py, spec.json), rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final"
+    },
+    {
+      "match": "music:swan-theme-stems/*",
+      "source": "The theme's arrangement rendered channel by channel and grouped into stems (games/demo/audio/projects/swan-theme, npm run audio -- stems)",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final"
+    },
+    {
+      "match": "music:night_market.mp3",
+      "source": "The reference chapter's market score, written for the project: games/demo/audio/projects/night-market (compose.py, spec.json), rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final"
+    },
+    {
+      "match": "music:night-market-stems/*",
+      "source": "The market score rendered channel by channel and grouped into stems (games/demo/audio/projects/night-market, npm run audio -- stems)",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final"
+    },
+    {
+      "match": "music:bridge_to_*.mp3",
+      "source": "The bridges between the theme and the market score, written for the project: games/demo/audio/projects/bridge-to-market and bridge-to-theme (night-market/compose.py)",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final"
+    }
+  ]
+}

@@ -8,11 +8,12 @@
 // Merge rule: only keys present in the export change. `hotspots`, `props`, `actors` and `entries` merge id by id
 // (each exported entity replaces the stored one; the page keeps the keys it does not edit, like `states`);
 // `walk`, `scale` and `floor` are replaced when present. Prints what changed. --dry prints without writing.
-import { existsSync, mkdirSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, resolve } from 'node:path';
 import type { Layout } from '../../src/engine/core/types';
 import { GAME_DIR } from '../game';
 import { isMain } from './lib';
+import { writeGame } from '../game-write';
 
 type Obj = Record<string, unknown>;
 const MAPS = ['hotspots', 'props', 'actors', 'entries'] as const;
@@ -107,12 +108,15 @@ function readExports(target: string): { room: string; layout: Layout; from: stri
   });
 }
 
-/** Applies every export found in `target` to `<gameDir>/layout/`. Returns the number of rooms changed. */
-export function importLayouts(
+/**
+ * Applies every export found in `target` to `<gameDir>/layout/`, as one operation of the game's journal (4.2.1).
+ * Returns the number of rooms changed.
+ */
+export async function importLayouts(
   target: string,
   gameDir: string,
-  opts: { dry?: boolean; log?: (s: string) => void } = {},
-): number {
+  opts: { dry?: boolean; log?: (s: string) => void; guard?: boolean } = {},
+): Promise<number> {
   const log = opts.log ?? console.log;
   const dir = join(gameDir, 'layout');
   const exports = readExports(target);
@@ -121,13 +125,15 @@ export function importLayouts(
     return 0;
   }
   let changed = 0;
+  const out: { file: string; text: string; from: string | null }[] = [];
   for (const { room, layout, from } of exports) {
     if (!/^[A-Za-z0-9_-]+$/.test(room)) {
       log(`skipped "${room}" (${from}): not a room id`);
       continue;
     }
     const file = join(dir, `${room}.json`);
-    const stored: unknown = existsSync(file) ? JSON.parse(readFileSync(file, 'utf8')) : {};
+    const read = existsSync(file) ? readFileSync(file, 'utf8') : null;
+    const stored: unknown = read === null ? {} : JSON.parse(read);
     const base: Layout = isObj(stored) ? stored : {};
     const { layout: merged, changes } = mergeLayout(base, layout);
     if (!changes.length) {
@@ -137,11 +143,9 @@ export function importLayouts(
     changed++;
     log(`${room}: ${changes.length} change(s)${existsSync(file) ? '' : ' (new file)'}${opts.dry ? ' [dry run]' : ''}`);
     for (const c of changes) log(`   ${c}`);
-    if (!opts.dry) {
-      mkdirSync(dir, { recursive: true });
-      writeFileSync(file, JSON.stringify(merged, null, 2) + '\n');
-    }
+    if (!opts.dry) out.push({ file, text: JSON.stringify(merged, null, 2) + '\n', from: read });
   }
+  await writeGame('import-layout', out, { gameDir, guard: opts.guard });
   return changed;
 }
 
@@ -152,6 +156,6 @@ if (isMain(import.meta.url)) {
     console.error('usage: npm run import-layout -- <file.json|dir> [--dry]');
     process.exit(1);
   }
-  const n = importLayouts(resolve(target), GAME_DIR, { dry: args.includes('--dry') });
+  const n = await importLayouts(resolve(target), GAME_DIR, { dry: args.includes('--dry') });
   console.log(`${n} room(s) ${args.includes('--dry') ? 'would change' : 'updated'} in ${join(GAME_DIR, 'layout')}`);
 }

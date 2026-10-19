@@ -546,3 +546,37 @@ Nothing to change: 4.2.0 is 4.1.20's code with the version changed and one Field
 SemVer: a 4.2.x only fixes, a 4.x minor only adds. The engine still installs from the release's archive
 (`releases/download/v4.2.0/…`); npm publishing comes in a later 4.2.x. What 4.2.0 calls stable, limited or
 experimental is in `docs/en/SUPPORT.md` (D38).
+
+## 34. From 4.2.0 to 4.2.1 "Shared Floor"
+
+Nothing to change in a game: the public API, the content format and the save envelope are 4.2.0's (D40). What an
+author may notice:
+
+- **Node 22.13 or newer for the Studio and the tools that write a game** (`ids`, `i18n`, `voices`, `import-layout`,
+  `provenance`, the Studio's own edits): their writes now go through the same journal as the hosted Studio's, kept
+  locally under `.cache/studio-journal/` in SQLite (`node:sqlite`, Node 22.13+). Playing and building a game still
+  run on 22.12.
+- **An edit that would add a validation error is refused** (422, with the errors), in the Studio and its tools: the
+  game on disk stays valid.
+- **The placement editor saves through the Studio's API** (`PUT /__studio/api/room/<id>/layout`); the `/__layout`
+  route is gone and `layoutWriter()` (in `tools/vite/plugins.ts`) does nothing any more, kept so a configuration that
+  names it still loads.
+
+The engine installs from `releases/download/v4.2.1/…`. To put a Studio online for a team, see
+`docs/en/STUDIO-SERVER.md` (experimental in 4.2.1).
+
+## 35. From 4.2.1 to 4.2.2 "Playable Workshop"
+
+Nothing to change in a game: the public API, the content format and the save envelope are 4.2.0's (D40). The engine
+installs from `releases/download/v4.2.2/…`. For a hosted Studio:
+
+- **Vite has left the server**: the game's origin serves the previews the processing worker builds, one per revision.
+  The worker needs the engine's Vite to build (its install has it).
+- **The database migrates at start** (migrations 0006 to 0010: previews, health, undo, builds, prepared sets).
+- **The asset tools on the worker**: set the worker's `CC_POST_BUILD_HOOK` as `docs/en/STUDIO-SERVER.md` says (their
+  Python packages, locked with hashes); without it, "Prepare assets" (the Play tab's
+  button) fails and shows the worker's error. Deploy this worker from the repository: installed from the archives, it
+  cannot run `prepare` in 4.2.2 (4.2.3 ships the lock).
+- **Builds**: `/play/<n>/` needs a session unless `publicBuilds` is set (off by default).
+- **Backup**: the journal ships to the bucket by itself; take a daily `studio-server backup` and keep it off the
+  instance (STUDIO-SERVER, "Backup and restore").

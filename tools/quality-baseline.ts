@@ -36,9 +36,7 @@ const fx = (id: string, file: string, make: string, lay: string, ...a: unknown[]
   },
 });
 const GAMES: GameCase[] = [
-  // @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
   { id: 'demo', load: async () => import('../games/demo') },
-  // @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
   { id: 'reference', load: async () => import('../games/reference') },
   fx('classics.insults', 'classics', 'insults', 'insultsLayouts'),
   fx('classics.grog', 'classics', 'grog', 'grogLayouts'),
@@ -85,7 +83,6 @@ async function measure(): Promise<Baseline> {
       `  ${c.id}: witness ${w.status} (${w.steps.length}), proof ${p.status} (${p.states} states, ${p.softlockCount} softlocks)`,
     );
   }
-  // @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
   const { game: demo, layouts: demoLayouts, commands } = await import('../games/demo');
   for (const f of readdirSync(resolve(ROOT, 'tests/fixtures/saves'))
     .filter((n) => n.startsWith('demo-') && n.endsWith('.json'))

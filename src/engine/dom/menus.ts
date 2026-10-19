@@ -204,6 +204,7 @@ export async function slotMenu(app: App, d: HTMLElement, m: HTMLElement, mode: '
     room: app.engine.state.room,
     roomName: app.engine.room().name,
     v: app.engine.state.v,
+    ...(app.revision ? { revision: app.revision.here() } : {}),
   });
   const slotName = (n: number) => app.t('slot').replace('{n}', String(n));
   const label = (s: SlotMeta | null) =>
@@ -246,6 +247,8 @@ export async function slotMenu(app: App, d: HTMLElement, m: HTMLElement, mode: '
           app.presenter.toast(app.t('saveFailed'));
           return;
         }
+        // Made in other content (ADR 0026, dom/revision.ts): asked first; false when the answer was not Resume.
+        if (app.revision && !(await app.revision.beforeSlot(app, s.revision, d, m))) return;
         d.remove();
         void app.engine.load(state).catch((e) => app.presenter.toast(String((e as Error).message)));
       };
@@ -466,8 +469,13 @@ export async function showTitle(app: App) {
     startMusic();
     confirmErase(() => void launch(true));
   };
-  cb.onclick = () => {
+  cb.onclick = async () => {
     startMusic();
+    // Made in other content (ADR 0026): asked first. Restart replaces the save, so it is confirmed as New game is.
+    // Made in other content (ADR 0026): asked above the title screen; Restart replaces the save, so it is confirmed.
+    const choice = await app.revision?.resume(app.revision.autosave(), ov);
+    if (choice === 'restart') return confirmErase(() => void launch(true));
+    if (choice && choice !== 'resume') return;
     void launch(false);
   };
   if (rb)

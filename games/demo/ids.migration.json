@@ -1,0 +1,36 @@
+{
+  "from": 1,
+  "renameSeen": {
+    "house.grandma.0": "topic.house.grandma.where-is-the-key",
+    "house.grandma.1": "topic.house.grandma.what-is-for-dinner",
+    "house.grandma.2": "topic.house.grandma.why-lock-the-sardines",
+    "house.grandma.3": "topic.house.grandma.i-found-the-key",
+    "house.grandpa.0": "topic.house.grandpa.why-are-you-home",
+    "house.grandpa.1": "topic.house.grandpa.you-carried-the-armchair",
+    "garden.grandpa.0": "topic.garden.grandpa.where-is-the-key",
+    "garden.grandpa.1": "topic.garden.grandpa.there-was-no-key-in-the",
+    "garden.grandpa.2": "topic.garden.grandpa.why-is-your-armchair",
+    "garden.grandpa.3": "topic.garden.grandpa.are-you-fixing-the-pipes",
+    "market.neighbor.0": "topic.market.neighbor.where-is-the-pantry-key",
+    "choice.market.That is MY key! Well, Grandma's.": "choice.market.neighbor.where-is-the-pantry-key.c-that-is-my-key",
+    "choice.market.Fine. How do I pay?": "choice.market.neighbor.where-is-the-pantry-key.c-fine-how-do-i",
+    "market.neighbor.1": "topic.market.neighbor.why-did-you-take-the-key",
+    "market.neighbor.2": "topic.market.neighbor.what-is-the-lantern-for",
+    "market.seller.0": "topic.market.seller.can-i-have-the-key",
+    "market.seller.1": "topic.market.seller.do-you-sell-sardines",
+    "market.seller.2": "topic.market.seller.why-flowers-today",
+    "event.game.0": "event.game.on-key-found",
+    "choice.house.Sardines. Obviously.": "choice.game.intro.c-sardines-obvious",
+    "choice.house.A mouse. A big one.": "choice.game.intro.c-a-mouse-a-big",
+    "choice.house.Nothing at all. It is a trap.": "choice.game.intro.c-nothing-at-all"
+  },
+  "renameCounter": {
+    "house:on8.0": "house.take-teacup.nth",
+    "house:talk.grandma.1.0": "house.grandma.what-is-for-dinner.nth",
+    "house:enter.0t.0": "house.enter.once",
+    "house:enter.1t.0": "house.enter.once-2",
+    "garden:talk.grandpa.0.0": "garden.grandpa.where-is-the-key.nth",
+    "garden:enter.0": "garden.enter.once",
+    "market:enter.0": "market.enter.once"
+  }
+}

@@ -181,7 +181,7 @@ describe('DecorsView.render', () => {
     const view = new DecorsView(h);
     const show = vi.fn();
     await view.render('decor/yard', show);
-    expect(room).toHaveBeenCalledWith('yard');
+    expect(room).toHaveBeenCalledWith('yard', { track: false });
     const root = document.createElement('div');
     root.append(...(show.mock.calls[0][0] as Node[]));
     expect(texts(root, 'header.as-head > *')).toEqual(['decor/yard', 'rooms yard, yard_night', '1536 × 960 px']);

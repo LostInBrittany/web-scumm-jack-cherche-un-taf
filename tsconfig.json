@@ -46,7 +46,8 @@
     "tools",
     "scripts",
     "bridge",
-    "connectors"
+    "connectors",
+    "studio-server"
   ],
   "exclude": [
     "legacy",

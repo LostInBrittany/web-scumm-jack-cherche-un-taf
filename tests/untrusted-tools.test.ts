@@ -12,7 +12,7 @@ import {
   readOpenAIMessage,
 } from '../tools/studio/assistant-loop';
 import { layoutsFromExport } from '../tools/pages/import-layout';
-import { entity, isBody, noteEdit, textEdit, voicePatch } from '../tools/studio/plugin';
+import { entity, isBody, noteEdit, textEdit, voicePatch } from '../studio-server/src/ops/routes';
 
 describe('OpenAI-compatible stream chunks', () => {
   it.each<[string, unknown]>([

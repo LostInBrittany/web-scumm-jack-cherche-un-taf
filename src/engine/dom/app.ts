@@ -6,6 +6,7 @@ import { minigames as builtin, MINIGAME_CSS, type Minigame } from '../minigames'
 import { Ending } from '../ending';
 import type { CustomCommands } from '../core/custom';
 import type { GameFingerprint } from '../core/fingerprint';
+import type { RevisionGuard } from './revision';
 import { AssetBank, type AssetManifest } from './assets';
 import { Audio } from './audio';
 import { FONT_PIXEL, FONT_UI, fontStack } from './fonts';
@@ -205,6 +206,8 @@ export class App {
   warmedAll = false;
   /** Set by boot when a service worker is registered: the warm-up waits for it to control the page (dom/update.ts). */
   swExpected = false;
+  /** A build that declares its revision (4.2.2, ADR 0026): where saves were made, and the question before resuming. */
+  revision?: RevisionGuard;
   /** How long that wait may last before the warm-up is reported `skipped` (`reason: 'worker'`). */
   swControlMs = 20_000;
   /** The asset graph of the game, built on the first warm-up. */

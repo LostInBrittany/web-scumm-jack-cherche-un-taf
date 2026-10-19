@@ -2,7 +2,7 @@
 // Renders games/<id>/storyboard.json as a phone-friendly page with a notes box under every panel (artifact db
 // collection `notes`, doc id = panel id) and Claude's rewrites (collection `rewrites`). Schema: storyboard-schema.md.
 // --md also writes games/<id>/storyboard.md, the plain-text version sub-agents read.
-import { existsSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GameDef } from '../../src/engine/core/types';
 import {
@@ -29,6 +29,7 @@ import {
   writePage,
   type PageContext,
 } from './lib';
+import { writeGame } from '../game-write';
 
 // ---------------------------------------------------------------------------
 // Schema, normalisation and Markdown export: storyboard-data.ts (pure, shared with the Studio)
@@ -353,7 +354,7 @@ if (isMain(import.meta.url)) {
   writePage(outPath(out, 'storyboard.html'), buildStoryboard(ctx, sb));
   if (flags.has('--md')) {
     const f = join(ctx.gameDir, 'storyboard.md');
-    writeFileSync(f, storyboardMarkdown(ctx, sb));
+    await writeGame('storyboard.md', [{ file: f, text: storyboardMarkdown(ctx, sb) }], { gameDir: ctx.gameDir });
     console.log(f);
   }
   console.log(`${sb.boards.length} board(s), ${sb.boards.reduce((n, b) => n + b.panels.length, 0)} panel(s)`);
