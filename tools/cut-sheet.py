@@ -1,4 +1,4 @@
-"""Cut an AI-generated sprite sheet (figures on a flat background) into keyed PNG cells.
+"""Cut an AI-generated sprite sheet (figures on a flat background, or on a transparent one) into keyed PNG cells.
 
 Default mode (grid): detects one figure per cell of an invisible grid, like the sheets produced by the prompts in
 docs/en/PROMPTS.md. Detection is per figure, not per fixed box, so a figure that overflows its cell a little is
@@ -179,12 +179,20 @@ def flood_from_border(close):
 def cut_grid(src, out_dir, cols, rows, only=None, pixel=None):
     """Detect one figure per cell of a cols x rows grid of CELL x CELL px cells.
     `pixel`: None, or (scale, colors) for pixel art (see pixelize)."""
-    im = Image.open(src).convert('RGB')
+    im = Image.open(src).convert('RGBA')
     if im.size != (cols * CELL, rows * CELL):
         im = im.resize((cols * CELL, rows * CELL), Image.NEAREST if pixel else Image.LANCZOS)
-    a = np.asarray(im).astype(int)
-    close = bg_mask(a)
-    fg_all = ndimage.binary_opening(~flood_from_border(close), iterations=1)
+    rgba = np.asarray(im)
+    a = rgba[..., :3].astype(int)
+    alpha = rgba[..., 3]
+    if (alpha < 250).mean() > 0.2:
+        # A sheet generated with a transparent background: transparent pixels are the background, wherever they
+        # are (between an arm and the body too), and nothing is keyed by colour.
+        close = alpha < 128
+        fg_all = ndimage.binary_opening(~close, iterations=1)
+    else:
+        close = bg_mask(a)
+        fg_all = ndimage.binary_opening(~flood_from_border(close), iterations=1)
     comp, _n = ndimage.label(ndimage.binary_dilation(fg_all, iterations=4))
 
     # Every piece goes to the cell holding its centre: a sprite made of several separate

@@ -17,9 +17,10 @@ Le dépôt est à la racine `/Users/horacio/git/games/jack-cherche-un-taf`. Lanc
    citrouille d'Halloween sculptée en guise de tête.
 2. **Aucun nom de marque** dans une consigne.
 3. **Aucun texte dans les images** (enseignes, panneaux, écrans : vides).
-4. **Fond plat magenta `#FF00FF`** sur toutes les planches (l'outil de découpe détecte la couleur du bord et
-   l'enlève). Dans chaque consigne de `prompts.md`, remplace `#2B2E45` par `#FF00FF` : le bleu nuit d'origine se
-   confond avec les vêtements noirs (le Comte est devenu invisible). Pas de fond plat pour les décors.
+4. **Le fond des planches** (personnages, objets, mini-jeux ; pas les décors) : voir « Choisir le fond » plus bas.
+   D'abord un **fond transparent**, si ton outil sait le faire. Sinon, un fond plat de la couleur la plus éloignée
+   des couleurs du dessin, choisie avec `pick-bg.py`. Le bleu nuit `#2B2E45` d'origine est interdit (il se confond
+   avec les vêtements noirs). Le magenta n'est plus systématique : il mange les ombres roses ou violettes.
 5. **Grille des pixels** : dans chaque consigne, remplace la phrase des PIXEL RULES « drawn on a 384 x 256 pixel grid
    (64 x 64 per 256 px cell), scaled up 4x … every art pixel is an exact 4 x 4 square » par « drawn on a 768 x 512
    pixel grid (128 x 128 per 256 px cell), scaled up 2x … every art pixel is an exact 2 x 2 square ». Pour les
@@ -41,41 +42,79 @@ Le dépôt est à la racine `/Users/horacio/git/games/jack-cherche-un-taf`. Lanc
 - **Gloubi** (`gloubi`) : **à refaire** sur fond magenta. Sur le bleu nuit, ses yeux sombres sont partis avec le
   fond dans certaines cases. Renomme d'abord `art/sheets/gloubi.png` en `gloubi_v1.png`.
 
+## Choisir le fond
+
+**1. Teste la transparence, une seule fois.** Avec ton outil d'images, génère une petite image de test : une
+citrouille orange sur fond transparent. Enregistre-la dans `games/jack/private/test-alpha.png`, puis :
+
+```
+python3 games/jack/art-tools/check-alpha.py games/jack/private/test-alpha.png
+```
+
+- `TRANSPARENT` : génère toutes les planches sur fond transparent. Dans la consigne, remplace la ligne
+  `BACKGROUND: …` par :
+
+  ```text
+  BACKGROUND: fully transparent (alpha 0) over the whole canvas, saved as a PNG with an alpha channel. Never paint
+  a checkerboard, a colour or a texture to show the transparency. Every pixel of a figure is fully opaque, including
+  the inside of carved or open shapes (mouths, eyes): only the space around and between the figures is transparent.
+  ```
+
+  Après la découpe, pas besoin de `defringe.py`.
+- `FAKE CHECKERBOARD` ou `OPAQUE` : ton outil ne sait pas faire de vraie transparence. Passe au point 2.
+
+**2. Sinon, la couleur la plus éloignée.** Avant chaque planche, donne à `pick-bg.py` ce que tu as du personnage :
+sa planche actuelle, ses images découpées, ou la référence qu'il doit suivre.
+
+```
+python3 games/jack/art-tools/pick-bg.py games/jack/art/sheets/<planche>.png
+```
+
+Il affiche `BEST #……`. Mets cette couleur dans la ligne `BACKGROUND: one single flat uniform color #…` de la
+consigne, et après la découpe, nettoie le liseré avec la même couleur :
+
+```
+python3 games/jack/art-tools/defringe.py games/jack/art/<planche> --bg '#00FFFF'
+```
+
+(Pour Jack, c'est le cyan `#00FFFF` : sa citrouille orange a des ombres roses que le magenta efface.)
+
 ## Refaire Jack
 
-Sur la planche actuelle, deux défauts se voient en jeu :
-- la **tige flotte** au-dessus de la citrouille : un trou transparent les sépare sur presque toutes les cases ;
-- sur les vues de **profil et de trois quarts**, l'intérieur de la bouche et des yeux a la couleur du fond : une fois
-  découpés, ce sont des trous, et on voit le décor à travers la tête de Jack.
+La planche magenta (deuxième version) est bien dessinée, mais le nettoyage du liseré a troué la citrouille : ses
+ombres rose-violet ressemblent trop au magenta. La première version (fond bleu nuit) avait une tige qui flottait et
+des bouches de profil de la couleur du fond.
 
-Ce qu'il faut faire :
-
-1. Renomme `art/sheets/jack.png` en `art/sheets/jack_v1.png`. Ne touche pas à `art/_reference.png`.
-2. Prends la consigne « Base sheet `jack` » de `prompts.md` (fond `#FF00FF`, grille 2x : elle est déjà à jour) et
-   **joins `art/_reference.png`** : le nouveau Jack doit être le même personnage, mêmes couleurs, mêmes proportions,
-   mêmes poses. Ajoute à la fin de la consigne :
+1. Renomme `art/sheets/jack.png` en `art/sheets/jack_v2.png`, et le dossier `art/jack/` en `art/jack_v2/`. Ne
+   touche ni à `art/_reference.png`, ni à `jack_v1`.
+2. Fond : transparent si le test le permet, sinon cyan `#00FFFF` (voir « Choisir le fond »).
+3. Prends la consigne « Base sheet `jack` » de `prompts.md`, mets-y le fond choisi, et **joins
+   `art/sheets/jack_v2.png`** : c'est ce Jack-là qu'il faut refaire à l'identique (mêmes poses, mêmes couleurs, tige
+   bien plantée), seul le fond change. Ajoute à la fin de la consigne :
 
    ```text
    PUMPKIN DETAILS — strict, on every cell:
    - The curly green stem is firmly attached to the top of the pumpkin: its base sits inside the pumpkin's top
      outline, with no gap and no background pixel between the stem and the pumpkin.
    - The carved eyes and mouth are always filled: warm yellow glow, or the dark warm brown of the outline for the
-     deepest parts. Never leave a carved opening in the background colour, also in profile, three-quarter and back
-     views.
+     deepest parts. Never leave a carved opening in the background colour or transparent, also in profile,
+     three-quarter and back views.
    - The pumpkin and the stem have the same clean dark one-pixel outline as the rest of the figure.
    ```
-3. Enregistre l'image dans `art/sheets/jack.png`. Avant de découper, zoome sur chaque case : la tige touche la
-   citrouille, aucune bouche ni aucun œil n'est magenta, rien ne dépasse de sa case. Sinon, régénère.
-4. Découpe avec **64 couleurs** (à 32, le vert de la tige devient beige), puis nettoie le liseré :
+4. Enregistre l'image dans `art/sheets/jack.png`. Avant de découper, zoome sur chaque case : la tige touche la
+   citrouille, aucune bouche ni aucun œil n'est transparent ou de la couleur du fond, rien ne dépasse de sa case.
+   Sinon, régénère.
+5. Découpe avec **64 couleurs** (à 32, le vert de la tige devient beige) :
 
    ```
    python3 tools/cut-sheet.py games/jack/art/sheets/jack.png jack --scale 2 --colors 64
-   python3 games/jack/art-tools/defringe.py games/jack/art/jack
    ```
-5. Vérifie les 24 images de `art/jack/` sur un fond vert vif : pas de trou entre la tige et la citrouille, pas de
-   trou dans la tête, pas de liseré rose. Puis `npm run assets`.
 
-## Nettoyer le liseré magenta (après chaque découpe)
+   Fond cyan seulement : `python3 games/jack/art-tools/defringe.py games/jack/art/jack --bg '#00FFFF'`.
+6. Vérifie les 24 images de `art/jack/` sur un fond vert vif : pas de trou entre la tige et la citrouille, pas de
+   trou dans la tête ni sur le bord de la citrouille, pas de liseré. Puis `npm run assets`.
+
+## Nettoyer le liseré magenta (planches déjà faites sur fond magenta)
 
 Le fond magenta laisse un liseré rose autour des personnages, et des taches dans les trous de la silhouette (entre
 les jambes, entre un bras et le corps). Après chaque découpe :
@@ -215,7 +254,8 @@ Termine par un court compte rendu : les planches faites, celles qui ont posé pr
 # Épisode 2 : le train fantôme
 
 Les consignes des **26 nouvelles images** sont dans `games/jack/prompts-episode2.md` (même style, même bloc de
-couleurs). Toutes les règles ci-dessus restent valables : fond **magenta `#FF00FF`**, grille **2x**
+couleurs). Toutes les règles ci-dessus restent valables : fond choisi comme dans « Choisir le fond » (ces planches-là ont été
+faites sur magenta `#FF00FF`), grille **2x**
 (« 768 x 512 pixel grid, 128 x 128 per cell »), découpe avec **`--scale 2`**, **nettoyage du liseré** avec
 `defringe.py` après chaque découpe, `art/_reference.png` (Jack) joint à chaque consigne.
 
