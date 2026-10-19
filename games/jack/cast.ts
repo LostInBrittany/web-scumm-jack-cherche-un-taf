@@ -60,7 +60,7 @@ export const characters: Record<string, CharacterDef> = {
     description: 'a retired old witch selling cotton candy: pale green skin, warty nose, pink pointy hat, purple dress, pink apron',
     refuse: 'Garde ça, mon chou.', hug: 'Viens là, mon chou ! Tu sens la citrouille.' },
   carrousel: { name: 'M. Carrousel', color: '#ff7070', height: 140, kind: ['person'], portrait: 'carrousel/r1c2', ...npc('carrousel'),
-    description: 'a carousel owner, a man with a big moustache, in a red ringmaster coat with golden buttons and a black top hat, cheerful and worried',
+    description: 'a jolly middle-aged carousel owner dressed as a circus ringmaster: wavy chestnut-brown hair over the ears, a big curled brown handlebar moustache, round nose, rosy cheeks; black top hat with a red and gold band; red tailcoat with gold epaulettes, gold piping and long tails; cream waistcoat with gold buttons; red bow tie; white gloves; black trousers with a gold side stripe; black shoes with gold buckles; cheerful but a little worried',
     refuse: 'Merci, mais j\'ai les mains prises. Par mes soucis.' },
   ginette: { name: 'Ginette', color: '#f0f0ff', height: 95, kind: ['person', 'ghost'], portrait: 'ginette/r1c2', ...npc('ginette'),
     description: 'a plump old-fashioned bedsheet ghost (white sheet with a few holes and patches), big black oval eyes, a red bow on top, a union delegate who speaks in protest slogans, fists raised; determined and funny',

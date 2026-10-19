@@ -629,7 +629,7 @@ Attach: `games/jack/art/_reference.png`.
 ```text
 Create a pixel-art character sprite sheet for a point-and-click adventure game.
 STYLE: match exactly the art style of the first attached image (reference sheet): retro pixel art in the spirit of 1990s LucasArts adventures (Day of the Tentacle, Monkey Island 2), 1 pixel = 1 pixel, crisp, no anti-aliasing: a warm expressive cartoon caricature with a clean dark one-pixel outline and flat cel-shaded tones, head about one third of the body height, friendly and funny.
-CHARACTER: a carousel owner, a man with a big moustache, in a red ringmaster coat with golden buttons and a black top hat, cheerful and worried.
+CHARACTER: a jolly middle-aged carousel owner dressed as a circus ringmaster: wavy chestnut-brown hair over the ears, a big curled brown handlebar moustache, round nose, rosy cheeks; black top hat with a red and gold band; red tailcoat with gold epaulettes, gold piping and long tails; cream waistcoat with gold buttons; red bow tie; white gloves; black trousers with a gold side stripe; black shoes with gold buckles; cheerful but a little worried.
 SHEET LAYOUT — follow it strictly:
 - Canvas 1536 x 1024 pixels, landscape.
 - An invisible grid of 6 columns x 4 rows, every cell exactly 256 x 256 pixels. One figure per cell, centered horizontally.

@@ -51,7 +51,7 @@
     {
      "id": "manoir-2",
      "title": "Tuto : regarder",
-     "action": "Regarder le casier",
+     "action": "Regarder le casier (deux fois)",
      "lines": [
       {
        "who": "hero",
@@ -59,22 +59,22 @@
       },
       {
        "who": "hero",
-       "text": "Il est coincé. Comme toujours."
+       "text": "Il est coincé. Comme toujours. Il faut un bon coup."
       }
      ]
     },
     {
      "id": "manoir-3",
      "title": "Tuto : parler",
-     "action": "Parler au Comte : la lanterne",
+     "action": "Parler au Comte : « La lanterne, c'est la mienne. »",
      "lines": [
-      {
-       "who": "hero",
-       "text": "La lanterne, c'est moi qui l'ai achetée. Avec mes sous."
-      },
       {
        "who": "radinoff",
        "text": "Avec VOS sous ? Que je vous ai versés ? Donc ce sont MES sous."
+      },
+      {
+       "who": "hero",
+       "text": "C'est moi qui l'ai achetée. Avec mes sous."
       },
       {
        "who": "radinoff",
@@ -98,6 +98,10 @@
       {
        "who": "hero",
        "text": "…et une chaussette. Je n'ai pas de pieds en tissu. Mystère."
+      },
+      {
+       "who": "radinoff",
+       "text": "Et n'oubliez pas : la lanterne appartient au manoir !"
       }
      ],
      "sfx": [
@@ -122,7 +126,7 @@
     {
      "id": "manoir-5",
      "title": "Le conseil du Comte",
-     "action": "Parler au Comte : un conseil ?",
+     "action": "Parler au Comte : « Un conseil pour trouver du travail ? »",
      "lines": [
       {
        "who": "radinoff",
@@ -173,12 +177,12 @@
       "lines": [
        {
         "who": "radinoff",
-        "text": "Votre quoi ? Je ne connais pas ce mot. Il n'existe pas en Transylvanien."
+        "text": "Votre quoi ? Je ne connais pas ce mot. Il n'existe pas en transylvanien."
        }
       ]
      },
      {
-      "topic": "La lanterne",
+      "topic": "La lanterne, c'est la mienne.",
       "lines": [
        {
         "who": "stage",
@@ -187,7 +191,7 @@
       ]
      },
      {
-      "topic": "Un conseil ?",
+      "topic": "Un conseil pour trouver du travail ?",
       "lines": [
        {
         "who": "stage",
@@ -233,12 +237,80 @@
        "text": "Une chaussette verte, toute gluante. Ça ne vient pas de chez moi."
       }
      ]
+    },
+    {
+     "action": "Regarder le casier ouvert",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Vide. Il reste une odeur de citrouille. C'est moi."
+      }
+     ]
+    },
+    {
+     "action": "Tirer le casier (fermé)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Coincé. Il faudrait plutôt un bon coup de pied osseux."
+      }
+     ]
+    },
+    {
+     "action": "Utiliser le casier vide",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Il est vide. J'ai tout pris. Douze ans dans trois poches."
+      }
+     ]
+    },
+    {
+     "action": "Ouvrir le coffre-fort",
+     "lines": [
+      {
+       "who": "radinoff",
+       "text": "Pas touche ! Il y a toutes mes économies. Et mon lit."
+      }
+     ]
+    },
+    {
+     "action": "Donner la lanterne au Comte (autre solution)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Tenez, votre lanterne."
+      },
+      {
+       "who": "radinoff",
+       "text": "Hmm. Finalement, gardez-la. Elle consomme trop de bougie."
+      }
+     ]
+    },
+    {
+     "action": "Donner le badge au Comte",
+     "lines": [
+      {
+       "who": "radinoff",
+       "text": "Gardez-le. Il est en plastique, il ne vaut rien."
+      }
+     ]
+    },
+    {
+     "action": "Donner la chaussette au Comte",
+     "lines": [
+      {
+       "who": "radinoff",
+       "text": "Ce n'est pas à moi. Je dors en chaussettes noires. Dans un coffre."
+      }
+     ]
     }
    ],
    "hints": [
     "Tes affaires sont dans ton casier, Jack.",
     "Il est coincé. UTILISE-le, un bon coup de pied osseux.",
     "Le Comte veut la lanterne. Parle-lui-en.",
+    "PARLER au Comte : « La lanterne, c'est la mienne. »",
     "La porte, à gauche. Pôle Frousse t'attend sur la place."
    ],
    "exit": "Par la porte d'entrée, vers la place du village."
@@ -252,13 +324,21 @@
     {
      "who": "stage",
      "text": "Une place pavée, des citrouilles partout. Pôle Frousse, la Mairie, un photomaton. Au fond, la route de la fête foraine, gardée par un policier sans tête."
+    },
+    {
+     "who": "hero",
+     "text": "La place du village. Pôle Frousse, c'est à gauche."
+    },
+    {
+     "who": "hero",
+     "text": "Mireille, ma petite araignée, me souffle les indices si je lui parle."
     }
    ],
    "panels": [
     {
      "id": "place-1",
      "title": "Pôle Frousse",
-     "action": "Parler à Mme Bandelette",
+     "action": "Parler à Mme Bandelette : « Je cherche du travail. »",
      "lines": [
       {
        "who": "bandelette",
@@ -273,8 +353,20 @@
        "text": "Ça n'empêche paaas. Prenez un numérooo."
       },
       {
+       "who": "hero",
+       "text": "Je prends le ticket numéro 1."
+      },
+      {
        "who": "stage",
-       "text": "Jack prend le ticket n°1. Elle appelle le n°1. Ça prend quatre minutes."
+       "text": "Un long silence."
+      },
+      {
+       "who": "bandelette",
+       "text": "Numérooo… uuun."
+      },
+      {
+       "who": "hero",
+       "text": "C'est moi."
       },
       {
        "who": "bandelette",
@@ -289,11 +381,15 @@
     {
      "id": "place-2",
      "title": "Le photomaton (raté)",
-     "action": "Utiliser le photomaton",
+     "action": "Utiliser le photomaton (sans nez de clown)",
      "lines": [
       {
-       "who": "stage",
-       "text": "FLASH. La machine tremble, crache une photo, puis tousse de la fumée."
+       "who": "hero",
+       "text": "Clic. Flash. Hmm. La machine tremble."
+      },
+      {
+       "who": "hero",
+       "text": "Elle tousse de la fumée… et crache une photo."
       },
       {
        "who": "hero",
@@ -301,7 +397,7 @@
       },
       {
        "who": "bandelette",
-       "text": "Refusééée. On ne recrute pas les gens qui font peur aux photos."
+       "text": "D'iciii, je vous le dis : refusééée. On ne recrute pas les gens qui font peur aux photos."
       },
       {
        "who": "hero",
@@ -315,7 +411,7 @@
     {
      "id": "place-3",
      "title": "Le Maire",
-     "action": "Parler au Maire",
+     "action": "Parler au Maire : « Monsieur le Maire, votre tête… »",
      "lines": [
       {
        "who": "maire",
@@ -326,12 +422,8 @@
        "text": "Sa tête penche dangereusement sur le côté."
       },
       {
-       "who": "hero",
-       "text": "Monsieur le Maire, votre tête…"
-      },
-      {
        "who": "maire",
-       "text": "J'ai perdu un boulon. Celui du cou. Gloubi l'a avalé ce matin en nettoyant."
+       "text": "Ma tête ? J'ai perdu un boulon. Celui du cou. Gloubi l'a avalé ce matin en nettoyant."
       },
       {
        "who": "maire",
@@ -342,15 +434,15 @@
     {
      "id": "place-4",
      "title": "Gloubi l'éboueur",
-     "action": "Parler à Gloubi",
+     "action": "Parler à Gloubi : « Bonjour ! Tu fais quoi ? »",
      "lines": [
       {
        "who": "gloubi",
        "text": "Blorp ! Moi, Gloubi. Moi nettoyer. Moi avaler tout."
       },
       {
-       "who": "hero",
-       "text": "Tu n'aurais pas avalé un boulon, ce matin ?"
+       "who": "action",
+       "text": "Parler à Gloubi : « Tu n'aurais pas avalé un boulon ? » (après avoir parlé au Maire)"
       },
       {
        "who": "gloubi",
@@ -366,14 +458,18 @@
       },
       {
        "who": "gloubi",
-       "text": "Barbe à papa. Gloubi rêve barbe à papa. Mais fête foraine, interdite aux éboueurs. Bloorp."
+       "text": "Barbe à papa. Gloubi rêve barbe à papa."
+      },
+      {
+       "who": "gloubi",
+       "text": "Mais fête foraine, interdite aux éboueurs. Bloorp."
       }
      ]
     },
     {
      "id": "place-5",
      "title": "Le Brigadier Sans-Tête",
-     "action": "Parler au Brigadier",
+     "action": "Parler au Brigadier : « Je peux passer ? »",
      "lines": [
       {
        "who": "brigadier",
@@ -399,8 +495,8 @@
      "action": "Donner la lanterne au Brigadier",
      "lines": [
       {
-       "who": "stage",
-       "text": "Le Brigadier pose la lanterne sur son col. Elle s'allume."
+       "who": "hero",
+       "text": "Il pose la lanterne sur son col. Elle s'allume."
       },
       {
        "who": "brigadier",
@@ -416,7 +512,11 @@
       },
       {
        "who": "stage",
-       "text": "La route de la fête foraine est ouverte."
+       "text": "Bandeau : « Nouveau sur la carte : la fête foraine »."
+      },
+      {
+       "who": "hero",
+       "text": "Je peux y aller par la route, à droite, ou avec la carte, en bas à gauche."
       }
      ],
      "sfx": [
@@ -433,8 +533,12 @@
        "text": "BARBE À PAPA ! Gloubi heureux ! Gloubi trèèès heureux !"
       },
       {
-       "who": "stage",
-       "text": "BUUUUURP. Une pluie d'objets : un parapluie, un vélo d'enfant, un dentier… et un boulon."
+       "who": "gloubi",
+       "text": "BUUUUURP."
+      },
+      {
+       "who": "hero",
+       "text": "Un parapluie, un vélo d'enfant, un dentier… et un boulon !"
       },
       {
        "who": "gloubi",
@@ -455,8 +559,12 @@
      "action": "Donner le boulon au Maire",
      "lines": [
       {
-       "who": "stage",
-       "text": "Le Maire visse le boulon. Sa tête se redresse. Il grandit de dix centimètres."
+       "who": "maire",
+       "text": "Mon boulon !"
+      },
+      {
+       "who": "hero",
+       "text": "Il le visse. Sa tête se redresse. Il a grandi de dix centimètres."
       },
       {
        "who": "maire",
@@ -494,15 +602,15 @@
     {
      "id": "place-9",
      "title": "Le photomaton (réussi)",
-     "action": "Utiliser le nez de clown, puis le photomaton",
+     "action": "Utiliser le photomaton avec le nez de clown (ou le nez de clown avec le photomaton)",
      "lines": [
       {
        "who": "hero",
        "text": "Nez rouge en place. Sourire en place. Enfin, sourire de citrouille."
       },
       {
-       "who": "stage",
-       "text": "FLASH. La machine hésite… puis rigole. Une jolie photo sort."
+       "who": "hero",
+       "text": "FLASH. La machine hésite… puis elle rigole. Une jolie photo sort."
       },
       {
        "who": "hero",
@@ -528,7 +636,7 @@
       },
       {
        "who": "stage",
-       "text": "Elle tape au clavier. Lentement. Très lentement."
+       "text": "Un long silence. Elle tape au clavier. Lentement."
       },
       {
        "who": "bandelette",
@@ -544,7 +652,15 @@
       },
       {
        "who": "stage",
-       "text": "Jack reçoit la fiche de poste. FIN DE L'ÉPISODE 1 (carte de titre), puis le jeu continue."
+       "text": "Jack reçoit la fiche de poste."
+      },
+      {
+       "who": "stage",
+       "text": "Bandeau : « FIN DE L'ÉPISODE 1 : Jack a un dossier. Épisode 2 : la période d'essai ! »"
+      },
+      {
+       "who": "hero",
+       "text": "Le train fantôme ! À la fête foraine. Wolfgang m'attend."
       }
      ]
     },
@@ -562,8 +678,8 @@
        "text": "Bon. J'en ai trois kilomètres en réserve. On ne sait jamais, avec l'âge."
       },
       {
-       "who": "stage",
-       "text": "Elle se déroule un peu. Jack reçoit un gros rouleau de bandelettes."
+       "who": "hero",
+       "text": "Elle se déroule un peu, et me tend un gros rouleau."
       },
       {
        "who": "hero",
@@ -600,7 +716,7 @@
        "text": "Sans le nez, cette fois. Pour la science."
       },
       {
-       "who": "stage",
+       "who": "hero",
        "text": "FLASH. La machine hurle et crache une photo terrifiante."
       },
       {
@@ -640,12 +756,12 @@
       "lines": [
        {
         "who": "maire",
-        "text": "De plusieurs anciens maires. C'est ça, la continuité républicaine."
+        "text": "De plusieurs anciens maires. C'est ça, la continuité."
        }
       ]
      },
      {
-      "topic": "Vous connaissez un travail pour moi ?",
+      "topic": "Vous avez un travail pour moi ?",
       "lines": [
        {
         "who": "maire",
@@ -661,15 +777,6 @@
        {
         "who": "gloubi",
         "text": "Deux poubelles, un banc, un pigeon. Pigeon ressorti. Pigeon vexé."
-       }
-      ]
-     },
-     {
-      "topic": "Ma chaussette, c'est à toi ?",
-      "lines": [
-       {
-        "who": "gloubi",
-        "text": "Blorp ! Chaussette perdue ! Gloubi cherchait depuis Pâques. Merci ami."
        }
       ]
      }
@@ -692,6 +799,15 @@
         "text": "On y embauche, paraît-il. Pour Halloween. Mais je n'ai rien vu. Forcément."
        }
       ]
+     },
+     {
+      "topic": "Alors, cette vue ? (lanterne donnée)",
+      "lines": [
+       {
+        "who": "brigadier",
+        "text": "Magnifique. Je vois des choses que je n'aurais jamais voulu voir. Comme le Maire en pyjama."
+       }
+      ]
      }
     ]
    },
@@ -701,25 +817,37 @@
      "lines": [
       {
        "who": "gloubi",
-       "text": "Ma chaussette ! Gloubi ému. Mais pas assez pour roter. Barbe à papa, oui."
+       "text": "Blorp ! Chaussette perdue ! Gloubi cherchait depuis Pâques. Merci ami."
+      },
+      {
+       "who": "gloubi",
+       "text": "Gloubi ému. Mais pas assez pour roter. Barbe à papa, oui."
       }
      ]
     },
     {
-     "action": "Regarder le photomaton (4e fois)",
+     "action": "Regarder le photomaton (2e, 3e et 4e fois)",
      "lines": [
       {
        "who": "hero",
-       "text": "Il me regarde de travers. Je crois qu'il a peur que je revienne."
+       "text": "Il me regarde de travers."
+      },
+      {
+       "who": "hero",
+       "text": "Il a encore un peu de fumée qui sort."
+      },
+      {
+       "who": "hero",
+       "text": "Je crois qu'il a peur que je revienne."
       }
      ]
     },
     {
-     "action": "Utiliser Jack avec le photomaton une 2e fois sans nez",
+     "action": "Utiliser le photomaton une 2e fois, sans nez de clown",
      "lines": [
       {
-       "who": "stage",
-       "text": "La machine affiche : « EN PAUSE CAFÉ. REVENEZ AVEC UNE AUTRE TÊTE. »"
+       "who": "hero",
+       "text": "Il affiche : « EN PAUSE CAFÉ. REVENEZ AVEC UNE AUTRE TÊTE. »"
       }
      ]
     },
@@ -738,6 +866,90 @@
       {
        "who": "hero",
        "text": "Le Maire, tête bien droite. Il serre des mains deux fois plus vite."
+      },
+      {
+       "who": "hero",
+       "text": "Il a l'air plus grand. Et plus content. Surtout plus grand."
+      }
+     ]
+    },
+    {
+     "action": "Utiliser le photomaton (photo déjà faite)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "J'ai déjà ma photo. Je ne vais pas abuser."
+      }
+     ]
+    },
+    {
+     "action": "Donner seulement la photo à Mme Bandelette",
+     "lines": [
+      {
+       "who": "bandelette",
+       "text": "Jolie photooo. Il me manque encore la lettre du Maiiire."
+      }
+     ]
+    },
+    {
+     "action": "Donner seulement la lettre à Mme Bandelette",
+     "lines": [
+      {
+       "who": "bandelette",
+       "text": "Belle lettre. Il me manque encore une photooo."
+      }
+     ]
+    },
+    {
+     "action": "Donner la photo ratée à Mme Bandelette",
+     "lines": [
+      {
+       "who": "bandelette",
+       "text": "Aaaah !"
+      },
+      {
+       "who": "bandelette",
+       "text": "Pardon. Refusééée. Il me faut une photo qui ne fait pas peur."
+      }
+     ]
+    },
+    {
+     "action": "Donner la lanterne à Gloubi",
+     "lines": [
+      {
+       "who": "gloubi",
+       "text": "Gloubi pas manger lumière. Après, ventre qui brille la nuit."
+      }
+     ]
+    },
+    {
+     "action": "Prendre la route de la fête foraine (lanterne pas donnée)",
+     "lines": [
+      {
+       "who": "brigadier",
+       "text": "HALTE ! Personne ne passe sans que je le voie !"
+      },
+      {
+       "who": "hero",
+       "text": "Il ne voit personne. Donc personne ne passe. Logique de brigadier."
+      }
+     ]
+    },
+    {
+     "action": "Prendre une citrouille",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Prendre une citrouille ? C'est comme prendre un cousin. Non."
+      }
+     ]
+    },
+    {
+     "action": "Prendre le tas d'objets",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Le dentier ? Non merci. J'ai déjà toutes mes dents. Elles sont en citrouille."
       }
      ]
     }
@@ -748,10 +960,23 @@
     "Le boulon du Maire est dans le ventre de Gloubi. Parle à Gloubi.",
     "La barbe à papa, c'est à la fête foraine. Mais le Brigadier ne voit personne passer.",
     "Il lui faudrait une tête qui éclaire… Ta lanterne ?",
-    "Mémé Guimauve, à la fête foraine, paie en barbe à papa. DONNE-la à Gloubi.",
+    "DONNE la lanterne au Brigadier.",
+    "Mémé Guimauve, à la fête foraine, paie en barbe à papa.",
+    "DONNE la barbe à papa à Gloubi.",
     "DONNE le boulon au Maire.",
-    "Pour la photo, il te faut une tête de fête. Un nez de clown, peut-être ? Le petit dragon du manège…",
-    "DONNE la photo et la lettre à Mme Bandelette."
+    "Pour la photo, il te faut une tête de fête.",
+    "Un nez de clown, peut-être ? À la fête foraine, le petit dragon du manège.",
+    "Avec le nez de clown, UTILISE le photomaton.",
+    "DONNE la photo et la lettre à Mme Bandelette.",
+    "Wolfgang t'attend à la fête foraine. Donne-lui la fiche de poste.",
+    "Il se passe des choses dans le train fantôme. Va voir à la fête foraine.",
+    "Des draps neufs pour les fantômes… Mme Bandelette a sûrement des bandelettes en trop.",
+    "PARLE à Mme Bandelette.",
+    "Des chaînes légères… Le tas d'objets que Gloubi a recraché, il y a un vélo.",
+    "PRENDS le tas d'objets : la chaîne du vélo.",
+    "Pour l'affiche, il te faut une photo qui fait vraiment peur.",
+    "UTILISE le photomaton, sans le nez de clown.",
+    "Tout se passe à la fête foraine, maintenant."
    ],
    "exit": "Par la route du fond vers la fête foraine (une fois la lanterne donnée)."
   },
@@ -763,7 +988,11 @@
    "arrival": [
     {
      "who": "stage",
-     "text": "Guirlandes, musique d'orgue, odeur de sucre. Un stand de barbe à papa, un manège avec un petit dragon, un train fantôme."
+     "text": "Un stand de barbe à papa, un manège avec un petit dragon, un train fantôme."
+    },
+    {
+     "who": "hero",
+     "text": "Guirlandes, musique d'orgue, odeur de sucre."
     },
     {
      "who": "hero",
@@ -774,7 +1003,7 @@
     {
      "id": "foire-1",
      "title": "Mémé Guimauve",
-     "action": "Parler à Mémé Guimauve",
+     "action": "Parler à Mémé Guimauve : « Vous embauchez ? »",
      "lines": [
       {
        "who": "guimauve",
@@ -797,11 +1026,31 @@
      "lines": [
       {
        "who": "stage",
-       "text": "Chaque client demande une couleur. Mauvaise couleur : le client fait une drôle de tête, on recommence."
+       "text": "Écoute bien ce que veut le client, Jack."
       },
       {
        "who": "stage",
-       "text": "Piège : la barbe à papa à la toile d'araignée. Le client hurle et s'enfuit en courant (puis revient, il n'a pas payé)."
+       "text": "Un petit fantôme voudrait une barbe à papa ROSE."
+      },
+      {
+       "who": "stage",
+       "text": "Une sorcière veut la VERTE. Comme son nez."
+      },
+      {
+       "who": "stage",
+       "text": "Un vampire demande la BLEUE. « Pas la rouge, je suis au régime. »"
+      },
+      {
+       "who": "stage",
+       "text": "Mauvaise couleur : « Pas celle-là ! Le client fait une drôle de tête. »"
+      },
+      {
+       "who": "stage",
+       "text": "Piège : « Barbe à papa à la toile d'araignée ! Le client s'enfuit en hurlant… puis revient, il n'a pas payé. »"
+      },
+      {
+       "who": "stage",
+       "text": "Trois clients servis !"
       }
      ]
     },
@@ -830,7 +1079,7 @@
     {
      "id": "foire-4",
      "title": "Pépite le dragon",
-     "action": "Parler à M. Carrousel",
+     "action": "Parler à M. Carrousel : « Votre manège ne tourne pas ? »",
      "lines": [
       {
        "who": "carrousel",
@@ -842,22 +1091,26 @@
       },
       {
        "who": "carrousel",
-       "text": "Si tu le calmes, le poste de dompteur est à toi."
+       "text": "Si tu le calmes, le poste de dompteur est à toi. Il faut le caresser, tout doucement."
       }
      ]
     },
     {
      "id": "foire-5",
      "title": "Mini-jeu : caresser Pépite",
-     "action": "Mini-jeu « stroke » : caresser Pépite doucement",
+     "action": "Mini-jeu « stroke » : utiliser Pépite et le caresser doucement",
      "lines": [
       {
        "who": "stage",
-       "text": "Trop vite : Pépite crache une petite flamme et la jauge redescend. Doucement : il ronronne."
+       "text": "Doucement, Jack. Tout doucement."
       },
       {
-       "who": "pepite",
-       "text": "Prrrrt. Prrrrrrrrrt."
+       "who": "stage",
+       "text": "Trop vite : « Trop vite ! Il crache une petite flamme. »"
+      },
+      {
+       "who": "stage",
+       "text": "Il ronronne !"
       }
      ]
     },
@@ -867,12 +1120,12 @@
      "action": "Gagner le mini-jeu",
      "lines": [
       {
-       "who": "stage",
-       "text": "Pépite se calme… et éternue. Un nez de clown vole jusqu'à Jack."
+       "who": "hero",
+       "text": "Pépite se calme… et éternue. Quelque chose vole jusqu'à moi."
       },
       {
        "who": "carrousel",
-       "text": "Il l'avait avalé l'an dernier ! Garde-le, ça te va bien."
+       "text": "Un nez de clown ! Il l'avait avalé l'an dernier ! Garde-le, ça te va bien."
       },
       {
        "who": "carrousel",
@@ -880,7 +1133,7 @@
       },
       {
        "who": "hero",
-       "text": "Troisième licenciement. Record personnel."
+       "text": "Troisième licenciement de la journée. Record personnel."
       }
      ],
      "sfx": [
@@ -890,7 +1143,7 @@
     {
      "id": "foire-7",
      "title": "Le train fantôme",
-     "action": "Parler à Wolfgang",
+     "action": "Parler à Wolfgang : « Vous embauchez au train fantôme ? »",
      "lines": [
       {
        "who": "wolfgang",
@@ -909,7 +1162,7 @@
     {
      "id": "foire-8",
      "title": "L'embauche à l'essai",
-     "action": "Donner la fiche de poste à Wolfgang",
+     "action": "Donner la fiche de poste à Wolfgang (ou lui dire « J'ai mon dossier de Pôle Frousse ! »)",
      "lines": [
       {
        "who": "wolfgang",
@@ -932,6 +1185,10 @@
        "text": "Tout. Les fantômes sont en grève, le courant est coupé, et personne ne sait qu'on rouvre."
       },
       {
+       "who": "wolfgang",
+       "text": "Monte dans le wagon, le tunnel est derrière."
+      },
+      {
        "who": "stage",
        "text": "Le wagon devient une entrée : on peut monter dans le train fantôme."
       }
@@ -951,15 +1208,15 @@
       },
       {
        "who": "stage",
-       "text": "Jack la colle sur le panneau. Wolfgang l'agrandit en poster géant."
+       "text": "Jack la colle sur le panneau."
       },
       {
        "who": "wolfgang",
-       "text": "Ouaf ! Rien qu'en la regardant, j'ai perdu des poils. C'est PARFAIT."
+       "text": "Ouaf ! Rien qu'en la regardant, j'ai perdu des poils. Je l'agrandis en poster géant. C'est PARFAIT."
       },
       {
-       "who": "stage",
-       "text": "Des passants s'arrêtent, frissonnent, et font la queue."
+       "who": "hero",
+       "text": "Des passants s'arrêtent, frissonnent… et font la queue."
       }
      ],
      "sfx": [
@@ -977,11 +1234,11 @@
       },
       {
        "who": "wolfgang",
-       "text": "Place à la répétition générale. Les premiers clients arrivent !"
+       "text": "Place à la répétition générale. Les premiers clients arrivent ! File te cacher dans le train !"
       },
       {
        "who": "stage",
-       "text": "Le Brigadier (tête-lanterne), le Maire et Gloubi montent dans le wagon."
+       "text": "Jack file dans le train fantôme. Le Brigadier (tête-lanterne), le Maire et Gloubi montent dans le wagon."
       }
      ]
     }
@@ -994,6 +1251,15 @@
        {
         "who": "guimauve",
         "text": "À la retraite. Maintenant, je fais du sucre. C'est de la magie qui colle."
+       }
+      ]
+     },
+     {
+      "topic": "Je peux retravailler ? (après le mini-jeu)",
+      "lines": [
+       {
+        "who": "guimauve",
+        "text": "Non, mon chou. Les enfants tremblent encore. Regarde, il y en a un qui fait des glaçons."
        }
       ]
      }
@@ -1036,6 +1302,51 @@
         "text": "Tu te caches dans le noir, et quand le wagon passe, BOUH. Mais pas trop fort. Il faut qu'ils paient à la sortie."
        }
       ]
+     },
+     {
+      "topic": "Où on en est ? (pendant l'essai)",
+      "lines": [
+       {
+        "who": "stage",
+        "text": "Wolfgang fait le point, une phrase par tâche :"
+       },
+       {
+        "who": "wolfgang",
+        "text": "Les fantômes ont repris le travail. Bravo."
+       },
+       {
+        "who": "stage",
+        "text": "ou"
+       },
+       {
+        "who": "wolfgang",
+        "text": "Les fantômes font toujours grève. Va voir Ginette, dans le train."
+       },
+       {
+        "who": "wolfgang",
+        "text": "Le courant marche."
+       },
+       {
+        "who": "stage",
+        "text": "ou"
+       },
+       {
+        "who": "wolfgang",
+        "text": "Toujours pas de courant. Le tableau électrique est au fond du tunnel."
+       },
+       {
+        "who": "wolfgang",
+        "text": "L'affiche fait un malheur."
+       },
+       {
+        "who": "stage",
+        "text": "ou"
+       },
+       {
+        "who": "wolfgang",
+        "text": "Et personne ne sait qu'on rouvre. Il faudrait une affiche qui fait peur, sur le panneau."
+       }
+      ]
      }
     ]
    },
@@ -1053,23 +1364,97 @@
      "action": "Donner la chaussette à Pépite",
      "lines": [
       {
-       "who": "pepite",
-       "text": "Prrt ? Pfffffff."
+       "who": "hero",
+       "text": "Pépite souffle dessus. Pfffff."
       },
       {
-       "who": "stage",
-       "text": "La chaussette prend feu, puis s'éteint. Elle était trop gluante pour brûler."
+       "who": "hero",
+       "text": "La chaussette prend feu, puis s'éteint. Trop gluante pour brûler."
+      }
+     ]
+    },
+    {
+     "action": "Caresser Pépite avant de parler au patron du manège",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Pépite crache une flammèche. Ouille."
+      },
+      {
+       "who": "hero",
+       "text": "Je devrais d'abord demander au patron du manège."
+      }
+     ]
+    },
+    {
+     "action": "Caresser Pépite une fois calme",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Il ronronne. Prrrt. Prrrrrrt."
+      }
+     ]
+    },
+    {
+     "action": "Prendre au stand de barbe à papa",
+     "lines": [
+      {
+       "who": "guimauve",
+       "text": "Pas touche, mon chou ! Ici, la barbe à papa, ça se mérite."
+      }
+     ]
+    },
+    {
+     "action": "Utiliser le train fantôme avant l'embauche",
+     "lines": [
+      {
+       "who": "wolfgang",
+       "text": "Ouaf. C'est fermé. Mes fantômes sont en grève."
+      }
+     ]
+    },
+    {
+     "action": "Utiliser la photo ratée avec le panneau avant l'embauche",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Coller ma photo ici ? Je ne travaille pas encore pour le train fantôme."
+      }
+     ]
+    },
+    {
+     "action": "Donner la photo ratée à Wolfgang",
+     "lines": [
+      {
+       "who": "wolfgang",
+       "text": "Brr. Colle-la plutôt sur le panneau, devant le train. Qu'elle fasse peur aux passants, pas à moi."
+      }
+     ]
+    },
+    {
+     "action": "Regarder le panneau (affiche posée)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Mon affiche. Les passants frissonnent. Les plus courageux font la queue."
       }
      ]
     }
    ],
    "hints": [
     "Ici, on embauche. Mémé Guimauve cherche un vendeur.",
+    "PARLE à Mémé Guimauve. Elle paie en barbe à papa.",
     "Le patron du manège a l'air embêté. Parle-lui.",
-    "Pépite a peur. Il faut le caresser, tout doucement : UTILISE Pépite.",
+    "Pépite a peur. Il faut le caresser, tout doucement.",
+    "UTILISE Pépite pour le caresser.",
     "Tu as ce qu'il faut. Retourne sur la place, Jack.",
-    "Wolfgang voulait un dossier de Pôle Frousse. Donne-lui la fiche de poste.",
-    "L'affiche : il faut une image qui fait vraiment peur. Ta photo ratée du photomaton ?"
+    "Wolfgang voulait un dossier de Pôle Frousse. DONNE-lui la fiche de poste.",
+    "Le train fantôme est derrière le wagon. Va voir ce qui s'y passe.",
+    "L'affiche : il faut une image qui fait vraiment peur. Ta photo ratée du photomaton ?",
+    "Tu ne l'as plus ? Le photomaton, sur la place, sans le nez de clown.",
+    "UTILISE la photo ratée avec le panneau, devant le train.",
+    "Il reste du travail dans le train fantôme.",
+    "Tout est prêt ? Dis-le à Wolfgang."
    ],
    "exit": "Retour à la place par la route."
   },
@@ -1130,7 +1515,7 @@
        "text": "Du lin d'Égypte ! Trois kilomètres ! On va pouvoir se faire des draps… et des rideaux."
       },
       {
-       "who": "stage",
+       "who": "hero",
        "text": "Les fantômes s'enroulent dedans. Ils ressemblent à des momies. Ils adorent."
       }
      ]
@@ -1145,7 +1530,7 @@
        "text": "Une chaîne de vélo ! Si légère ! Écoutez-moi ce petit cliquetis…"
       },
       {
-       "who": "stage",
+       "who": "hero",
        "text": "Gaston la fait tinter. Bouh se met à pédaler dans le vide."
       }
      ],
@@ -1163,12 +1548,20 @@
        "text": "Camarades, nos revendications sont satisfaites. On reprend le travail !"
       },
       {
+       "who": "stage",
+       "text": "Les fantômes se remettent au travail."
+      },
+      {
        "who": "ginette",
        "text": "Merci, la citrouille. Tu es un bon collègue. Pour un employé à l'essai."
       },
       {
+       "who": "bouh",
+       "text": "Bouh !"
+      },
+      {
        "who": "stage",
-       "text": "La banderole « GRÈVE » est retournée : « RÉOUVERTURE CE SOIR »."
+       "text": "Bandeau : « La grève est finie ! »"
       }
      ],
      "sfx": [
@@ -1186,11 +1579,15 @@
       },
       {
        "who": "stage",
-       "text": "Mini-jeu « câbles » : suivre chaque fil dans le nœud et le brancher sur la prise de sa couleur."
+       "text": "Mini-jeu « câbles » : « Suis chaque fil dans le nœud, Jack, et branche-le sur la prise de sa couleur. »"
       },
       {
        "who": "stage",
-       "text": "Mauvais branchement : un gag, jamais un échec. Les squelettes du décor se mettent à danser, ou le wagon part en marche arrière."
+       "text": "Mauvais branchement : un gag, jamais un échec. Le squelette du décor se met à danser, ou un écran affiche : « Le train fantôme a rencontré un problème et doit hanter de nouveau. Bouh. »"
+      },
+      {
+       "who": "stage",
+       "text": "La lumière revient !"
       }
      ],
      "sfx": [
@@ -1203,8 +1600,8 @@
      "action": "Gagner le mini-jeu",
      "lines": [
       {
-       "who": "stage",
-       "text": "Les lampes s'allument, la musique d'orgue démarre, les yeux des tableaux s'allument."
+       "who": "hero",
+       "text": "Les lampes s'allument, l'orgue démarre, les yeux des tableaux s'allument."
       },
       {
        "who": "hero",
@@ -1221,8 +1618,8 @@
      "action": "(après « Tout est prêt » avec Wolfgang)",
      "lines": [
       {
-       "who": "stage",
-       "text": "Le wagon entre avec le Brigadier, le Maire et Gloubi."
+       "who": "hero",
+       "text": "Le wagon entre. Le Brigadier, le Maire et Gloubi. Vite, une cachette !"
       },
       {
        "who": "mireille",
@@ -1230,11 +1627,23 @@
       },
       {
        "who": "stage",
-       "text": "Mini-jeu « cache-cache » : choisir d'où surgir. Le cercueil, le lustre, l'armoire, le tonneau… Chaque mauvaise cachette donne un gag."
+       "text": "Mini-jeu « cache-cache » : « Où te cacher pour surgir au bon moment ? » Le cercueil, le lustre, l'armoire ou le tonneau."
       },
       {
        "who": "stage",
-       "text": "La bonne cachette : le cercueil. BOUH !"
+       "text": "Le lustre : « Jack se suspend au lustre… qui se décroche. Bouh dit « bouh ». Personne n'a peur. »"
+      },
+      {
+       "who": "stage",
+       "text": "L'armoire : « L'armoire est déjà occupée : Gaston y range ses chaînes. »"
+      },
+      {
+       "who": "stage",
+       "text": "Le tonneau : « Jack sort du tonneau trop tôt. Gloubi croit que c'est l'apéritif. »"
+      },
+      {
+       "who": "stage",
+       "text": "La bonne cachette : le cercueil. « BOUH ! Juste ce qu'il faut. »"
       }
      ]
     },
@@ -1256,7 +1665,7 @@
        "text": "Gloubi a eu peur ! Gloubi n'a même pas avalé le wagon ! Encore !"
       },
       {
-       "who": "stage",
+       "who": "hero",
        "text": "Ils sortent en riant… et ils paient. Tous les trois. Deux fois."
       }
      ],
@@ -1267,6 +1676,35 @@
    ],
    "talks": {
     "ginette": [
+     {
+      "topic": "Où en sont vos revendications ? (pendant la grève)",
+      "lines": [
+       {
+        "who": "ginette",
+        "text": "Les draps : obtenus !"
+       },
+       {
+        "who": "stage",
+        "text": "ou"
+       },
+       {
+        "who": "ginette",
+        "text": "Des draps neufs : toujours rien !"
+       },
+       {
+        "who": "ginette",
+        "text": "Les chaînes : obtenues !"
+       },
+       {
+        "who": "stage",
+        "text": "ou"
+       },
+       {
+        "who": "ginette",
+        "text": "Des chaînes légères : toujours rien !"
+       }
+      ]
+     },
      {
       "topic": "Pourquoi vous faites grève ?",
       "lines": [
@@ -1299,6 +1737,23 @@
         "text": "Bouh à toi aussi."
        }
       ]
+     },
+     {
+      "topic": "Un conseil pour faire peur ?",
+      "lines": [
+       {
+        "who": "bouh",
+        "text": "Bouh…"
+       },
+       {
+        "who": "bouh",
+        "text": "…BOUH !"
+       },
+       {
+        "who": "hero",
+        "text": "Je vois. Tout est dans la nuance."
+       }
+      ]
      }
     ]
    },
@@ -1320,14 +1775,62 @@
        "text": "Une chaussette ? On n'a pas de pieds. Mais merci pour l'intention."
       }
      ]
+    },
+    {
+     "action": "Ouvrir un cercueil",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Vide. Le locataire est parti en vacances. Il a laissé un mot : « Bouh. »"
+      }
+     ]
+    },
+    {
+     "action": "Tirer le lustre",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Si je tire dessus, il me tombe sur la citrouille. Non merci."
+      }
+     ]
+    },
+    {
+     "action": "Regarder les fantômes (grève finie)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Gaston, enroulé dans des bandelettes neuves. Sa chaîne de vélo fait un joli cliquetis."
+      }
+     ]
+    },
+    {
+     "action": "Regarder le tableau électrique (courant rétabli)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Le tableau électrique. Tout est branché. Je suis électricien, maintenant."
+      }
+     ]
+    },
+    {
+     "action": "Utiliser le tableau électrique (courant rétabli)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Tout marche. Je ne touche plus à rien."
+      }
+     ]
     }
    ],
    "hints": [
     "Ginette mène la grève. Parle-lui.",
-    "Des draps neufs : Mme Bandelette a sûrement des bandelettes en trop.",
+    "Des draps neufs : Mme Bandelette, sur la place, a sûrement des bandelettes en trop.",
+    "DONNE les bandelettes à Ginette.",
     "Des chaînes légères : le vélo que Gloubi a recraché sur la place a une chaîne.",
+    "DONNE la chaîne de vélo à Ginette.",
     "Le tableau électrique, au fond. UTILISE-le.",
-    "Il manque l'affiche, dehors. Puis retourne voir Wolfgang."
+    "Il manque l'affiche, dehors, sur le panneau devant le train.",
+    "Tout est prêt ! Va le dire à Wolfgang."
    ],
    "exit": "Par le wagon, vers la fête foraine."
   },
@@ -1365,7 +1868,7 @@
      "lines": [
       {
        "who": "stage",
-       "text": "Une cape surgit dans la foule. C'est le Comte Radinoff, essoufflé."
+       "text": "Le Comte Radinoff apparaît dans la foule."
       },
       {
        "who": "radinoff",
@@ -1391,16 +1894,32 @@
      "action": "Choisir une réponse",
      "lines": [
       {
-       "who": "hero",
-       "text": "« Non merci, j'ai trouvé un patron qui paie en vrais euros. »"
+       "who": "action",
+       "text": "Choix : « Non merci, j'ai trouvé un patron qui paie en vrais euros. »"
+      },
+      {
+       "who": "action",
+       "text": "Ou : « Ça dépend. Je peux garder la chaise neuve ? »"
+      },
+      {
+       "who": "radinoff",
+       "text": "Jamais !"
       },
       {
        "who": "hero",
-       "text": "« Ça dépend. Je peux garder la chaise neuve ? »  (le Comte : « Jamais ! » ; Jack : « Alors non. »)"
+       "text": "Alors non."
+      },
+      {
+       "who": "action",
+       "text": "Ou : « Oui ! »"
+      },
+      {
+       "who": "radinoff",
+       "text": "Vraiment ?!"
       },
       {
        "who": "hero",
-       "text": "« Oui ! … Non, je plaisante. »"
+       "text": "…Non, je plaisante."
       },
       {
        "who": "radinoff",
@@ -1418,11 +1937,19 @@
       },
       {
        "who": "radinoff",
-       "text": "Deux euros ?! …Bon. Pour voir ce qui a de si spécial."
+       "text": "Deux euros ?! …Bon. Pour voir ce qu'il a de si spécial."
       },
       {
        "who": "stage",
-       "text": "Le wagon s'enfonce dans le noir. Un BOUH. Un cri de vampire. Le wagon ressort : le Comte est tout blanc. Encore plus que d'habitude."
+       "text": "Le Comte disparaît dans le train fantôme."
+      },
+      {
+       "who": "radinoff",
+       "text": "AAAAAAAAH !"
+      },
+      {
+       "who": "stage",
+       "text": "Il ressort, tout blanc. Encore plus que d'habitude."
       },
       {
        "who": "radinoff",
@@ -1442,9 +1969,7 @@
      ]
     }
    ],
-   "hints": [
-    "Tu as réussi ! Écoute ce que le Comte a à dire."
-   ]
+   "hints": []
   }
  ]
 }
