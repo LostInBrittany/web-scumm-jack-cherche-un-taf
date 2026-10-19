@@ -114,6 +114,83 @@ des bouches de profil de la couleur du fond.
 6. Vérifie les 24 images de `art/jack/` sur un fond vert vif : pas de trou entre la tige et la citrouille, pas de
    trou dans la tête ni sur le bord de la citrouille, pas de liseré. Puis `npm run assets`.
 
+**Fait** : Jack a été refait sur fond transparent (`art/sheets/jack.png`), c'est validé.
+
+## Passe 3 : refaire toutes les autres planches sur fond transparent
+
+Le test de « Choisir le fond » a donné `TRANSPARENT` : toutes les planches se font maintenant sur fond transparent.
+On refait les autres avec cette technique, pour en finir avec les liserés roses et les trous laissés par le
+nettoyage du magenta. Tout est commité : remplace directement les planches et les images, git garde les anciennes
+versions (pas besoin de `_v1` pour cette passe).
+
+**Le principe : même dessin, autre fond.** Pour chaque planche, prends sa consigne dans `prompts.md` (ou
+`prompts-episode2.md`), remplace la ligne `BACKGROUND: …` par la ligne transparente de « Choisir le fond », ajoute
+les « Compléments » plus bas s'il y en a, et **joins la planche actuelle** `art/sheets/<planche>.png` avec cette
+phrase à la fin de la consigne :
+
+```text
+REDRAW: redraw the attached sheet exactly: same character or objects, same cells in the same positions, same poses,
+same colours, same proportions, same size in each cell. Only the background changes: fully transparent. Every
+figure stays fully opaque inside, including holes, openings, eyes and mouths.
+```
+
+Joins aussi `art/_reference.png`, comme d'habitude. Une seule exception au « même dessin » : le Maire (plus bas).
+
+**L'ordre** (une planche par génération, une session neuve tous les 3 ou 4 planches) :
+
+1. Personnages : `radinoff`, `bandelette`, `maire` (voir plus bas), puis `maire_ok` (joins le **nouveau**
+   `maire.png`), `gloubi`, `brigadier`, puis `brigadier_lanterne` (joins le nouveau `brigadier.png`), `guimauve`,
+   `carrousel`, `wolfgang`, `ginette`, `bouh`.
+2. Objets : `items`, `props`, `minigame`, `items_ep2`, `props_ep2`, `minigame_ep2`.
+3. Pas les décors (`decor_*`, `cache_fond`) : ils n'ont pas de fond à enlever.
+
+**Pour chaque planche :**
+
+1. Vérifie l'image : `python3 games/jack/art-tools/check-alpha.py games/jack/art/sheets/<planche>.png` doit dire
+   `TRANSPARENT`. Zoome sur chaque case : rien de transparent à l'intérieur d'une figure (yeux, bouches, boutons,
+   trous de serrure), rien ne dépasse de sa case. Sinon, régénère.
+2. Découpe avec la commande de la checklist de `prompts.md`, en ajoutant **`--scale 2 --colors 64`** :
+
+   ```
+   python3 tools/cut-sheet.py games/jack/art/sheets/radinoff.png radinoff --scale 2 --colors 64
+   ```
+
+   Pour les objets, garde exactement les mêmes `--grid` et `--cells` qu'avant, et refais les mêmes renommages
+   (`r1c1.png → badge.png`, etc.) : chaque fichier de `art/items/`, `art/props/`, `art/minigame/` doit être remplacé
+   par une image du même nom. Note la liste des fichiers avant de découper, et compare après.
+3. **Pas de `defringe.py`** : sans fond coloré, il n'y a pas de liseré.
+4. Regarde les images découpées sur un fond vert vif : pas de trou, pas de morceau manquant, pas de reste de fond.
+
+### Le Maire : la tête bien plus penchée
+
+Aujourd'hui, sa tête ne penche qu'un peu, et seulement sur les portraits : en marchant ou de dos, elle est presque
+droite. On ne voit pas qu'il lui manque un boulon. Pour `maire`, ajoute à la consigne (en plus de REDRAW) :
+
+```text
+MISSING BOLT — strict, on every cell: the mayor has lost one of his two neck bolts. The side without the bolt shows
+an empty round hole, and his head hangs heavily toward that side (the viewer's right), tilted about 30 degrees, as
+if it could fall off at any moment. Only the bolt on the other side remains. The tilt is the same, clearly visible,
+in every cell: portraits, walk cycle, front, back and profile views, gestures. Never draw the head upright. His face
+stays cheerful and a bit embarrassed. Everything else (suit, sash, tie, colours, proportions, poses) stays exactly
+as in the attached sheet.
+```
+
+Puis `maire_ok`, avec le nouveau `maire.png` joint : le même Maire, la tête **bien droite**, les **deux** boulons en
+place, l'air ravi.
+
+Vérifie en jeu : `?dev&at=place` (le Maire penché), puis le Maire après avoir rendu le boulon (`maire_ok`).
+
+### À la fin de la passe
+
+```
+npm run assets
+npm run validate
+npm run solve
+```
+
+Puis des captures de chaque lieu (`?dev&at=manoir`, `place`, `foire`, `train`), et un court compte rendu : les
+planches faites, celles qui ont posé problème, les fichiers qui manqueraient.
+
 ## Nettoyer le liseré magenta (planches déjà faites sur fond magenta)
 
 Le fond magenta laisse un liseré rose autour des personnages, et des taches dans les trous de la silhouette (entre
