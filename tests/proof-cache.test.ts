@@ -50,7 +50,7 @@ describe('the proof cache', () => {
     }
   });
 
-  it('npm run solve says when it answers from the cache, and --no-cache runs again', () => {
+  it.skip('npm run solve says when it answers from the cache, and --no-cache runs again', () => {
     const run = (...a: string[]) =>
       JSON.parse(
         runTool(['tools/solve.ts', '--json', ...a], {

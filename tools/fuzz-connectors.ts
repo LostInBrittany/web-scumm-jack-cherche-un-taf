@@ -16,6 +16,7 @@ import { LineAssembler } from '../connectors/src/terminal/line';
 import { ResumeWords, VirtualShell } from '../connectors/src/terminal/shell';
 import { VirtualDisk } from '../connectors/src/terminal/vfs';
 import { realityManifest } from '../src/engine/reality/manifest';
+// @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
 import { game } from '../games/signals/game';
 
 const ROOT = resolve(import.meta.dirname, '..');

@@ -13,6 +13,7 @@ import { bridgeServer } from '../../../bridge/src/server';
 import { MemoryBridgeStore } from '../../../bridge/src/store';
 import { createContext } from '../../../connectors/src/sdk';
 import { manifestHash, type RealityManifest, realityManifest } from '../../../src/engine/reality/manifest';
+// @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
 import { game } from '../../../games/signals/game';
 
 export const MANIFEST: RealityManifest = realityManifest(game)!;

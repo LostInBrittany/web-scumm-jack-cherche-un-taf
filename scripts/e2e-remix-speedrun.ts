@@ -30,7 +30,8 @@ const names = (args.find((a) => a.startsWith('--browsers='))?.slice(11) ?? 'chro
 const allowSkip = args.includes('--allow-skip');
 const outDir = args.find((a) => a.startsWith('--out='))?.slice(6);
 
-const { game } = await import('../games/reference/game');
+// @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
+const { game } = (await import('../games/reference/game')) as { game: import('../src/engine/core/types/game').GameDef };
 const { applyVariant, compileGameManifest, remixWorld } = await import('../src/engine/core/remix/apply');
 const { compileVariant, storyVariant } = await import('../src/engine/core/remix/compile');
 const { encodeSeedCode } = await import('../src/engine/core/remix/seed-code');

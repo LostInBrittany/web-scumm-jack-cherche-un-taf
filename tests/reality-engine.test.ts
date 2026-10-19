@@ -412,7 +412,7 @@ describe('the client: verify, apply, save, acknowledge', () => {
   });
 });
 
-describe('the golden saves of games/signals', () => {
+describe.skip('the golden saves of games/signals', () => { // Skipped: needs the sample games removed from this fork (games/demo, reference, signals).
   it.each([
     ['4.1.1', {}],
     ['4.1.2', { playerId: 'p-golden' }], // bound to its player since 4.1.2
@@ -420,6 +420,7 @@ describe('the golden saves of games/signals', () => {
     '%s keeps its link state, and its remaining inputs (a signal, then the gate) reach the ending offline',
     async (version, link) => {
       const { readFileSync } = await import('node:fs');
+      // @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
       const { game, layouts } = await import('../games/signals');
       const golden = JSON.parse(readFileSync(`tests/fixtures/saves/signals-${version}.json`, 'utf8'));
       const state = parseSave(game, golden.envelope);

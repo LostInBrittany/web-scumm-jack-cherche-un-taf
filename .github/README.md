@@ -105,7 +105,8 @@ games/jack/
   art-tools/         nettoyage du liseré magenta, réduction des décors
 ```
 
-Le reste du dépôt est le moteur web-scumm, inchangé. Sa documentation complète est dans [`README.md`](/README.md)
+Le reste du dépôt est le moteur web-scumm, sans ses jeux d'exemple (seul le modèle `games/_template` est
+resté). Sa documentation complète est dans [`README.md`](/README.md)
 à la racine et dans [`docs/fr/`](/docs/fr) (en français) et [`docs/en/`](/docs/en).
 
 ## Licence
@@ -127,7 +128,7 @@ landscape.
 
 It is built on **[web-scumm](https://github.com/wanoo/web-scumm)**, an open-source point-and-click engine where a game
 is data, not code, so the engine can prove the game can be finished. The game lives in
-[`games/jack/`](/games/jack); the rest of the repository is the unchanged engine (its README is
+[`games/jack/`](/games/jack); the rest of the repository is the engine, without its sample games (its README is
 [`/README.md`](/README.md)).
 
 ```bash

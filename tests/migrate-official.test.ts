@@ -7,7 +7,7 @@ import { describe, expect, it } from 'vitest';
 import { runTool } from './run-tool';
 
 describe('the official contents need no migration', () => {
-  for (const game of ['demo', 'reference', '_template', 'signals'])
+  for (const game of ['_template']) // the sample games were removed from this fork
     it(`${game}: migrate --check finds it up to date`, () => {
       const r = runTool(['tools/migrate.ts', '--check'], { env: { ...process.env, GAME: game } });
       expect(r.status, r.stderr + r.stdout).toBe(0);

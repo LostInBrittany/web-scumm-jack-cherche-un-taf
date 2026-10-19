@@ -46,7 +46,11 @@ describe('an exemption of docs/dev/mutants.json', () => {
   });
 
   it('holds for every entry of the repository', () => {
-    const known = JSON.parse(readFileSync('docs/dev/mutants.json', 'utf8')) as KnownSurvivor[];
+    // This fork removed the tests that needed the sample games (removed-in-fork.json): their entries go with them.
+    const removed = (JSON.parse(readFileSync('tests/removed-in-fork.json', 'utf8')) as { tests: string[] }).tests;
+    const known = (JSON.parse(readFileSync('docs/dev/mutants.json', 'utf8')) as KnownSurvivor[]).filter(
+      (k) => !removed.includes(String(k.proof)),
+    );
     const version = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
     expect(checkKnown(known, version)).toEqual([]);
   });

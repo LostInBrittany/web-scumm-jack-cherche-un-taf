@@ -5,6 +5,7 @@
 // which `verify:variants` and `catalogue()` must refuse.
 import type { GameDef } from '@engine/core/types';
 import type { VariationManifest } from '@engine/core/remix/manifest';
+// @ts-expect-error: the sample games were removed from this fork (tests/removed-in-fork.json)
 import { game as demo } from '../../games/demo/game';
 
 const SPOTS: Record<string, string[]> = {
