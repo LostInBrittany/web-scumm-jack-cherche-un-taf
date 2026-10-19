@@ -7,7 +7,6 @@ const PHOTO_REUSSIE: Cmd[] = [
   'Nez rouge en place. Sourire en place. Enfin, sourire de citrouille.',
   { lose: 'nez' }, { shake: 200 },
   'FLASH. La machine hésite… puis elle rigole. Une jolie photo sort.',
-  { if: { has: 'photo_ratee' }, then: [{ lose: 'photo_ratee' }] },
   { gain: 'photo' }, { set: 'photo_ok' },
   'J\'ai l\'air d\'un comptable qui aime les ballons. Parfait.',
 ];
@@ -53,6 +52,13 @@ export default defineRoom({
     // Le photomaton
     { id: 'place.photo-nez', verb: 'use', a: 'nez', b: 'photomaton', if: '!photo_ok', do: PHOTO_REUSSIE },
     { id: 'place.photo-reussie', verb: 'use', a: 'photomaton', if: { all: [{ has: 'nez' }, '!photo_ok'] }, do: PHOTO_REUSSIE },
+    { id: 'place.photo-affiche', verb: 'use', a: 'photomaton', if: { all: ['photo_ok', 'essai', '!affiche_posee', { not: { has: 'photo_ratee' } }] }, do: [
+      'Sans le nez, cette fois. Pour la science.',
+      { shake: 600 },
+      'FLASH. La machine hurle et crache une photo terrifiante.',
+      { gain: 'photo_ratee' },
+      'Parfait. Enfin, parfaitement horrible.',
+    ] },
     { id: 'place.photo-deja', verb: 'use', a: 'photomaton', if: 'photo_ok', do: ['J\'ai déjà ma photo. Je ne vais pas abuser.'] },
     { id: 'place.photo-ratee', verb: 'use', a: 'photomaton', if: '!photo_ratee_faite', do: [
       { shake: 600 },
@@ -74,10 +80,11 @@ export default defineRoom({
         { wait: 1200 },
         { say: ['bandelette', '…une seule offre. Mais elle est bizarre. Même pour ici.'] },
         'Bizarre, c\'est mon deuxième prénom.',
-        { toast: 'À SUIVRE… (le métier de Jack, dans le prochain épisode)' },
-        { wait: 1500 },
+        { say: ['bandelette', '« Train fantôme cherche employé effrayant. Période d\'essai : la nuit d\'Halloween. » Chez M. Wolfgang.'] },
+        { gain: 'fiche_poste' },
+        { toast: 'FIN DE L\'ÉPISODE 1 : Jack a un dossier. Épisode 2 : la période d\'essai !' },
+        'Le train fantôme ! À la fête foraine. Wolfgang m\'attend.',
       ] },
-      { end: true },
     ] },
     { id: 'place.dossier-photo-seule', verb: 'give', a: 'photo', b: 'bandelette', do: [{ say: ['bandelette', 'Jolie photooo. Il me manque encore la lettre du Maiiire.'] }] },
     { id: 'place.dossier-lettre-seule', verb: 'give', a: 'lettre', b: 'bandelette', do: [{ say: ['bandelette', 'Belle lettre. Il me manque encore une photooo.'] }] },
@@ -132,6 +139,11 @@ export default defineRoom({
       'Il ne voit personne. Donc personne ne passe. Logique de brigadier.',
     ] },
     { id: 'place.prendre-citrouille', verb: 'take', a: 'citrouilles', do: ['Prendre une citrouille ? C\'est comme prendre un cousin. Non.'] },
+    { id: 'place.prendre-chaine', verb: ['take', 'use'], a: 'tas', if: { all: ['greve_connue', '!chaine_prise'] }, do: [
+      'Le vélo d\'enfant que Gloubi a recraché. Sa chaîne est toute légère.',
+      { set: 'chaine_prise' }, { gain: 'chaine' },
+      { say: ['gloubi', 'Gloubi pas besoin vélo. Gloubi roule tout seul. Blorp.'] },
+    ] },
     { id: 'place.prendre-tas', verb: 'take', a: 'tas', do: ['Le dentier ? Non merci. J\'ai déjà toutes mes dents. Elles sont en citrouille.'] },
   ],
   talk: {
@@ -150,6 +162,13 @@ export default defineRoom({
       ] },
       { id: 'place.bandelette.quoi', topic: 'Il vous faut quoi, déjà ?', if: 'dossier_connu', do: [
         { say: ['bandelette', 'Une photooo. Une lettre du Maiiire. Et de la patieeence.'] },
+      ] },
+      { id: 'place.bandelette.draps', topic: 'Vous auriez des bandelettes en trop ?', if: { all: ['greve_connue', '!draps_ok', { not: { has: 'bandelettes' } }] }, do: [
+        { say: ['bandelette', 'Des bandelettes ? Pour des fantômes ? Quelle idéeee.'] },
+        { say: ['bandelette', 'Bon. J\'en ai trois kilomètres en réserve. On ne sait jamais, avec l\'âge.'] },
+        'Elle se déroule un peu, et me tend un gros rouleau.',
+        { gain: 'bandelettes' },
+        'Du lin d\'Égypte. Ginette va adorer.',
       ] },
       { id: 'place.bandelette.longtemps', topic: 'Vous êtes là depuis longtemps ?', do: [
         { say: ['bandelette', 'Quatre mille aaans. Je suis en période d\'essaaai.'] },
@@ -218,6 +237,12 @@ export default defineRoom({
     { until: 'lettre_ok', lines: ['DONNE le boulon au Maire.'] },
     { until: 'photo_ok', lines: ['Pour la photo, il te faut une tête de fête.', 'Un nez de clown, peut-être ? À la fête foraine, le petit dragon du manège.', 'Avec le nez de clown, UTILISE le photomaton.'] },
     { until: 'dossier_fini', lines: ['DONNE la photo et la lettre à Mme Bandelette.'] },
+    { until: 'essai', lines: ['Wolfgang t\'attend à la fête foraine. Donne-lui la fiche de poste.'] },
+    { until: { any: ['greve_connue', 'greve_finie'] }, lines: ['Il se passe des choses dans le train fantôme. Va voir à la fête foraine.'] },
+    { until: { any: ['draps_ok', { has: 'bandelettes' }] }, lines: ['Des draps neufs pour les fantômes… Mme Bandelette a sûrement des bandelettes en trop.', 'PARLE à Mme Bandelette.'] },
+    { until: { any: ['chaines_ok', 'chaine_prise'] }, lines: ['Des chaînes légères… Le tas d\'objets que Gloubi a recraché, il y a un vélo.', 'PRENDS le tas d\'objets : la chaîne du vélo.'] },
+    { until: { any: ['affiche_posee', { has: 'photo_ratee' }] }, lines: ['Pour l\'affiche, il te faut une photo qui fait vraiment peur.', 'UTILISE le photomaton, sans le nez de clown.'] },
+    { until: 'fin', lines: ['Tout se passe à la fête foraine, maintenant.'] },
   ],
   onEnter: [
     { id: 'place.arrivee', once: ['La place du village. Pôle Frousse, c\'est à gauche.', 'Mireille, ma petite araignée, me souffle les indices si je lui parle.'] },

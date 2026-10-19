@@ -26,17 +26,18 @@ Le dépôt est à la racine `/Users/horacio/git/games/jack-cherche-un-taf`. Lanc
    décors : « drawn on a 768 x 480 pixel grid, scaled up 2x ».
 6. **Rien ne dépasse de sa case** : vérifie chaque planche avant de découper. Une tête qui déborde sur la case du
    dessus sera coupée : régénère plutôt.
-7. Ne touche pas à `rooms/*.ts`, `layout/*.json`, `cast.ts`, `game.ts`. Seulement `art/` et `private/sheets/`.
-8. Ne supprime jamais une image : renomme l'ancienne en `<nom>_v1.png`.
+7. Ne touche pas à `rooms/*.ts`, `layout/*.json`, `cast.ts`, `game.ts`. Seulement `art/` et `art/sheets/`.
+8. Ne supprime jamais une image : renomme l'ancienne en `<nom>_v1.png`. Les dossiers et fichiers `_v1`, `_v2`… et
+   `_rejected/` sont des archives : ne fais jamais de ménage dedans.
 
 ## Déjà fait
 
 - **Jack** (`jack`) : validé, découpé. C'est `art/_reference.png`. Ne le refais pas.
 - **Comte Radinoff** (`radinoff`) : **à refaire** sur fond magenta (sa cape et son costume noirs ont disparu avec le
-  fond bleu nuit, et sa tête dépassait de certaines cases). Renomme d'abord `private/sheets/radinoff.png` en
+  fond bleu nuit, et sa tête dépassait de certaines cases). Renomme d'abord `art/sheets/radinoff.png` en
   `radinoff_v1.png`.
 - **Gloubi** (`gloubi`) : **à refaire** sur fond magenta. Sur le bleu nuit, ses yeux sombres sont partis avec le
-  fond dans certaines cases. Renomme d'abord `private/sheets/gloubi.png` en `gloubi_v1.png`.
+  fond dans certaines cases. Renomme d'abord `art/sheets/gloubi.png` en `gloubi_v1.png`.
 
 ## Nettoyer le liseré magenta (après chaque découpe)
 
@@ -49,17 +50,17 @@ python3 games/jack/art-tools/defringe.py games/jack/art/<planche>
 
 Pour un personnage ou un objet qui a lui-même du rose ou du violet (Mémé Guimauve, Pépite, la barbe à papa rose),
 ajoute `--safe` : seul le magenta franc est effacé, sinon ses ombres roses seraient trouées. Regarde le résultat
-de près avant de passer à la suite. Les planches brutes vont dans `private/sheets/`, pas dans `art/` : déplace le contenu
-de `art/sheets/` vers `private/sheets/` (sans écraser ce qui y est déjà).
+de près avant de passer à la suite. Les planches brutes vont dans `art/sheets/` : elles sont gardées dans git, c'est
+la source de tous les dessins. Une planche refaite : renomme d'abord l'ancienne en `<nom>_v1.png`.
 
 ## L'ordre
 
 1. **Jack d'abord** (section « Base sheet `jack` »), sans pièce jointe. Enregistre l'image dans
-   `games/jack/private/sheets/jack.png` **et** une copie dans `games/jack/art/_reference.png`. C'est la référence de
+   `games/jack/art/sheets/jack.png` **et** une copie dans `games/jack/art/_reference.png`. C'est la référence de
    style de tout le reste : si Jack n'est pas réussi, recommence avant de continuer.
 2. **Les autres personnages**, dans l'ordre de la checklist de `prompts.md`. Joins `games/jack/art/_reference.png` à
-   chaque consigne. Pour `maire_ok`, joins aussi `private/sheets/maire.png` ; pour `brigadier_lanterne`, joins
-   `private/sheets/brigadier.png`.
+   chaque consigne. Pour `maire_ok`, joins aussi `art/sheets/maire.png` ; pour `brigadier_lanterne`, joins
+   `art/sheets/brigadier.png`.
 3. **Les objets** : `items`, `props`, `minigame` (joins la référence).
 4. **Les décors** : `manoir`, `place`, `foire`, puis la **carte** (consigne plus bas, absente de `prompts.md`).
 
@@ -71,8 +72,8 @@ personnages, en rejoignant toujours `_reference.png`.
 Pour chaque planche, prends la commande de la checklist de `prompts.md` **et ajoute `--scale 2`**, par exemple :
 
 ```
-python3 tools/cut-sheet.py games/jack/private/sheets/radinoff.png radinoff --scale 2
-python3 tools/cut-sheet.py games/jack/private/sheets/items.png items --grid 6x4 --cells r1c1,… --scale 2
+python3 tools/cut-sheet.py games/jack/art/sheets/radinoff.png radinoff --scale 2
+python3 tools/cut-sheet.py games/jack/art/sheets/items.png items --grid 6x4 --cells r1c1,… --scale 2
 ```
 
 `--scale 2` est obligatoire : avec la réduction par 4 par défaut, les contours fins disparaissent et les personnages
@@ -83,10 +84,10 @@ Pour les objets, fais les renommages listés dans la checklist (`r1c1.png → ba
 **Saute** : les « Mouth kit » (`talk-kit.py`, `talk-apply.py`) et `starter/ui`. On n'en a pas besoin pour l'instant.
 
 **Décors** : n'enregistre **pas** l'image générée directement dans `art/decor/`. Garde-la dans
-`private/sheets/decor_<nom>.png`, puis réduis-la à la taille de l'écran du jeu :
+`art/sheets/decor_<nom>.png`, puis réduis-la à la taille de l'écran du jeu :
 
 ```
-python3 games/jack/art-tools/reduce-bg.py games/jack/private/sheets/decor_manoir.png manoir
+python3 games/jack/art-tools/reduce-bg.py games/jack/art/sheets/decor_manoir.png manoir
 ```
 
 Le script écrit `art/decor/manoir.png` (640 × 400) et renomme lui-même l'ancien en `_v1`. Les trois lieux tiennent
@@ -155,8 +156,8 @@ funfair with a carousel and a Ferris wheel. Dirt roads connect the manor to the 
 A few pine trees, pumpkins along the roads. No people, no text, no labels.
 ```
 
-Enregistre-la en `private/sheets/decor_carte.png`, puis
-`python3 games/jack/art-tools/reduce-bg.py games/jack/private/sheets/decor_carte.png carte`.
+Enregistre-la en `art/sheets/decor_carte.png`, puis
+`python3 games/jack/art-tools/reduce-bg.py games/jack/art/sheets/decor_carte.png carte`.
 
 ## Vérifier à la fin
 
@@ -172,3 +173,93 @@ Les trois premières doivent finir sur ✔. Puis regarde chaque lieu : `npm run 
 décors seront à replacer ensuite (ça, c'est l'autre agent qui s'en charge avec l'éditeur) : signale-le simplement.
 
 Termine par un court compte rendu : les planches faites, celles qui ont posé problème, ce qui reste.
+
+---
+
+# Épisode 2 : le train fantôme
+
+Les consignes des **26 nouvelles images** sont dans `games/jack/prompts-episode2.md` (même style, même bloc de
+couleurs). Toutes les règles ci-dessus restent valables : fond **magenta `#FF00FF`**, grille **2x**
+(« 768 x 512 pixel grid, 128 x 128 per cell »), découpe avec **`--scale 2`**, **nettoyage du liseré** avec
+`defringe.py` après chaque découpe, `art/_reference.png` (Jack) joint à chaque consigne.
+
+Les dossiers concernés contiennent déjà des images **provisoires** : la découpe les remplace, c'est voulu.
+
+## Ne pas écraser les planches de l'épisode 1
+
+Dans `art/sheets/`, les noms `items.png`, `props.png` et `minigame.png` sont déjà pris par l'épisode 1. Enregistre
+les nouvelles planches sous `items_ep2.png`, `props_ep2.png`, `minigame_ep2.png`, et adapte le chemin des
+commandes de la checklist (le deuxième argument, le dossier de sortie, reste `items`, `props`, `minigame`).
+
+## L'ordre
+
+1. `ginette`, puis `bouh` (personnages). Saute les « Mouth kit ».
+2. `items_ep2`, `props_ep2`, `minigame_ep2` (objets).
+3. Le décor `decor/train` : enregistre-le en `art/sheets/decor_train.png`, puis
+   `python3 games/jack/art-tools/reduce-bg.py games/jack/art/sheets/decor_train.png train`.
+4. Le fond du cache-cache (`minigame/cache_fond`) : **ce n'est pas un objet** mais une image plein écran. Retire
+   sa case de la planche `minigame_ep2` (laisse-la vide) et génère-le à part, comme un décor (consigne plus bas), puis
+   `python3 games/jack/art-tools/reduce-bg.py games/jack/art/sheets/cache_fond.png cache_fond --dir minigame`.
+
+## Compléments
+
+### Personnages
+
+- **Ginette** : un fantôme en drap, bien en chair, nœud rouge sur la tête, déléguée syndicale (poing levé dans
+  certaines poses). **Pas de jambes** : les lignes « walk » sont des glissements flottants, le bas du drap ondule.
+- **Bouh** : un tout petit fantôme timide (environ deux fois plus petit que Ginette **dans le jeu**, mais dessine-le
+  à la même taille de case : le moteur le réduit). Pas de jambes non plus.
+- Ginette, Bouh et Gaston doivent avoir **le même drap blanc** (mêmes tons), pour qu'on voie qu'ils sont collègues.
+
+### Objets `items_ep2`
+
+| image | à dessiner |
+| --- | --- |
+| `fiche_poste` | une feuille d'offre d'emploi, quelques lignes grises sans texte lisible, un tampon citrouille orange en haut, un cachet de cire rouge en bas |
+| `bandelettes` | un gros rouleau de bandelettes de momie en lin beige, avec un bout qui pend |
+| `chaine` | une chaîne de vélo légère et brillante, enroulée, encore un peu de gelée verte dessus |
+
+### Objets `props_ep2`
+
+| image | à dessiner |
+| --- | --- |
+| `fantomes_greve` | Gaston, fantôme en drap troué, l'air bougon, de grosses chaînes en fer aux poignets, tenant une banderole de grève **sans texte** (un poing levé dessiné dessus) |
+| `fantomes_travail` | le même Gaston, souriant, enroulé dans des bandelettes neuves, une fine chaîne de vélo à la place des grosses chaînes, sans banderole |
+| `tableau_eteint` | vieux tableau électrique mural, porte ouverte, un nœud de fils rouge, bleu, vert, jaune, voyants éteints |
+| `tableau_allume` | le même tableau, fils bien rangés, voyants allumés, une petite étincelle |
+| `panneau_vide` | un panneau d'affichage en bois sur deux pieds, vide |
+| `panneau_affiche` | le même panneau avec un poster géant terrifiant : le portrait de Jack, citrouille flamboyante, sourire effrayant, fumée |
+
+### Objets `minigame_ep2`
+
+| image | à dessiner |
+| --- | --- |
+| `cables_board` | un panneau gris **vertical**, environ 1 de large pour 2,5 de haut, avec 4 prises rondes l'une sous l'autre |
+| `cables_noeud` | un gros nœud emmêlé de câbles rouge, bleu, vert et jaune |
+| `prise_rouge`, `prise_bleu`, `prise_vert`, `prise_jaune` | **la même** fiche électrique pointée vers la droite, seule la couleur change |
+| `squelette_calme` | un squelette de décoration de train fantôme, suspendu, immobile |
+| `squelette_danse` | le même squelette qui danse comme un fou, bras en l'air |
+| `cache_cercueil` | un cercueil debout, fermé (du train fantôme, un peu en carton) |
+| `cache_cercueil_jack` | le même cercueil, couvercle ouvert, Jack qui surgit bras en l'air (« BOUH ! ») |
+| `cache_lustre` | un lustre poussiéreux suspendu, plein de toiles d'araignée |
+| `cache_armoire` | une vieille armoire grinçante à deux portes |
+| `cache_tonneau` | un tonneau en bois cerclé de fer |
+
+### Le fond du cache-cache (`cache_fond`)
+
+Bloc STYLE des décors de `prompts-episode2.md`, `_reference.png` joint, et :
+
+```
+FORMAT: 1536 x 960 pixels (16:10).
+Inside a funfair ghost train tunnel, dark and spooky but funny. Rails across the lower part of the image. In the
+middle, a small red wagon seen from the side, with three passengers seen from behind: a headless knight in armour with
+a glowing lantern on his neck, a green Frankenstein-like mayor in a dark suit, and a big round green slime blob. Keep
+the left side, the top centre and the right side empty: the game places a coffin, a chandelier, a wardrobe and a
+barrel there. No text.
+```
+
+## Vérifier à la fin
+
+Comme pour l'épisode 1 : `npm run assets`, `npm run validate`, `npm run solve`, puis regarder
+`http://localhost:5173/?dev&at=train` et `?dev&at=repetition`. Signale-moi que c'est fini : je replacerai les zones
+cliquables du train sur le nouveau décor.

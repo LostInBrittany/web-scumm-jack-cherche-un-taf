@@ -1,7 +1,7 @@
 {
  "_doc": "Storyboard de Jack cherche un taf : la source de vérité pour chaque réplique (rooms/*.ts suivent). who = id de personnage ('hero' = Jack), 'action' = ce que fait le joueur, 'stage' = indication de mise en scène. Les ids de panneaux sont stables : les notes de relecture s'y rattachent.",
  "title": "Jack cherche un taf",
- "intro": "Jack, squelette à tête de citrouille, faisait peur aux visiteurs du Manoir Frissonnant. Trop bien : le Comte Radinoff le licencie trois jours avant Halloween. Jack doit retrouver un travail avant le 31. Version 1 : le manoir, la place du village, la fête foraine. Le métier final se découvrira en route. On ne meurt jamais, on ne reste jamais bloqué. Les indices viennent de Mireille, la petite araignée qui habite dans la tête de Jack : il suffit de lui parler (elle est dans l'inventaire).",
+ "intro": "Jack, squelette à tête de citrouille, faisait peur aux visiteurs du Manoir Frissonnant. Trop bien : le Comte Radinoff le licencie trois jours avant Halloween. Épisode 1 : le manoir, la place du village, la fête foraine, jusqu'au dossier de Pôle Frousse. Épisode 2 : la période d'essai au train fantôme, et la revanche sur le Comte. On ne meurt jamais, on ne reste jamais bloqué. Les indices viennent de Mireille, la petite araignée qui habite dans la tête de Jack : il suffit de lui parler (elle est dans l'inventaire).",
  "boards": [
   {
    "id": "manoir",
@@ -527,8 +527,73 @@
        "text": "Bizarre, c'est mon deuxième prénom."
       },
       {
+       "who": "bandelette",
+       "text": "« Train fantôme cherche employé effrayant. Période d'essai : la nuit d'Halloween. » Chez M. Wolfgang."
+      },
+      {
        "who": "stage",
-       "text": "À SUIVRE. (Le métier final se découvre dans le prochain épisode.)"
+       "text": "Jack reçoit la fiche de poste. FIN DE L'ÉPISODE 1 (carte de titre), puis le jeu continue."
+      }
+     ]
+    },
+    {
+     "id": "place-11",
+     "title": "Les bandelettes",
+     "action": "Parler à Mme Bandelette : « Vous auriez des bandelettes en trop ? » (après avoir parlé à Ginette)",
+     "lines": [
+      {
+       "who": "bandelette",
+       "text": "Des bandelettes ? Pour des fantômes ? Quelle idéeee."
+      },
+      {
+       "who": "bandelette",
+       "text": "Bon. J'en ai trois kilomètres en réserve. On ne sait jamais, avec l'âge."
+      },
+      {
+       "who": "stage",
+       "text": "Elle se déroule un peu. Jack reçoit un gros rouleau de bandelettes."
+      },
+      {
+       "who": "hero",
+       "text": "Du lin d'Égypte. Ginette va adorer."
+      }
+     ]
+    },
+    {
+     "id": "place-12",
+     "title": "La chaîne de vélo",
+     "action": "Prendre le tas d'objets (après avoir parlé à Ginette)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Le vélo d'enfant que Gloubi a recraché. Sa chaîne est toute légère."
+      },
+      {
+       "who": "stage",
+       "text": "Jack récupère la chaîne."
+      },
+      {
+       "who": "gloubi",
+       "text": "Gloubi pas besoin vélo. Gloubi roule tout seul. Blorp."
+      }
+     ]
+    },
+    {
+     "id": "place-13",
+     "title": "Une nouvelle photo ratée",
+     "action": "Utiliser le photomaton sans nez de clown (si Jack n'a plus de photo effrayante)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Sans le nez, cette fois. Pour la science."
+      },
+      {
+       "who": "stage",
+       "text": "FLASH. La machine hurle et crache une photo terrifiante."
+      },
+      {
+       "who": "hero",
+       "text": "Parfait. Enfin, parfaitement horrible."
       }
      ]
     }
@@ -819,6 +884,79 @@
        "text": "Faut un dossier de Pôle Frousse. C'est la loi. Reviens avec, on verra."
       }
      ]
+    },
+    {
+     "id": "foire-8",
+     "title": "L'embauche à l'essai",
+     "action": "Donner la fiche de poste à Wolfgang",
+     "lines": [
+      {
+       "who": "wolfgang",
+       "text": "Un dossier de Pôle Frousse ! En règle ! Ouaf !"
+      },
+      {
+       "who": "wolfgang",
+       "text": "Bon. Tu es pris à l'essai. Ce soir, c'est Halloween : si le train rouvre et que les clients ressortent contents…"
+      },
+      {
+       "who": "wolfgang",
+       "text": "…ET en payant. Surtout en payant. Alors le poste est à toi."
+      },
+      {
+       "who": "hero",
+       "text": "Et qu'est-ce qui ne va pas, dans le train ?"
+      },
+      {
+       "who": "wolfgang",
+       "text": "Tout. Les fantômes sont en grève, le courant est coupé, et personne ne sait qu'on rouvre."
+      },
+      {
+       "who": "stage",
+       "text": "Le wagon devient une entrée : on peut monter dans le train fantôme."
+      }
+     ]
+    },
+    {
+     "id": "foire-9",
+     "title": "L'affiche",
+     "action": "Utiliser la photo ratée avec le panneau du train fantôme",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Ma photo ratée. Celle qui a fait peur au photomaton."
+      },
+      {
+       "who": "stage",
+       "text": "Jack la colle sur le panneau. Wolfgang l'agrandit en poster géant."
+      },
+      {
+       "who": "wolfgang",
+       "text": "Ouaf ! Rien qu'en la regardant, j'ai perdu des poils. C'est PARFAIT."
+      },
+      {
+       "who": "stage",
+       "text": "Des passants s'arrêtent, frissonnent, et font la queue."
+      }
+     ]
+    },
+    {
+     "id": "foire-10",
+     "title": "Tout est prêt",
+     "action": "Parler à Wolfgang : « Tout est prêt ! » (grève finie, courant rétabli, affiche posée)",
+     "lines": [
+      {
+       "who": "wolfgang",
+       "text": "Les fantômes travaillent, le train roule, il y a une queue. Je n'en reviens pas."
+      },
+      {
+       "who": "wolfgang",
+       "text": "Place à la répétition générale. Les premiers clients arrivent !"
+      },
+      {
+       "who": "stage",
+       "text": "Le Brigadier (tête-lanterne), le Maire et Gloubi montent dans le wagon."
+      }
+     ]
     }
    ],
    "talks": {
@@ -862,6 +1000,15 @@
         "text": "Seulement les soirs de pleine lune. Le reste du temps, je suis comptable."
        }
       ]
+     },
+     {
+      "topic": "C'est quoi, le travail ?",
+      "lines": [
+       {
+        "who": "wolfgang",
+        "text": "Tu te caches dans le noir, et quand le wagon passe, BOUH. Mais pas trop fort. Il faut qu'ils paient à la sortie."
+       }
+      ]
      }
     ]
    },
@@ -893,9 +1040,366 @@
     "Ici, on embauche. Mémé Guimauve cherche un vendeur.",
     "La dame du manège a l'air embêtée. Parle-lui.",
     "Pépite a peur. Il faut le caresser, tout doucement : UTILISE Pépite.",
-    "Tu as ce qu'il faut. Retourne sur la place, Jack."
+    "Tu as ce qu'il faut. Retourne sur la place, Jack.",
+    "Wolfgang voulait un dossier de Pôle Frousse. Donne-lui la fiche de poste.",
+    "L'affiche : il faut une image qui fait vraiment peur. Ta photo ratée du photomaton ?"
    ],
    "exit": "Retour à la place par la route."
+  },
+  {
+   "id": "train",
+   "title": "Dans le train fantôme",
+   "room": "train",
+   "goal": "Finir la grève des fantômes et rétablir le courant (la troisième tâche, l'affiche, se fait dehors).",
+   "arrival": [
+    {
+     "who": "stage",
+     "text": "Un tunnel sombre. Des rails, des toiles d'araignée, des cercueils en carton. Trois fantômes tiennent une banderole « GRÈVE »."
+    },
+    {
+     "who": "hero",
+     "text": "Il fait noir comme dans une citrouille. Heureusement, ma tête éclaire."
+    }
+   ],
+   "panels": [
+    {
+     "id": "train-1",
+     "title": "La grève",
+     "action": "Parler à Ginette",
+     "lines": [
+      {
+       "who": "ginette",
+       "text": "Des draps propres, pas des draps sales ! Des chaînes légères, pas des chaînes de galère !"
+      },
+      {
+       "who": "hero",
+       "text": "Bonjour. Je suis le nouveau. À l'essai."
+      },
+      {
+       "who": "ginette",
+       "text": "Un jaune ! Euh, un orange. Un briseur de grève à tête de citrouille !"
+      },
+      {
+       "who": "hero",
+       "text": "Non, non. Je suis de votre côté. Qu'est-ce qu'il vous faut ?"
+      },
+      {
+       "who": "ginette",
+       "text": "Des draps neufs, les nôtres ont des trous. Et des chaînes légères : on a des bleus aux chevilles."
+      },
+      {
+       "who": "ginette",
+       "text": "Tant qu'on n'a pas les deux, on ne hante personne. Solidarité !"
+      }
+     ]
+    },
+    {
+     "id": "train-2",
+     "title": "Les draps neufs",
+     "action": "Donner les bandelettes à Ginette",
+     "lines": [
+      {
+       "who": "ginette",
+       "text": "Du lin d'Égypte ! Trois kilomètres ! On va pouvoir se faire des draps… et des rideaux."
+      },
+      {
+       "who": "stage",
+       "text": "Les fantômes s'enroulent dedans. Ils ressemblent à des momies. Ils adorent."
+      }
+     ]
+    },
+    {
+     "id": "train-3",
+     "title": "Les chaînes légères",
+     "action": "Donner la chaîne de vélo à Ginette",
+     "lines": [
+      {
+       "who": "ginette",
+       "text": "Une chaîne de vélo ! Si légère ! Écoutez-moi ce petit cliquetis…"
+      },
+      {
+       "who": "stage",
+       "text": "Gaston la fait tinter. Bouh se met à pédaler dans le vide."
+      }
+     ]
+    },
+    {
+     "id": "train-4",
+     "title": "Fin de la grève",
+     "action": "(quand les deux sont donnés)",
+     "lines": [
+      {
+       "who": "ginette",
+       "text": "Camarades, nos revendications sont satisfaites. On reprend le travail !"
+      },
+      {
+       "who": "ginette",
+       "text": "Merci, la citrouille. Tu es un bon collègue. Pour un employé à l'essai."
+      },
+      {
+       "who": "stage",
+       "text": "La banderole « GRÈVE » est retournée : « RÉOUVERTURE CE SOIR »."
+      }
+     ]
+    },
+    {
+     "id": "train-5",
+     "title": "Le tableau électrique",
+     "action": "Utiliser le tableau électrique",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "Le tableau électrique. On dirait un plat de spaghettis."
+      },
+      {
+       "who": "stage",
+       "text": "Mini-jeu « câbles » : suivre chaque fil dans le nœud et le brancher sur la prise de sa couleur."
+      },
+      {
+       "who": "stage",
+       "text": "Mauvais branchement : un gag, jamais un échec. Les squelettes du décor se mettent à danser, ou le wagon part en marche arrière."
+      }
+     ]
+    },
+    {
+     "id": "train-6",
+     "title": "Le courant revient",
+     "action": "Gagner le mini-jeu",
+     "lines": [
+      {
+       "who": "stage",
+       "text": "Les lampes s'allument, la musique d'orgue démarre, les yeux des tableaux s'allument."
+      },
+      {
+       "who": "hero",
+       "text": "Ça marche ! Je suis électricien, maintenant. Ça fait deux métiers en une soirée."
+      }
+     ]
+    },
+    {
+     "id": "train-7",
+     "title": "La répétition générale",
+     "action": "(après « Tout est prêt » avec Wolfgang)",
+     "lines": [
+      {
+       "who": "stage",
+       "text": "Le wagon entre avec le Brigadier, le Maire et Gloubi."
+      },
+      {
+       "who": "mireille",
+       "text": "Cache-toi bien, Jack. Et surgis au bon endroit. Pas trop fort !"
+      },
+      {
+       "who": "stage",
+       "text": "Mini-jeu « cache-cache » : choisir d'où surgir. Le cercueil, le lustre, l'armoire, le tonneau… Chaque mauvaise cachette donne un gag."
+      },
+      {
+       "who": "stage",
+       "text": "La bonne cachette : le cercueil. BOUH !"
+      }
+     ]
+    },
+    {
+     "id": "train-8",
+     "title": "Juste ce qu'il faut",
+     "action": "Gagner le mini-jeu",
+     "lines": [
+      {
+       "who": "brigadier",
+       "text": "AAAH ! Enfin, je vois des choses qui font peur ! C'est merveilleux !"
+      },
+      {
+       "who": "maire",
+       "text": "Mes boulons ont tremblé ! Je vote pour ! Je revote !"
+      },
+      {
+       "who": "gloubi",
+       "text": "Gloubi a eu peur ! Gloubi n'a même pas avalé le wagon ! Encore !"
+      },
+      {
+       "who": "stage",
+       "text": "Ils sortent en riant… et ils paient. Tous les trois. Deux fois."
+      }
+     ]
+    }
+   ],
+   "talks": {
+    "ginette": [
+     {
+      "topic": "Pourquoi vous faites grève ?",
+      "lines": [
+       {
+        "who": "ginette",
+        "text": "Trois cents ans à hanter dans des draps troués, avec des chaînes de bagnard. Ça suffit !"
+       }
+      ]
+     },
+     {
+      "topic": "Qui sont les deux autres ?",
+      "lines": [
+       {
+        "who": "ginette",
+        "text": "Gaston, il fait les bruits de chaînes. Et le petit Bouh, c'est un stagiaire. Il ne dit que « bouh »."
+       }
+      ]
+     }
+    ],
+    "bouh": [
+     {
+      "topic": "Bonjour, petit fantôme.",
+      "lines": [
+       {
+        "who": "bouh",
+        "text": "Bouh."
+       },
+       {
+        "who": "hero",
+        "text": "Bouh à toi aussi."
+       }
+      ]
+     }
+    ]
+   },
+   "reactions": [
+    {
+     "action": "Regarder les cercueils (4e fois)",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "En carton. Le Comte Radinoff aurait trouvé ça trop cher."
+      }
+     ]
+    },
+    {
+     "action": "Donner la chaussette à Ginette",
+     "lines": [
+      {
+       "who": "ginette",
+       "text": "Une chaussette ? On n'a pas de pieds. Mais merci pour l'intention."
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Ginette mène la grève. Parle-lui.",
+    "Des draps neufs : Mme Bandelette a sûrement des bandelettes en trop.",
+    "Des chaînes légères : le vélo que Gloubi a recraché sur la place a une chaîne.",
+    "Le tableau électrique, au fond. UTILISE-le.",
+    "Il manque l'affiche, dehors. Puis retourne voir Wolfgang."
+   ],
+   "exit": "Par le wagon, vers la fête foraine."
+  },
+  {
+   "id": "final",
+   "title": "La revanche du Comte",
+   "room": "foire",
+   "goal": "Être engagé, et dire non au Comte.",
+   "panels": [
+    {
+     "id": "final-1",
+     "title": "Engagé !",
+     "lines": [
+      {
+       "who": "wolfgang",
+       "text": "Ils ont payé. TOUS. Deux fois. Ouaf !"
+      },
+      {
+       "who": "wolfgang",
+       "text": "Jack, tu n'es plus à l'essai. Tu es la vedette du train fantôme."
+      },
+      {
+       "who": "hero",
+       "text": "Engagé. Pour faire peur. Juste ce qu'il faut."
+      },
+      {
+       "who": "mireille",
+       "text": "Bravo, Jack ! Je savais que tu trouverais."
+      }
+     ]
+    },
+    {
+     "id": "final-2",
+     "title": "Le Comte arrive",
+     "lines": [
+      {
+       "who": "stage",
+       "text": "Une cape surgit dans la foule. C'est le Comte Radinoff, essoufflé."
+      },
+      {
+       "who": "radinoff",
+       "text": "Jack ! Mon petit Jack ! Mon manoir est vide. Les touristes n'ont plus peur. Ils pique-niquent dans la crypte !"
+      },
+      {
+       "who": "radinoff",
+       "text": "Revenez. Je vous réembauche. Au double du salaire !"
+      },
+      {
+       "who": "hero",
+       "text": "Le double de quoi ?"
+      },
+      {
+       "who": "radinoff",
+       "text": "…Le double de l'ancien. Moins la bougie."
+      }
+     ]
+    },
+    {
+     "id": "final-3",
+     "title": "La réponse de Jack (choix)",
+     "action": "Choisir une réponse",
+     "lines": [
+      {
+       "who": "hero",
+       "text": "« Non merci, j'ai trouvé un patron qui paie en vrais euros. »"
+      },
+      {
+       "who": "hero",
+       "text": "« Ça dépend. Je peux garder la chaise neuve ? »  (le Comte : « Jamais ! » ; Jack : « Alors non. »)"
+      },
+      {
+       "who": "hero",
+       "text": "« Oui ! … Non, je plaisante. »"
+      },
+      {
+       "who": "radinoff",
+       "text": "Vous refusez ? Moi qui étais prêt à vous offrir… un ticket de bus. Usagé."
+      }
+     ]
+    },
+    {
+     "id": "final-4",
+     "title": "Le Comte paie",
+     "lines": [
+      {
+       "who": "wolfgang",
+       "text": "Monsieur le Comte, un tour de train fantôme ? Deux euros."
+      },
+      {
+       "who": "radinoff",
+       "text": "Deux euros ?! …Bon. Pour voir ce qui a de si spécial."
+      },
+      {
+       "who": "stage",
+       "text": "Le wagon s'enfonce dans le noir. Un BOUH. Un cri de vampire. Le wagon ressort : le Comte est tout blanc. Encore plus que d'habitude."
+      },
+      {
+       "who": "radinoff",
+       "text": "C'était… TERRIFIANT. J'en reprends un. Tenez, quatre euros."
+      },
+      {
+       "who": "hero",
+       "text": "Le Comte Radinoff qui paie. Deux fois. Ça, c'est le vrai miracle d'Halloween."
+      },
+      {
+       "who": "stage",
+       "text": "FIN. Carte de fin, crédits."
+      }
+     ]
+    }
+   ],
+   "hints": [
+    "Tu as réussi ! Écoute ce que le Comte a à dire."
+   ]
   }
  ]
 }

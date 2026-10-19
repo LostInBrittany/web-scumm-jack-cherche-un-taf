@@ -34,6 +34,9 @@ export const extraImages: string[] = [
   // Minigame images: named only in minigame params, which the asset step does not read.
   'minigame/barbe_rose', 'minigame/barbe_bleue', 'minigame/barbe_verte', 'minigame/barbe_jaune', 'minigame/barbe_araignee',
   'minigame/pepite_big', 'minigame/main',
+  'minigame/cables_board', 'minigame/cables_noeud', 'minigame/prise_rouge', 'minigame/prise_bleu', 'minigame/prise_vert', 'minigame/prise_jaune',
+  'minigame/squelette_calme', 'minigame/squelette_danse',
+  'minigame/cache_fond', 'minigame/cache_cercueil', 'minigame/cache_cercueil_jack', 'minigame/cache_lustre', 'minigame/cache_armoire', 'minigame/cache_tonneau',
 ];
 
 /**

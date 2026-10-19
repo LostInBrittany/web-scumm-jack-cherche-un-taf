@@ -54,8 +54,9 @@ reste. Perdu ? Parlez à **Mireille**, la petite araignée qui habite dans la t�
 l'inventaire) : elle souffle des indices de plus en plus précis. Le bouton carte, en bas à gauche, permet de
 voyager entre les lieux déjà découverts.
 
-**Épisode 1** : le manoir, la place du village et la fête foraine, avec deux mini-jeux. La suite (le fameux
-métier de Jack) arrive dans le prochain épisode.
+**Épisode 1** : le manoir, la place du village et la fête foraine, avec deux mini-jeux.
+**Épisode 2** : le train fantôme de Wolfgang, ses fantômes en grève et deux nouveaux mini-jeux, jusqu'au fameux
+métier de Jack (et à la revanche du Comte Radinoff).
 
 ## Comment il a été fait
 
@@ -95,9 +96,10 @@ games/jack/
   game.ts            verbes, carte du village, début de partie, textes de l'interface
   cast.ts            les personnages
   items.ts           les objets de l'inventaire
-  rooms/             un fichier par lieu : manoir, place, foire
+  rooms/             un fichier par lieu : manoir, place, foire, train
   layout/            la géométrie de chaque lieu (zones cliquables, zone de marche)
   art/               les dessins découpés (art/ph : les dessins provisoires d'origine)
+  art/sheets/        les planches d'origine, avant découpage (la source de tous les dessins)
   prompts.md         les consignes de génération d'images
   ART_BRIEF.md       le brief de l'agent qui a généré les images
   art-tools/         nettoyage du liseré magenta, réduction des décors

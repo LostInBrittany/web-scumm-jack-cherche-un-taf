@@ -8,8 +8,9 @@ import { game } from '../game';
 import manoir from '../layout/manoir.json';
 import place from '../layout/place.json';
 import foire from '../layout/foire.json';
+import train from '../layout/train.json';
 
-const layouts: Record<string, Layout> = { manoir: manoir as unknown as Layout, place: place as unknown as Layout, foire: foire as unknown as Layout };
+const layouts: Record<string, Layout> = { manoir: manoir as unknown as Layout, place: place as unknown as Layout, foire: foire as unknown as Layout, train: train as unknown as Layout };
 
 describe('selected game contract', () => {
   it('has a replayable winning walkthrough', async () => {

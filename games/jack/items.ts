@@ -12,4 +12,7 @@ export const items: Record<string, ItemDef> = {
   photo_ratee: { name: 'photo ratée', icon: 'items/photo_ratee', look: ['Ma photo. Même moi, j\'ai un peu peur.', 'Le photographe, c\'était une machine. Elle a démissionné.'] },
   photo: { name: 'photo d\'identité', icon: 'items/photo', look: ['J\'ai l\'air d\'un comptable qui aime les ballons. Parfait.'] },
   lettre: { name: 'lettre de recommandation', icon: 'items/lettre', look: ['« Jack est honnête, travailleur, et il a rendu un boulon. » Signé : le Maire.'] },
+  fiche_poste: { name: 'fiche de poste', icon: 'items/fiche_poste', look: ['« Train fantôme cherche employé effrayant. Période d\'essai : la nuit d\'Halloween. » Chez M. Wolfgang.', 'Effrayant, je sais faire. Employé, j\'apprends.'] },
+  bandelettes: { name: 'rouleau de bandelettes', icon: 'items/bandelettes', look: ['Trois kilomètres de lin d\'Égypte. Offert par Mme Bandelette.', 'Ça sent un peu la pyramide.'] },
+  chaine: { name: 'chaîne de vélo', icon: 'items/chaine', look: ['La chaîne du vélo que Gloubi a recraché. Légère, et encore un peu gluante.', 'Elle fait un joli petit cliquetis.'] },
 };

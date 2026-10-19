@@ -7,7 +7,7 @@ result is 640 px wide or less, so `npm run assets` keeps it as is, and its pixel
 
 Usage (from the repo root):
     python3 games/jack/art-tools/reduce-bg.py <generated.png> <name> [--size 640x400] [--colors 64]
-Writes games/jack/art/decor/<name>.png; an existing file is first renamed <name>_v1.png (_v2, … if taken).
+Writes games/jack/art/decor/<name>.png (or art/<--dir>/<name>.png); an existing file is first renamed <name>_v1.png (_v2, … if taken).
 """
 import argparse, os
 from PIL import Image
@@ -17,6 +17,7 @@ ap.add_argument('src')
 ap.add_argument('name')
 ap.add_argument('--size', default='640x400')
 ap.add_argument('--colors', type=int, default=64)
+ap.add_argument('--dir', default='decor', help='folder under art/ (default decor; minigame for a minigame backdrop)')
 a = ap.parse_args()
 
 W, H = (int(v) for v in a.size.split('x'))
@@ -30,7 +31,7 @@ else:
 im = im.resize((W, H), Image.BOX)
 im = im.quantize(colors=a.colors, method=Image.Quantize.MEDIANCUT, dither=Image.Dither.NONE).convert('RGB')
 
-out_dir = os.path.join(os.path.dirname(__file__), '..', 'art', 'decor')
+out_dir = os.path.join(os.path.dirname(__file__), '..', 'art', a.dir)
 dst = os.path.join(out_dir, a.name + '.png')
 for ext in ('.png', '.jpg', '.jpeg', '.webp'):
     old = os.path.join(out_dir, a.name + ext)

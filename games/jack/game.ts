@@ -5,6 +5,7 @@ import { rules } from './rules';
 import manoir, { checkpoints as manoirCp } from './rooms/manoir';
 import place, { checkpoints as placeCp } from './rooms/place';
 import foire, { checkpoints as foireCp } from './rooms/foire';
+import train, { checkpoints as trainCp } from './rooms/train';
 
 export const game = defineGame({
   schemaVersion: 3,
@@ -29,7 +30,7 @@ export const game = defineGame({
   ],
   characters,
   items,
-  rooms: [manoir, place, foire],
+  rooms: [manoir, place, foire, train],
   // La carte du village (bouton en bas à gauche) : un toucher pour aller d'un lieu à l'autre.
   map: {
     start: 'village',
@@ -37,9 +38,9 @@ export const game = defineGame({
     places: {
       manoir: { name: 'Le Manoir Frissonnant', room: 'manoir', region: 'village', pos: [20, 30], portrait: 'radinoff/r1c2' },
       place: { name: 'La place du village', room: 'place', region: 'village', pos: [50, 60], portrait: 'bandelette/r1c2',
-        news: { any: [{ has: 'barbe' }, { has: 'nez' }, { all: [{ has: 'photo' }, { has: 'lettre' }] }] } },
+        news: { any: [{ has: 'barbe' }, { has: 'nez' }, { all: [{ has: 'photo' }, { has: 'lettre' }] }, { all: ['greve_connue', '!draps_ok', { not: { has: 'bandelettes' } }] }, { all: ['greve_connue', '!chaine_prise'] }] } },
       foire: { name: 'La fête foraine', room: 'foire', region: 'village', pos: [82, 48], portrait: 'guimauve/r1c2',
-        news: { any: ['!barbe_gagnee', '!pepite_calme'] } },
+        news: { any: ['!barbe_gagnee', '!pepite_calme', { has: 'fiche_poste' }, { has: 'bandelettes' }, { has: 'chaine' }, { has: 'photo_ratee' }] } },
     },
     vehicles: { pin: 'starter/ui/pin', news: 'starter/ui/news' },
   },
@@ -62,7 +63,7 @@ export const game = defineGame({
       { id: 'game.intro.guide-look', guide: { verb: 'look', target: 'casier', say: 'D\'abord, REGARDER mon casier.' } },
     ],
   },
-  checkpoints: { ...manoirCp, ...placeCp, ...foireCp },
+  checkpoints: { ...manoirCp, ...placeCp, ...foireCp, ...trainCp },
   audio: { music: {}, sfx: {} },
   skin: {
     icons: { map: 'starter/ui/map', pause: 'starter/ui/pause', music: 'starter/ui/music', spark: 'starter/ui/spark', pin: 'starter/ui/pin', news: 'starter/ui/news', plane: 'starter/ui/plane', car: 'starter/ui/car', confetti: ['starter/ui/confetti1', 'starter/ui/confetti2'] },

@@ -76,6 +76,82 @@
    52,
    114
   ],
+  "bouh/r1c2": [
+   74,
+   84
+  ],
+  "bouh/r2c1": [
+   72,
+   81
+  ],
+  "bouh/r2c2": [
+   64,
+   79
+  ],
+  "bouh/r2c3": [
+   70,
+   82
+  ],
+  "bouh/r2c4": [
+   71,
+   80
+  ],
+  "bouh/r2c5": [
+   70,
+   81
+  ],
+  "bouh/r2c6": [
+   66,
+   81
+  ],
+  "bouh/r3c1": [
+   63,
+   84
+  ],
+  "bouh/r3c2": [
+   69,
+   84
+  ],
+  "bouh/r3c3": [
+   59,
+   84
+  ],
+  "bouh/r3c4": [
+   84,
+   83
+  ],
+  "bouh/r3c5": [
+   93,
+   83
+  ],
+  "bouh/r3c6": [
+   102,
+   75
+  ],
+  "bouh/r4c1": [
+   63,
+   84
+  ],
+  "bouh/r4c2": [
+   60,
+   84
+  ],
+  "bouh/r4c3": [
+   61,
+   84
+  ],
+  "bouh/r4c4": [
+   62,
+   82
+  ],
+  "bouh/r4c5": [
+   63,
+   82
+  ],
+  "bouh/r4c6": [
+   65,
+   82
+  ],
   "brigadier/r1c2": [
    92,
    62
@@ -320,6 +396,86 @@
    640,
    400
   ],
+  "decor/train": [
+   640,
+   400
+  ],
+  "ginette/r1c2": [
+   100,
+   92
+  ],
+  "ginette/r2c1": [
+   90,
+   108
+  ],
+  "ginette/r2c2": [
+   93,
+   105
+  ],
+  "ginette/r2c3": [
+   83,
+   109
+  ],
+  "ginette/r2c4": [
+   86,
+   108
+  ],
+  "ginette/r2c5": [
+   96,
+   108
+  ],
+  "ginette/r2c6": [
+   89,
+   111
+  ],
+  "ginette/r3c1": [
+   72,
+   110
+  ],
+  "ginette/r3c2": [
+   80,
+   108
+  ],
+  "ginette/r3c3": [
+   72,
+   111
+  ],
+  "ginette/r3c4": [
+   98,
+   109
+  ],
+  "ginette/r3c5": [
+   111,
+   111
+  ],
+  "ginette/r3c6": [
+   115,
+   102
+  ],
+  "ginette/r4c1": [
+   72,
+   109
+  ],
+  "ginette/r4c2": [
+   69,
+   105
+  ],
+  "ginette/r4c3": [
+   71,
+   106
+  ],
+  "ginette/r4c4": [
+   78,
+   102
+  ],
+  "ginette/r4c5": [
+   79,
+   101
+  ],
+  "ginette/r4c6": [
+   76,
+   107
+  ],
   "gloubi/r1c2": [
    108,
    82
@@ -476,6 +632,10 @@
    91,
    111
   ],
+  "items/bandelettes": [
+   100,
+   101
+  ],
   "items/barbe": [
    83,
    126
@@ -484,9 +644,17 @@
    100,
    95
   ],
+  "items/chaine": [
+   101,
+   87
+  ],
   "items/chaussette": [
    94,
    120
+  ],
+  "items/fiche_poste": [
+   105,
+   104
   ],
   "items/lanterne": [
    83,
@@ -756,6 +924,38 @@
    90,
    126
   ],
+  "minigame/cables_board": [
+   33,
+   76
+  ],
+  "minigame/cables_noeud": [
+   90,
+   91
+  ],
+  "minigame/cache_armoire": [
+   65,
+   92
+  ],
+  "minigame/cache_cercueil": [
+   57,
+   92
+  ],
+  "minigame/cache_cercueil_jack": [
+   87,
+   92
+  ],
+  "minigame/cache_fond": [
+   420,
+   262
+  ],
+  "minigame/cache_lustre": [
+   75,
+   91
+  ],
+  "minigame/cache_tonneau": [
+   56,
+   69
+  ],
   "minigame/main": [
    99,
    124
@@ -764,6 +964,30 @@
    111,
    125
   ],
+  "minigame/prise_bleu": [
+   91,
+   46
+  ],
+  "minigame/prise_jaune": [
+   91,
+   47
+  ],
+  "minigame/prise_rouge": [
+   90,
+   47
+  ],
+  "minigame/prise_vert": [
+   92,
+   47
+  ],
+  "minigame/squelette_calme": [
+   43,
+   92
+  ],
+  "minigame/squelette_danse": [
+   76,
+   91
+  ],
   "props/casier_ferme": [
    51,
    113
@@ -771,6 +995,22 @@
   "props/casier_ouvert": [
    72,
    113
+  ],
+  "props/fantomes_greve": [
+   105,
+   115
+  ],
+  "props/fantomes_travail": [
+   88,
+   94
+  ],
+  "props/panneau_affiche": [
+   83,
+   117
+  ],
+  "props/panneau_vide": [
+   83,
+   118
   ],
   "props/pepite_calme": [
    78,
@@ -783,6 +1023,14 @@
   "props/photomaton": [
    84,
    115
+  ],
+  "props/tableau_allume": [
+   94,
+   118
+  ],
+  "props/tableau_eteint": [
+   94,
+   117
   ],
   "props/tas": [
    115,
