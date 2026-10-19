@@ -20,9 +20,9 @@ chaque case. On la publie comme un artefact claude.ai : l'auteur annote depuis s
 
 ## 3. Générer les assets
 `docs/fr/PROMPTS.md` contient les prompts qui produisent des planches cohérentes : décors (1536 × 960, bande de
-sol vide, sans personnage), planches d'objets (grille 6 × 4 de cases de 256 px sur fond uni `#2B2E45`), planches
-de personnages (portraits, marche, poses SCUMM), poses spéciales, et le kit de bouches pour la parole. Une
-planche par prompt, toujours avec la planche de référence jointe pour le style.
+sol vide, sans personnage), planches d'objets (grille 6 × 4 de cases de 256 px sur fond uni, `#2B2E45` par
+défaut, ou transparent), planches de personnages (portraits, marche, poses SCUMM), poses spéciales, et le kit de
+bouches pour la parole. Une planche par prompt, toujours avec la planche de référence jointe pour le style.
 Dans le Studio, l'onglet **Assets** montre le prompt de chaque planche à côté de ses cases, avec un bouton Copy.
 
 ## 4. Découper, détourer et relire

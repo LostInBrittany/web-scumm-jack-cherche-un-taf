@@ -106,7 +106,11 @@ Before `npm run assets`, a generated sheet is cut into keyed sprites with `tools
 see `docs/en/PROMPTS.md`. The prompts themselves come from `npm run prompts` (`--missing` for the sheets not cut yet),
 which writes `games/<id>/prompts.md`. With `"artStyle": "pixel"` in `site.json` (or `--pixel`), the cutter also
 scales each cell down 4× (`--scale`), limits it to 32 exact colours (`--colors`) and writes indexed PNGs; `npm run
-assets` then writes lossless WebP (see PROMPTS.md, "Art style").
+assets` then writes lossless WebP (see PROMPTS.md, "Art style"). A sheet on a transparent background
+(`"sheetBackground": "transparent"`) is cut on its alpha, nothing keyed by colour. Two small scripts choose that
+background (PROMPTS.md, "Choosing the sheet background"): `python3 tools/check-alpha.py <image.png>` says whether an
+image tool writes real alpha (`TRANSPARENT`, `FAKE CHECKERBOARD` or `OPAQUE`), and `python3 tools/pick-bg.py <sheet |
+sprite folder | image> [...]` ranks the flat colours by their distance to the drawing (`BEST #RRGGBB`).
 
 ```bash
 npm run prompts    # one ready-to-paste prompt per sheet + the cut commands → games/<id>/prompts.md

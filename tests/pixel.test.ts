@@ -1,7 +1,8 @@
 // The pixel-art preset and the palette swap: tools/cut-sheet.py in pixel mode on a synthetic sheet drawn 4x up (cells at
 // 1/4 size, indexed PNG, at most N colours, near-identical colours merged into one exact value shared by the cells,
 // artStyle read from site.json), the pure palette swap of src/engine/dom/palette.ts on those exact colours, and the
-// validator's warning on a palette that is not #rrggbb.
+// validator's warning on a palette that is not #rrggbb. Also the sheet background (#186): the grid cut of a sheet on a
+// transparent background, tools/check-alpha.py and tools/pick-bg.py.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
@@ -149,6 +150,125 @@ print(a.shape[1], a.shape[0], a.tobytes().hex())
     expect(changed).toBe(before);
     expect(count(base)).toBe(0);
     expect(count('#3060c0')).toBe(before);
+  });
+});
+
+/** Per cell of a folder: size and a hash of the alpha channel (JSON), to compare two cuts of the same figures. */
+function masks(dir: string): Record<string, { size: [number, number]; alpha: string; opaque: number }> {
+  return JSON.parse(
+    py(
+      `
+import sys, os, json, hashlib, numpy as np
+from PIL import Image
+out = {}
+for f in sorted(os.listdir(sys.argv[1])):
+    a = np.asarray(Image.open(os.path.join(sys.argv[1], f)).convert('RGBA'))[..., 3]
+    out[f[:-4]] = {'size': [a.shape[1], a.shape[0]], 'alpha': hashlib.sha1(a.tobytes()).hexdigest(), 'opaque': int((a > 0).sum())}
+print(json.dumps(out))
+`,
+      dir,
+    ),
+  );
+}
+
+describe('tools/cut-sheet.py on a transparent sheet (sheetBackground "transparent")', () => {
+  const flat = join(tmp, 'flat.png');
+  const clear = join(tmp, 'clear.png');
+  sheet(flat);
+  // The same sheet with its #2B2E45 background made transparent (black under alpha 0); in cell r1c1 the outline is then
+  // repainted #2B2E45, opaque: a dark figure the colour of the old background.
+  py(
+    `
+import sys, numpy as np
+from PIL import Image
+a = np.asarray(Image.open(sys.argv[1]).convert('RGB')).copy()
+bg = (a == (0x2B, 0x2E, 0x45)).all(-1)
+a[bg] = 0  # what is under a transparent pixel is anything (black here): never a colour to key
+rgba = np.dstack([a, np.where(bg, 0, 255).astype(np.uint8)])
+Image.fromarray(rgba, 'RGBA').save(sys.argv[2])
+dark = rgba.copy()
+dark[32:224, 64:192][(dark[32:224, 64:192, :3] == (20, 10, 12)).all(-1), :3] = (0x2B, 0x2E, 0x45)
+Image.fromarray(dark, 'RGBA').save(sys.argv[3])
+`,
+    flat,
+    clear,
+    join(tmp, 'dark.png'),
+  );
+
+  it('cuts the same cells as the flat sheet: same sizes, same alpha', () => {
+    for (const [src, out] of [
+      [flat, 'flat'],
+      [clear, 'clear'],
+    ])
+      execFileSync('python3', ['tools/cut-sheet.py', src, 's', '--out', join(tmp, out), '--cel'], { cwd: ROOT });
+    const a = masks(join(tmp, 'flat', 's'));
+    expect(Object.keys(a)).toHaveLength(24);
+    expect(a.r1c1.size).toEqual([128, 192]);
+    expect(masks(join(tmp, 'clear', 's'))).toEqual(a);
+  });
+
+  it('keys nothing by colour: a figure painted in the old background colour stays whole', () => {
+    execFileSync('python3', ['tools/cut-sheet.py', join(tmp, 'dark.png'), 's', '--out', join(tmp, 'dark'), '--cel'], {
+      cwd: ROOT,
+    });
+    expect(masks(join(tmp, 'dark', 's')).r1c1).toEqual(masks(join(tmp, 'flat', 's')).r1c1);
+  });
+});
+
+describe('tools/check-alpha.py and tools/pick-bg.py', () => {
+  /** Writes `file`: a 512 x 512 image, an orange figure with a pinkish purple shadow and a dark outline on `bg`. */
+  const figure = (file: string, bg: string) =>
+    py(
+      `
+import sys, numpy as np
+from PIL import Image
+bg = sys.argv[2]
+a = np.zeros((512, 512, 4), np.uint8)
+if bg == 'checker':
+    yy, xx = np.mgrid[0:512, 0:512]
+    a[..., :3] = np.where((((yy // 16) + (xx // 16)) % 2 == 0)[..., None], 255, 204)
+    a[..., 3] = 255
+elif bg != 'transparent':
+    a[..., :3] = [int(bg[i:i + 2], 16) for i in (1, 3, 5)]
+    a[..., 3] = 255
+a[120:400, 160:360] = (30, 20, 25, 255)
+a[124:396, 164:356] = (230, 120, 40, 255)
+a[300:396, 164:356] = (150, 60, 90, 255)
+Image.fromarray(a, 'RGBA').save(sys.argv[1])
+`,
+      file,
+      bg,
+    );
+  const verdict = (file: string) =>
+    execFileSync('python3', ['tools/check-alpha.py', file], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').pop();
+
+  it('check-alpha tells real alpha from a painted checkerboard and from an opaque image', () => {
+    figure(join(tmp, 'alpha.png'), 'transparent');
+    figure(join(tmp, 'checker.png'), 'checker');
+    figure(join(tmp, 'opaque.png'), '#2B2E45');
+    expect(verdict(join(tmp, 'alpha.png'))).toBe('TRANSPARENT');
+    expect(verdict(join(tmp, 'checker.png'))).toBe('FAKE CHECKERBOARD');
+    expect(verdict(join(tmp, 'opaque.png'))).toBe('OPAQUE');
+  });
+
+  it("pick-bg ranks cyan first for an orange figure, leaving a sheet's own flat background out", () => {
+    const pick = (...files: string[]) =>
+      execFileSync('python3', ['tools/pick-bg.py', ...files], { cwd: ROOT, encoding: 'utf8' });
+    const best = (...files: string[]) =>
+      pick(...files)
+        .trim()
+        .split('\n')
+        .pop();
+    figure(join(tmp, 'orange.png'), 'transparent');
+    expect(best(join(tmp, 'orange.png'))).toBe('BEST #00FFFF');
+    // On a flat cyan sheet, cyan is still the farthest from the drawing: the border colour is not counted.
+    figure(join(tmp, 'on-cyan.png'), '#00FFFF');
+    expect(best(join(tmp, 'on-cyan.png'))).toBe('BEST #00FFFF');
+    expect(pick(join(tmp, 'on-cyan.png'))).toMatch(/^3 colours in the drawing/);
+    // A folder of cut sprites works too.
+    mkdirSync(join(tmp, 'sprites'), { recursive: true });
+    figure(join(tmp, 'sprites', 'r1c1.png'), 'transparent');
+    expect(best(join(tmp, 'sprites'))).toBe('BEST #00FFFF');
   });
 });
 

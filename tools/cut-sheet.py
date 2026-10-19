@@ -291,7 +291,7 @@ def cut_auto(src, out_dir, tol=40, minarea=2500, pixel=None):
 
 
 def main():
-    p = argparse.ArgumentParser(description='Cut a sprite sheet on a flat background into keyed PNG cells.')
+    p = argparse.ArgumentParser(description='Cut a sprite sheet on a flat or transparent background into keyed PNG cells.')
     p.add_argument('sheet', help='source sheet image (.png)')
     p.add_argument('sheet_id', help='sheet id: output subfolder, and how images are referenced (<sheet-id>/r<row>c<col>)')
     p.add_argument('--grid', default='6x4', help='grid mode: COLSxROWS, e.g. 6x4 (default) or 3x3')

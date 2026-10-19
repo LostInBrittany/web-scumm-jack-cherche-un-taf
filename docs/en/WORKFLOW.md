@@ -19,9 +19,9 @@ rewrites the storyboard. Iterate until the author says "v final".
 
 ## 3. Generate the art
 `docs/en/PROMPTS.md` holds the prompts that produce consistent sheets: backgrounds (1536 × 960, empty floor band,
-no people), object sheets (6 × 4 grid of 256 px cells on a flat `#2B2E45` background), character sheets (portraits,
-walk cycle, SCUMM poses), special poses, and the mouth kit for talking. One sheet per prompt, always with the reference
-sheet attached for style.
+no people), object sheets (6 × 4 grid of 256 px cells on a flat background, `#2B2E45` by default, or a transparent
+one), character sheets (portraits, walk cycle, SCUMM poses), special poses, and the mouth kit for talking. One sheet
+per prompt, always with the reference sheet attached for style.
 In the Studio, the **Assets** tab shows each sheet's prompt next to its cells, with a Copy button.
 
 ## 4. Cut, key and review

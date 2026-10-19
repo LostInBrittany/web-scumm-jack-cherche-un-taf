@@ -46,8 +46,9 @@ renvoie aussi les ids d'images manquantes en JSON structuré. Les modèles ci-de
 
 - **Style** : joindre une planche de référence. `hero_sheet.png` (ou toute planche de personnage déjà validée)
   pour les personnages, une planche d'objets pour les objets, le décor du lieu pour ses meubles.
-- **Fond** : uni `#2B2E45`, sans dégradé, sans sol, sans ombre portée, sans grille, sans texte ni logo. Le
-  découpage (`tools/cut-sheet.py <sheet.png> <sheet-id>`) retire ce bleu.
+- **Fond** : uni `#2B2E45` par défaut, sans dégradé, sans sol, sans ombre portée, sans grille, sans texte ni logo.
+  Le découpage (`tools/cut-sheet.py <sheet.png> <sheet-id>`) retire ce bleu. `sheetBackground` dans `site.json` le
+  change (plus bas, « Choisir le fond des planches »).
 - **Lumière** : venant du haut à gauche.
 - **Marques** : ne jamais écrire de nom de marque dans un prompt, comme « Darth Vader », car le filtre de
   contenu bloque. Décrire l'objet à la place : « a small pink knight plush with a round helmet ».
@@ -98,6 +99,35 @@ PIXEL RULES — strict:
   (`image-rendering: pixelated`).
 - **Changement de palette** (`palette` sur un personnage, CONTENT_GUIDE.md) : marche le mieux avec `pixel`, dont les
   couleurs sont exactes.
+
+### Choisir le fond des planches (`sheetBackground` dans `games/<id>/site.json`)
+
+Une planche de sprites est dessinée sur un fond que le découpage retire. Par défaut c'est un `#2B2E45` uni, et toute
+couleur fixe échoue sur un personnage ou un autre : une cape noire ou des yeux sombres proches de `#2B2E45` partent
+avec lui ; un fond magenta mange les ombres que les COLOR RULES décalent vers le violet (rosées sur une tête orange) ;
+et le générateur peint souvent les parties « à travers lesquelles on voit », une bouche ou des yeux sculptés vus de
+profil, avec la couleur du fond, qui deviennent des trous dès qu'elles touchent le bord de la figure. Essayer, dans
+cet ordre :
+
+1. **`"sheetBackground": "transparent"`**, quand l'outil d'image écrit vraiment de l'alpha. Le tester une fois :
+   lui demander une petite figure sur fond transparent et lancer `python3 tools/check-alpha.py <image.png>`.
+   `TRANSPARENT` veut dire un vrai alpha ; `FAKE CHECKERBOARD`, un damier gris et blanc peint là où devrait être la
+   transparence (certains outils font ça) ; `OPAQUE`, aucune transparence. Avec un vrai alpha il n'y a rien à
+   détourer : les prompts demandent un PNG transparent et interdisent le damier peint, et `tools/cut-sheet.py` garde
+   exactement les pixels opaques, sans regarder les couleurs (une copie transparente d'une planche sur fond uni donne
+   les mêmes cases).
+2. **Sinon, la couleur unie la plus éloignée du dessin** : `python3 tools/pick-bg.py <planche | dossier de sprites |
+   image> [...]` sur la référence du personnage ou sa planche précédente classe cyan, magenta, vert et bleu selon
+   leur distance à la couleur la plus proche du dessin (le fond propre d'une planche est laissé de côté) et affiche
+   `BEST #RRGGBB`. La mettre dans `"sheetBackground": "#00FFFF"` ; le découpage retire la couleur unie du bord, quelle
+   qu'elle soit.
+
+Dans les deux cas, les prompts disent que chaque pixel d'une figure est opaque, y compris l'intérieur des formes
+sculptées ou ouvertes (bouches, yeux). Sans `sheetBackground` (ou avec une valeur qui n'est ni `transparent` ni
+`#RRGGBB`, ce qui donne un avertissement), tout reste sur `#2B2E45`. Les modèles ci-dessous montrent ce défaut ;
+`npm run prompts` écrit celui du jeu. Les décors des lieux ne sont pas concernés, et les kits de bouches
+(`tools/talk-kit.py`) gardent leur fond `#2B2E45` : les bouches sont recollées à travers l'alpha du sprite validé,
+rien n'est détouré.
 
 ### Décor (1536 × 960, 16:10)
 

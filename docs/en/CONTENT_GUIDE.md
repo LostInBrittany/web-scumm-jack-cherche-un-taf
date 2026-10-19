@@ -56,7 +56,10 @@ games/<id>/
 "artStyle": "cel" }`. `title`, `description` and `themeColor` go into `index.html` and the PWA manifest. `artStyle` is
 `"cel"` (default: painted cartoon) or `"pixel"` (retro pixel art): it changes the art prompts (`npm run prompts`), the
 cutter (`tools/cut-sheet.py`) and `npm run assets` (lossless WebP, nearest-neighbour resizing); see
-[PROMPTS.md](PROMPTS.md). For `pixel`, also set `skin: { pixelArt: true }` in `game.ts`.
+[PROMPTS.md](PROMPTS.md). For `pixel`, also set `skin: { pixelArt: true }` in `game.ts`. `sheetBackground`
+(optional) is the background the sprite sheets are generated on: `"transparent"` or a `"#RRGGBB"` colour, `#2B2E45`
+when absent; it changes the art prompts, and the cutter follows the sheet it is given (PROMPTS.md, "Choosing the sheet
+background").
 
 ## A room, step by step
 

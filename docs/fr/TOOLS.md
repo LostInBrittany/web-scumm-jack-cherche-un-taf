@@ -100,7 +100,12 @@ Avant `npm run assets`, une planche générée se découpe en sprites détourés
 voir `docs/fr/PROMPTS.md`. Les prompts eux-mêmes viennent de `npm run prompts` (`--missing` pour les planches pas
 encore découpées), qui écrit `games/<id>/prompts.md`. Avec `"artStyle": "pixel"` dans `site.json` (ou `--pixel`),
 le découpage réduit aussi chaque case 4× (`--scale`), la limite à 32 couleurs exactes (`--colors`) et écrit des PNG
-indexés ; `npm run assets` écrit alors du WebP sans perte (voir PROMPTS.md, « Style graphique »).
+indexés ; `npm run assets` écrit alors du WebP sans perte (voir PROMPTS.md, « Style graphique »). Une planche sur
+fond transparent (`"sheetBackground": "transparent"`) est découpée sur son alpha, sans rien détourer par couleur.
+Deux petits scripts aident à choisir ce fond (PROMPTS.md, « Choisir le fond des planches ») :
+`python3 tools/check-alpha.py <image.png>` dit si un outil d'image écrit un vrai alpha (`TRANSPARENT`,
+`FAKE CHECKERBOARD` ou `OPAQUE`), et `python3 tools/pick-bg.py <planche | dossier de sprites | image> [...]` classe
+les couleurs unies selon leur distance au dessin (`BEST #RRGGBB`).
 
 ```bash
 npm run prompts    # un prompt prêt à coller par planche + les commandes de découpe → games/<id>/prompts.md

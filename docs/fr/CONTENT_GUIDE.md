@@ -57,6 +57,9 @@ games/<jeu>/
 vaut `"cel"` (défaut : dessin animé peint) ou `"pixel"` (pixel art rétro) : il change les prompts d'images
 (`npm run prompts`), le découpage (`tools/cut-sheet.py`) et `npm run assets` (WebP sans perte, redimensionnement au
 plus proche voisin) ; voir [PROMPTS.md](PROMPTS.md). Pour `pixel`, mettre aussi `skin: { pixelArt: true }` dans `game.ts`.
+`sheetBackground` (facultatif) est le fond sur lequel les planches de sprites sont générées : `"transparent"` ou une
+couleur `"#RRGGBB"`, `#2B2E45` en son absence ; il change les prompts d'images, et le découpage suit la planche qu'on
+lui donne (PROMPTS.md, « Choisir le fond des planches »).
 
 ## Un lieu, pas à pas
 

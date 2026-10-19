@@ -44,8 +44,9 @@ also returns the missing image ids as structured JSON. The templates below are w
 
 - **Style**: attach a reference sheet. `hero_sheet.png` (or any already-validated character sheet) for characters,
   an item sheet for objects, the room's background for its furniture.
-- **Background**: flat `#2B2E45`, no gradient, no floor, no cast shadow, no grid, no text or logo. The cutter
-  (`tools/cut-sheet.py <sheet.png> <sheet-id>`) keys this blue out.
+- **Background**: flat `#2B2E45` by default, no gradient, no floor, no cast shadow, no grid, no text or logo. The
+  cutter (`tools/cut-sheet.py <sheet.png> <sheet-id>`) keys this blue out. `sheetBackground` in `site.json` changes it
+  (below, "Choosing the sheet background").
 - **Light**: coming from the upper left.
 - **Brand names**: never write a brand name in a prompt, such as "Darth Vader" — the content filter blocks it.
   Describe the object instead: "a small pink knight plush with a round helmet".
@@ -93,6 +94,31 @@ PIXEL RULES — strict:
 - **Engine**: set `skin: { pixelArt: true }` in `game.ts` so the scaled-up images keep hard edges
   (`image-rendering: pixelated`).
 - **Palette swaps** (`palette` on a character, CONTENT_GUIDE.md) work best with `pixel`: the colours are exact.
+
+### Choosing the sheet background (`sheetBackground` in `games/<id>/site.json`)
+
+A sprite sheet is drawn on a background the cutter removes. The default is a flat `#2B2E45`, and any fixed colour
+fails on some character: a black cape or dark eyes close to `#2B2E45` are keyed out with it; a magenta background
+eats the shadows the COLOR RULES shift toward purple (on an orange head they are pinkish); and the generator often
+paints "see-through" parts, a carved mouth or eyes seen in profile, with the background colour, so they become holes
+when they touch the figure's edge. Try, in this order:
+
+1. **`"sheetBackground": "transparent"`**, when your image tool really writes alpha. Test it once: ask it for a small
+   figure on a transparent background and run `python3 tools/check-alpha.py <image.png>`. `TRANSPARENT` means real
+   alpha; `FAKE CHECKERBOARD` means a grey-and-white checkerboard painted where the transparency should be (some
+   tools do that), and `OPAQUE` no transparency at all. With real alpha there is nothing to key: the prompts ask for a
+   transparent PNG and forbid the painted checkerboard, and `tools/cut-sheet.py` keeps exactly the opaque pixels,
+   colour-blind (a transparent copy of a flat-background sheet cuts to the same cells).
+2. **Otherwise, the flat colour farthest from the drawing**: `python3 tools/pick-bg.py <sheet | sprite folder |
+   image> [...]` on the character's reference or previous sheet ranks cyan, magenta, green and blue by their distance
+   to the drawing's closest colour (a sheet's own background left out) and prints `BEST #RRGGBB`. Set it as
+   `"sheetBackground": "#00FFFF"`; the cutter keys whatever flat colour the border has.
+
+In both cases the prompts say that every pixel of a figure is opaque, including the inside of carved or open shapes
+(mouths, eyes). Without `sheetBackground` (or with a value that is neither `transparent` nor `#RRGGBB`, which warns),
+everything stays on `#2B2E45`. The templates below show that default; `npm run prompts` writes the game's own. Room
+backgrounds are not concerned, and the mouth kits (`tools/talk-kit.py`) keep their `#2B2E45` backdrop: the mouths
+are pasted back through the validated sprite's own alpha, nothing is keyed.
 
 ### Background (1536 × 960, 16:10)
 

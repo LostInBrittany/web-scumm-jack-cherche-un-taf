@@ -3,9 +3,9 @@
 import { cpSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import type { GameDef } from '@engine/core/types';
-import { buildPrompts, COLOR_RULES, readArtStyle } from '../tools/prompts';
+import { BG, buildPrompts, COLOR_RULES, readArtStyle, readSheetBackground } from '../tools/prompts';
 import { game } from '../games/demo/game';
 
 const ROOT = resolve(__dirname, '..');
@@ -209,6 +209,82 @@ describe('art style presets', () => {
       writeFileSync(join(dir, 'site.json'), JSON.stringify({ artStyle: 'watercolour' }));
       expect(readArtStyle(dir)).toBe('cel');
     } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('sheet background', () => {
+  const FLAT = (c: string) =>
+    `BACKGROUND: one single flat uniform color ${c} over the whole canvas. No gradient, no texture, no vignette, no floor, no cast shadow on the background, no grid lines, no borders.`;
+
+  it('default (no sheetBackground in the demo): the flat #2B2E45 everywhere, as before', () => {
+    expect(BG).toBe('#2B2E45');
+    expect(readSheetBackground(GAME_DIR)).toBe('#2B2E45');
+    const md = buildPrompts({ game }, opts).markdown;
+    expect(md).toContain(FLAT('#2B2E45'));
+    expect(md).toContain('- Background color: flat `#2B2E45` (the cutter keys it out). Light from the upper left.');
+    expect(section(md, '#### Special poses sheet `grandpa_seated`')).toContain(
+      'BACKGROUND: one single flat uniform color #2B2E45. No gradient',
+    );
+    expect(section(md, '### Objects `home2`')).toContain(
+      'BACKGROUND: one single flat uniform color #2B2E45 over the whole canvas. No gradient, no texture, no floor',
+    );
+    expect(section(md, '### Furniture `furniture_dining`')).toContain(
+      'One single flat uniform background color #2B2E45, no gradient, no floor, no cast shadow on the background, no text.',
+    );
+    expect(md).toContain('EMPTY (flat background only)');
+    expect(md).not.toContain('transparent (alpha 0)');
+    expect(buildPrompts({ game }, { ...opts, sheetBackground: BG }).markdown).toBe(md);
+  });
+
+  it('a colour replaces #2B2E45 in every line', () => {
+    const md = buildPrompts({ game }, { ...opts, sheetBackground: '#00FFFF' }).markdown;
+    expect(md).not.toContain('#2B2E45');
+    expect(md).toContain(FLAT('#00FFFF'));
+    expect(md).toContain('- Background color: flat `#00FFFF` (the cutter keys it out).');
+    expect(section(md, '### Furniture `furniture_dining`')).toContain('background color #00FFFF');
+    expect(buildPrompts({ game }, opts).markdown.replaceAll('#2B2E45', '#00FFFF')).toBe(md);
+  });
+
+  it('transparent: real alpha, no painted checkerboard, carved shapes opaque, in every sheet prompt', () => {
+    const md = buildPrompts({ game }, { ...opts, sheetBackground: 'transparent' }).markdown;
+    expect(md).not.toContain('#2B2E45');
+    expect(md).not.toContain('flat background');
+    const line =
+      'BACKGROUND: fully transparent (alpha 0) over the whole canvas, saved as a PNG with an alpha channel. Never paint a checkerboard, a colour or a texture to show the transparency. Every pixel of a figure is fully opaque, including the inside of carved or open shapes (mouths, eyes): only the space around and between the figures is transparent.';
+    for (const s of ['## Style block', '#### Base sheet `hero`', '### Objects `home2`'])
+      expect(section(md, s)).toContain(line);
+    expect(section(md, '#### Special poses sheet `grandpa_seated`')).toContain(
+      'BACKGROUND: fully transparent (alpha 0), saved as a PNG with an alpha channel.',
+    );
+    expect(section(md, '### Furniture `furniture_dining`')).toContain(
+      'Transparent background (alpha 0, a PNG with an alpha channel, never a painted checkerboard), every pixel of an object fully opaque',
+    );
+    expect(md).toContain('- Background: transparent (`sheetBackground` in `site.json`)');
+    expect(md).toContain('EMPTY (transparent background only)');
+  });
+
+  it('reads sheetBackground from site.json; an invalid value falls back to #2B2E45 with a warning', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'sheetbg-'));
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    try {
+      expect(readSheetBackground(dir)).toBe('#2B2E45');
+      writeFileSync(join(dir, 'site.json'), JSON.stringify({ artStyle: 'pixel' }));
+      expect(readSheetBackground(dir)).toBe('#2B2E45');
+      writeFileSync(join(dir, 'site.json'), JSON.stringify({ sheetBackground: 'transparent' }));
+      expect(readSheetBackground(dir)).toBe('transparent');
+      writeFileSync(join(dir, 'site.json'), JSON.stringify({ sheetBackground: '#00ffff' }));
+      expect(readSheetBackground(dir)).toBe('#00FFFF');
+      expect(warn).not.toHaveBeenCalled();
+      for (const bad of ['magenta', '#0ff', 42]) {
+        writeFileSync(join(dir, 'site.json'), JSON.stringify({ sheetBackground: bad }));
+        expect(readSheetBackground(dir)).toBe('#2B2E45');
+      }
+      expect(warn).toHaveBeenCalledTimes(3);
+      expect(warn.mock.calls[0]?.[0]).toContain('sheetBackground "magenta"');
+    } finally {
+      warn.mockRestore();
       rmSync(dir, { recursive: true, force: true });
     }
   });

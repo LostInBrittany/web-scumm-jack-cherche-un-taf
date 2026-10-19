@@ -11,6 +11,7 @@ import { normalizeExits } from '../src/engine/core/define';
 import type { GameModule } from './game';
 import { collectRefs } from './refs';
 
+/** The default flat background of the sheets, when `site.json` has no valid `sheetBackground`. */
 export const BG = '#2B2E45';
 
 export interface PromptOptions {
@@ -28,6 +29,8 @@ export interface PromptOptions {
   root?: string;
   /** Art style preset (default: `artStyle` of `<gameDir>/site.json`, else `cel`). */
   artStyle?: ArtStyle;
+  /** Background of the sprite sheets (default: `sheetBackground` of `<gameDir>/site.json`, else {@link BG}). */
+  sheetBackground?: SheetBackground;
 }
 
 /**
@@ -48,6 +51,34 @@ export function readArtStyle(gameDir: string): ArtStyle {
   } catch {
     return 'cel';
   }
+}
+
+/**
+ * Background of the sprite sheets, from `games/<id>/site.json` → `"sheetBackground"`: a flat `#RRGGBB` colour the
+ * cutter keys out (default {@link BG}), or `transparent` for an image tool that writes real alpha (the cutter then
+ * keeps the opaque pixels and keys nothing). Room backgrounds are not concerned. docs/en/PROMPTS.md, "Choosing the
+ * sheet background".
+ */
+export type SheetBackground = 'transparent' | `#${string}`;
+
+/**
+ * `sheetBackground` of `<gameDir>/site.json`: `transparent`, or a `#RRGGBB` colour (upper case). {@link BG} when absent
+ * or unreadable, and with a warning when the value is neither.
+ */
+export function readSheetBackground(gameDir: string): SheetBackground {
+  let v: unknown;
+  try {
+    v = JSON.parse(readFileSync(join(gameDir, 'site.json'), 'utf8'))?.sheetBackground;
+  } catch {
+    return BG;
+  }
+  if (v === undefined) return BG;
+  if (v === 'transparent') return v;
+  if (typeof v === 'string' && /^#[0-9a-f]{6}$/i.test(v)) return `#${v.slice(1).toUpperCase()}`;
+  console.warn(
+    `site.json: sheetBackground ${JSON.stringify(v)} is neither "transparent" nor a #RRGGBB colour; using ${BG}.`,
+  );
+  return BG;
 }
 
 export interface PromptSheet {
@@ -108,10 +139,14 @@ function pixelGrid(w: number, h: number, cells: boolean): string {
   const g = (n: number) => Math.round(n / PIXEL_SCALE);
   return `The whole ${cells ? 'canvas' : 'image'} is drawn on a ${g(w)} x ${g(h)} pixel grid${cells ? ` (${g(256)} x ${g(256)} per 256 px cell)` : ''}`;
 }
-const BACKGROUND_LINE = `BACKGROUND: one single flat uniform color ${BG} over the whole canvas. No gradient, no texture, no vignette, no floor, no cast shadow on the background, no grid lines, no borders.`;
+/** The BACKGROUND line of every sheet prompt: a flat colour, or real transparency with the carved shapes kept opaque. */
+function backgroundLine(bg: SheetBackground): string {
+  return bg === 'transparent'
+    ? 'BACKGROUND: fully transparent (alpha 0) over the whole canvas, saved as a PNG with an alpha channel. Never paint a checkerboard, a colour or a texture to show the transparency. Every pixel of a figure is fully opaque, including the inside of carved or open shapes (mouths, eyes): only the space around and between the figures is transparent. No floor, no cast shadow, no grid lines, no borders.'
+    : `BACKGROUND: one single flat uniform color ${bg} over the whole canvas. No gradient, no texture, no vignette, no floor, no cast shadow on the background, no grid lines, no borders.`;
+}
 const NO_TEXT = 'DO NOT add any text, names, labels, numbers, logos or watermarks.';
 const LIGHT = 'Consistent lighting from the upper left.';
-const EMPTY = 'EMPTY (flat background only)';
 
 type Cell = `r${number}c${number}`;
 const CELL_RE = /^(.+)\/r(\d+)c(\d+)$/;
@@ -321,6 +356,10 @@ export function buildPrompts(mod: Pick<GameModule, 'game' | 'extraImages'>, opts
   const artStyle: ArtStyle = opts.artStyle ?? readArtStyle(opts.gameDir);
   const pixel = artStyle === 'pixel';
   const { char: STYLE_CHAR, obj: STYLE_OBJ, bg: STYLE_BG } = STYLES[artStyle];
+  const sheetBg: SheetBackground = opts.sheetBackground ?? readSheetBackground(opts.gameDir);
+  const transparent = sheetBg === 'transparent';
+  const BACKGROUND_LINE = backgroundLine(sheetBg);
+  const EMPTY = transparent ? 'EMPTY (transparent background only)' : 'EMPTY (flat background only)';
   /** Colour rules (every style) and, for pixel art, the strict pixel rules, for a sheet of 256 px cells or a background. */
   const colorLines = (w = 1536, h = 1024, cells = true) => [
     ...COLOR_RULES,
@@ -416,7 +455,9 @@ export function buildPrompts(mod: Pick<GameModule, 'game' | 'extraImages'>, opts
             `and scales full-size backgrounds down ${PIXEL_SCALE}× the same way; set \`skin: { pixelArt: true }\` in the game so the engine draws every image with hard edges.`,
         ]
       : []),
-    `- Background color: flat \`${BG}\` (the cutter keys it out). Light from the upper left.`,
+    transparent
+      ? '- Background: transparent (`sheetBackground` in `site.json`); the cutter keeps the opaque pixels and keys nothing. Light from the upper left.'
+      : `- Background color: flat \`${sheetBg}\` (the cutter keys it out). Light from the upper left.`,
     "- Never write a brand or a famous character's name: describe the thing instead.",
     '- Object states: same size, same angle, same position from one cell to the next; only the described change differs.',
     '- Cut only the new cells (`--cells`); never re-cut a validated sheet.',
@@ -1081,7 +1122,7 @@ export function buildPrompts(mod: Pick<GameModule, 'game' | 'extraImages'>, opts
         ? [
             'Create an item sheet for a point-and-click adventure game.',
             `STYLE: match exactly the art style, lighting and colors of the attached decor${decor ? ` (${decor})` : ''}.`,
-            `LAYOUT: canvas 1536 x 1024, an invisible grid of ${cols} x ${rowsN}, one object per cell, centered, nothing touching the cell borders. One single flat uniform background color ${BG}, no gradient, no floor, no cast shadow on the background, no text.`,
+            `LAYOUT: canvas 1536 x 1024, an invisible grid of ${cols} x ${rowsN}, one object per cell, centered, nothing touching the cell borders. ${transparent ? 'Transparent background (alpha 0, a PNG with an alpha channel, never a painted checkerboard), every pixel of an object fully opaque, no floor, no cast shadow, no text.' : `One single flat uniform background color ${sheetBg}, no gradient, no floor, no cast shadow on the background, no text.`}`,
             'Every object is seen from the SAME angle and at the SAME scale as in the attached decor.',
             ...colorLines(),
           ]
