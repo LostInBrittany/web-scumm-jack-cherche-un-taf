@@ -33,12 +33,47 @@ Le dépôt est à la racine `/Users/horacio/git/games/jack-cherche-un-taf`. Lanc
 
 ## Déjà fait
 
-- **Jack** (`jack`) : validé, découpé. C'est `art/_reference.png`. Ne le refais pas.
+- **Jack** (`jack`) : **à refaire** sur fond magenta, voir « Refaire Jack » juste en dessous. Sa planche actuelle
+  (fond bleu nuit) reste la référence de style : `art/_reference.png` **ne change pas**.
 - **Comte Radinoff** (`radinoff`) : **à refaire** sur fond magenta (sa cape et son costume noirs ont disparu avec le
   fond bleu nuit, et sa tête dépassait de certaines cases). Renomme d'abord `art/sheets/radinoff.png` en
   `radinoff_v1.png`.
 - **Gloubi** (`gloubi`) : **à refaire** sur fond magenta. Sur le bleu nuit, ses yeux sombres sont partis avec le
   fond dans certaines cases. Renomme d'abord `art/sheets/gloubi.png` en `gloubi_v1.png`.
+
+## Refaire Jack
+
+Sur la planche actuelle, deux défauts se voient en jeu :
+- la **tige flotte** au-dessus de la citrouille : un trou transparent les sépare sur presque toutes les cases ;
+- sur les vues de **profil et de trois quarts**, l'intérieur de la bouche et des yeux a la couleur du fond : une fois
+  découpés, ce sont des trous, et on voit le décor à travers la tête de Jack.
+
+Ce qu'il faut faire :
+
+1. Renomme `art/sheets/jack.png` en `art/sheets/jack_v1.png`. Ne touche pas à `art/_reference.png`.
+2. Prends la consigne « Base sheet `jack` » de `prompts.md` (fond `#FF00FF`, grille 2x : elle est déjà à jour) et
+   **joins `art/_reference.png`** : le nouveau Jack doit être le même personnage, mêmes couleurs, mêmes proportions,
+   mêmes poses. Ajoute à la fin de la consigne :
+
+   ```text
+   PUMPKIN DETAILS — strict, on every cell:
+   - The curly green stem is firmly attached to the top of the pumpkin: its base sits inside the pumpkin's top
+     outline, with no gap and no background pixel between the stem and the pumpkin.
+   - The carved eyes and mouth are always filled: warm yellow glow, or the dark warm brown of the outline for the
+     deepest parts. Never leave a carved opening in the background colour, also in profile, three-quarter and back
+     views.
+   - The pumpkin and the stem have the same clean dark one-pixel outline as the rest of the figure.
+   ```
+3. Enregistre l'image dans `art/sheets/jack.png`. Avant de découper, zoome sur chaque case : la tige touche la
+   citrouille, aucune bouche ni aucun œil n'est magenta, rien ne dépasse de sa case. Sinon, régénère.
+4. Découpe avec **64 couleurs** (à 32, le vert de la tige devient beige), puis nettoie le liseré :
+
+   ```
+   python3 tools/cut-sheet.py games/jack/art/sheets/jack.png jack --scale 2 --colors 64
+   python3 games/jack/art-tools/defringe.py games/jack/art/jack
+   ```
+5. Vérifie les 24 images de `art/jack/` sur un fond vert vif : pas de trou entre la tige et la citrouille, pas de
+   trou dans la tête, pas de liseré rose. Puis `npm run assets`.
 
 ## Nettoyer le liseré magenta (après chaque découpe)
 
