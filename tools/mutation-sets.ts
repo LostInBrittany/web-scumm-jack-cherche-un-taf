@@ -199,6 +199,7 @@ export const TESTS: Record<MutationSet, string[]> = {
     'tests/studio-routes-mutants.test.ts',
     'tests/studio-oidc-mutants.test.ts',
     'tests/studio-leases-mutants.test.ts',
+    'tests/studio-exclusive-mutants.test.ts',
     'tests/studio-play-mutants.test.ts',
     'tests/studio-auth.test.ts',
     'tests/studio-collab.test.ts',
