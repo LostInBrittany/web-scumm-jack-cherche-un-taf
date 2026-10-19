@@ -1,0 +1,44 @@
+{
+  "title": "La Toccata du Comte (after Bach)",
+  "author": "Jack cherche un taf: the opening of Bach's Toccata in D minor BWV 565 (public domain), notes, running figure, chords and arrangement written for the game (compose.py)",
+  "slug": "manoir",
+  "comment": "Count Radinoff's manor. D minor, 72 BPM, 16 bars that loop: the call three times an octave lower each time on the organ in octaves, the diminished chord with a thunderclap, then a running figure over the pedal. No third-party transcription: compose.py writes source.mid.",
+  "source": "source.mid",
+  "bars": 16,
+  "rows_per_beat": 8,
+  "pattern_rows": 64,
+  "hz": 60,
+  "extra_bars": 0,
+  "stop_at_end": false,
+  "sections": { "CALL": [1, 6], "CHORD": [7, 8], "RUN": [9, 16] },
+  "channels": {
+    "FM1": { "name": "FM1 Organ", "role": "lead", "pan": "C", "parts": [
+      { "track": 1, "voice": "high", "bars": [1, 16], "ins": "church_organ", "vol": 127 }
+    ] },
+    "FM2": { "name": "FM2 Organ 8vb L", "role": "double", "pan": "L", "fx_init": [["E5", "86"]], "parts": [
+      { "track": 1, "voice": "high", "bars": [1, 8], "ins": "organ", "vol": 116, "transpose": -12 },
+      { "track": 1, "voice": "high", "bars": "RUN", "ins": "bright_strings", "vol": 110, "transpose": -12 }
+    ] },
+    "FM3": { "name": "FM3 Pedal", "role": "bass", "pan": "C", "parts": [
+      { "track": 2, "voice": "low", "bars": [1, 16], "ins": "finger_bass", "vol": 127 }
+    ] },
+    "FM4": { "name": "FM4 Chord", "role": "harmony", "pan": "C", "parts": [
+      { "track": 3, "voice": "high", "bars": [1, 16], "ins": "soft_pad", "vol": 124 }
+    ] },
+    "FM5": { "name": "FM5 Chord R", "role": "counter", "pan": "R", "parts": [
+      { "track": 3, "voice": "low", "bars": [1, 16], "ins": "organ", "vol": 120 }
+    ] },
+    "FM6": { "name": "FM6 Timpani", "role": "drums", "pan": "C", "parts": [] },
+    "PSG1": { "name": "PSG1 Echo", "role": "echo", "parts": [
+      { "track": 1, "voice": "high", "bars": "CALL", "ins": "echo", "vol": 8, "delay_rows": 6 }
+    ] },
+    "PSG2": { "name": "PSG2", "role": "arp", "parts": [] },
+    "PSG3": { "name": "PSG3 Shimmer", "role": "accent", "parts": [
+      { "track": 3, "voice": "high", "bars": "CHORD", "ins": "chord", "vol": 7, "transpose": 12 }
+    ] },
+    "NOISE": { "name": "Noise Thunder", "role": "noise", "parts": [] }
+  },
+  "drums": { "track": 4, "dac": "FM6", "noise": "NOISE", "accent": "beat", "noise_vols": { "crash": 11, "ohat": 12, "hat": 13, "hat_weak": 10, "snare": 13 },
+    "map": { "49": "crash", "41": "tom:D3" } },
+  "extras": []
+}

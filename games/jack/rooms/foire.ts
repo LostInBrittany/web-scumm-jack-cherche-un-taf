@@ -4,7 +4,7 @@ import { defineRoom, type Cmd } from 'web-scumm/content';
 
 // Count Radinoff's revenge, after the rehearsal (storyboard: final).
 const EMBAUCHE: Cmd[] = [
-  { lose: 'fiche_poste' }, { set: 'essai' },
+  { sfx: 'paper' }, { lose: 'fiche_poste' }, { set: 'essai' },
   { say: ['wolfgang', 'Un dossier de Pôle Frousse ! En règle ! Ouaf !'] },
   { say: ['wolfgang', 'Bon. Tu es pris à l\'essai. Ce soir, c\'est Halloween : si le train rouvre et que les clients ressortent contents…'] },
   { say: ['wolfgang', '…ET en payant. Surtout en payant. Alors le poste est à toi.'] },
@@ -42,6 +42,7 @@ const FINALE: Cmd[] = [
     { wait: 800 },
     { show: 'radinoff', fade: 400 },
     { say: ['radinoff', 'C\'était… TERRIFIANT. J\'en reprends un. Tenez, quatre euros.'] },
+    { sfx: 'coins' },
     'Le Comte Radinoff qui paie. Deux fois. Ça, c\'est le vrai miracle d\'Halloween.',
     { set: 'fin' },
   ] },
@@ -51,6 +52,7 @@ export default defineRoom({
   id: 'foire',
   name: 'La fête foraine',
   decor: 'decor/foire',
+  music: 'foire',
   description: 'A small night funfair under a starry purple sky with garlands of coloured bulbs. Left: a pink and white cotton candy stand. Centre: a little carousel with a red roof. Right: a dark ghost train with big eyes over its entrance and a red wagon',
   props: {
     panneau: { name: 'panneau', states: { vide: 'props/panneau_vide', affiche: 'props/panneau_affiche' }, initial: 'vide' },
@@ -92,7 +94,7 @@ export default defineRoom({
         intro: 'Doucement, Jack. Tout doucement.', tooFast: 'Trop vite ! Il crache une petite flamme.',
         win: 'Il ronronne !',
       }, then: [
-        { prop: ['pepite', 'calm'] }, { set: 'pepite_calme' },
+        { sfx: 'success' }, { prop: ['pepite', 'calm'] }, { set: 'pepite_calme' },
         'Pépite se calme… et éternue. Quelque chose vole jusqu\'à moi.',
         { gain: 'nez' },
         { say: ['carrousel', 'Un nez de clown ! Il l\'avait avalé l\'an dernier ! Garde-le, ça te va bien.'] },
@@ -112,7 +114,7 @@ export default defineRoom({
     { id: 'foire.look-panneau-affiche', verb: 'look', a: 'panneau', if: { prop: ['panneau', 'affiche'] }, do: ['Mon affiche. Les passants frissonnent. Les plus courageux font la queue.'] },
     { id: 'foire.affiche', verb: 'use', a: 'photo_ratee', b: 'panneau', if: 'essai', do: [
       'Ma photo ratée. Celle qui a fait peur au photomaton.',
-      { lose: 'photo_ratee' }, { prop: ['panneau', 'affiche'] }, { set: 'affiche_posee' },
+      { sfx: 'paper' }, { lose: 'photo_ratee' }, { prop: ['panneau', 'affiche'] }, { set: 'affiche_posee' },
       { say: ['wolfgang', 'Ouaf ! Rien qu\'en la regardant, j\'ai perdu des poils. Je l\'agrandis en poster géant. C\'est PARFAIT.'] },
       'Des passants s\'arrêtent, frissonnent… et font la queue.',
     ] },
@@ -140,7 +142,7 @@ export default defineRoom({
         }, then: [
           { say: ['guimauve', 'Tu sers très bien, mon chou. Mais les enfants ont peur de ta tête. Ils mangent en tremblant.'] },
           { say: ['guimauve', 'Tiens, ta paie : une barbe à papa. Et bonne chance pour la suite !'] },
-          { gain: 'barbe' }, { set: 'barbe_gagnee' },
+          { sfx: 'success' }, { gain: 'barbe' }, { set: 'barbe_gagnee' },
           'Deuxième licenciement de la journée. Je progresse.',
         ] },
       ] },

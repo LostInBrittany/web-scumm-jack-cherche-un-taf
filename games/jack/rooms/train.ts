@@ -6,7 +6,7 @@ import { defineRoom, type Cmd } from 'web-scumm/content';
 const FIN_GREVE: Cmd[] = [
   { if: { all: ['draps_ok', 'chaines_ok', '!greve_finie'] }, then: [
     { say: ['ginette', 'Camarades, nos revendications sont satisfaites. On reprend le travail !'] },
-    { set: 'greve_finie' }, { prop: ['fantomes', 'travail'] },
+    { set: 'greve_finie' }, { prop: ['fantomes', 'travail'] }, { sfx: 'bouh' },
     { say: ['ginette', 'Merci, la citrouille. Tu es un bon collègue. Pour un employé à l\'essai.'] },
     { say: ['bouh', 'Bouh !'] },
     { toast: 'La grève est finie !' },
@@ -17,6 +17,7 @@ export default defineRoom({
   id: 'train',
   name: 'Le train fantôme',
   decor: 'decor/train',
+  music: 'train',
   description: 'Inside a funfair ghost train: a dark arched tunnel with rails on the floor, cardboard coffins on both sides, cobwebs in the corners, a dusty chandelier hanging from the ceiling, an old electric panel on the wall, and the tunnel exit on the right, lit by a faint glow. Spooky but cosy, more funny than frightening',
   props: {
     fantomes: { name: 'fantômes', states: { greve: 'props/fantomes_greve', travail: 'props/fantomes_travail' }, initial: 'greve' },
@@ -60,7 +61,7 @@ export default defineRoom({
       ...FIN_GREVE,
     ] },
     { id: 'train.chaines', verb: 'give', a: 'chaine', b: 'ginette', do: [
-      { lose: 'chaine' }, { set: 'chaines_ok' },
+      { lose: 'chaine' }, { sfx: 'chains' }, { set: 'chaines_ok' },
       { say: ['ginette', 'Une chaîne de vélo ! Si légère ! Écoutez-moi ce petit cliquetis…'] },
       'Gaston la fait tinter. Bouh se met à pédaler dans le vide.',
       ...FIN_GREVE,
@@ -69,6 +70,7 @@ export default defineRoom({
     { id: 'train.tableau-ok', verb: ['use', 'open', 'push', 'pull'], a: 'tableau', if: 'courant_ok', do: ['Tout marche. Je ne touche plus à rien.'] },
     { id: 'train.tableau', verb: ['use', 'open', 'push', 'pull'], a: 'tableau', do: [
       'Le tableau électrique. On dirait un plat de spaghettis.',
+      { sfx: 'zap' },
       { minigame: 'cables', params: {
         board: 'minigame/cables_board', knot: 'minigame/cables_noeud',
         plugs: { rouge: 'minigame/prise_rouge', bleu: 'minigame/prise_bleu', vert: 'minigame/prise_vert', jaune: 'minigame/prise_jaune' },
@@ -80,7 +82,7 @@ export default defineRoom({
         intro: 'Suis chaque fil dans le nœud, Jack, et branche-le sur la prise de sa couleur.',
         win: 'La lumière revient !',
       }, then: [
-        { prop: ['tableau', 'allume'] }, { set: 'courant_ok' },
+        { sfx: 'light_on' }, { prop: ['tableau', 'allume'] }, { set: 'courant_ok' },
         'Les lampes s\'allument, l\'orgue démarre, les yeux des tableaux s\'allument.',
         'Ça marche ! Je suis électricien, maintenant. Ça fait deux métiers en une soirée.',
       ] },
@@ -144,6 +146,7 @@ export default defineRoom({
         intro: 'Où te cacher pour surgir au bon moment ?',
         win: 'BOUH ! Juste ce qu\'il faut.',
       }, then: [
+        { sfx: 'creak' },
         { say: ['brigadier', 'AAAH ! Enfin, je vois des choses qui font peur ! C\'est merveilleux !'] },
         { say: ['maire', 'Mes boulons ont tremblé ! Je vote pour ! Je revote !'] },
         { say: ['gloubi', 'Gloubi a eu peur ! Gloubi n\'a même pas avalé le wagon ! Encore !'] },

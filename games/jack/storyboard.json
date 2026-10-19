@@ -43,6 +43,9 @@
        "who": "radinoff",
        "text": "Videz votre casier. Et rendez la lanterne, elle appartient au manoir."
       }
+     ],
+     "sfx": [
+      "thunder"
      ]
     },
     {
@@ -144,6 +147,9 @@
        "who": "radinoff",
        "text": "Fermez la porte ! On chauffe pas la rue !"
       }
+     ],
+     "sfx": [
+      "creak"
      ]
     }
    ],
@@ -301,6 +307,9 @@
        "who": "hero",
        "text": "Il me faudrait une tête plus… sympa. Une tête de fête."
       }
+     ],
+     "sfx": [
+      "flash"
      ]
     },
     {
@@ -499,6 +508,9 @@
        "who": "hero",
        "text": "J'ai l'air d'un comptable qui aime les ballons. Parfait."
       }
+     ],
+     "sfx": [
+      "flash"
      ]
     },
     {
@@ -595,6 +607,9 @@
        "who": "hero",
        "text": "Parfait. Enfin, parfaitement horrible."
       }
+     ],
+     "sfx": [
+      "flash"
      ]
     }
    ],
@@ -807,6 +822,9 @@
        "who": "hero",
        "text": "Deuxième licenciement de la journée. Je progresse."
       }
+     ],
+     "sfx": [
+      "success"
      ]
     },
     {
@@ -864,6 +882,9 @@
        "who": "hero",
        "text": "Troisième licenciement. Record personnel."
       }
+     ],
+     "sfx": [
+      "success"
      ]
     },
     {
@@ -914,6 +935,9 @@
        "who": "stage",
        "text": "Le wagon devient une entrée : on peut monter dans le train fantôme."
       }
+     ],
+     "sfx": [
+      "paper"
      ]
     },
     {
@@ -937,6 +961,9 @@
        "who": "stage",
        "text": "Des passants s'arrêtent, frissonnent, et font la queue."
       }
+     ],
+     "sfx": [
+      "paper"
      ]
     },
     {
@@ -1121,6 +1148,9 @@
        "who": "stage",
        "text": "Gaston la fait tinter. Bouh se met à pédaler dans le vide."
       }
+     ],
+     "sfx": [
+      "chains"
      ]
     },
     {
@@ -1140,6 +1170,9 @@
        "who": "stage",
        "text": "La banderole « GRÈVE » est retournée : « RÉOUVERTURE CE SOIR »."
       }
+     ],
+     "sfx": [
+      "bouh"
      ]
     },
     {
@@ -1159,6 +1192,9 @@
        "who": "stage",
        "text": "Mauvais branchement : un gag, jamais un échec. Les squelettes du décor se mettent à danser, ou le wagon part en marche arrière."
       }
+     ],
+     "sfx": [
+      "zap"
      ]
     },
     {
@@ -1174,6 +1210,9 @@
        "who": "hero",
        "text": "Ça marche ! Je suis électricien, maintenant. Ça fait deux métiers en une soirée."
       }
+     ],
+     "sfx": [
+      "light_on"
      ]
     },
     {
@@ -1220,6 +1259,9 @@
        "who": "stage",
        "text": "Ils sortent en riant… et ils paient. Tous les trois. Deux fois."
       }
+     ],
+     "sfx": [
+      "creak"
      ]
     }
    ],
@@ -1394,6 +1436,9 @@
        "who": "stage",
        "text": "FIN. Carte de fin, crédits."
       }
+     ],
+     "sfx": [
+      "coins"
      ]
     }
    ],

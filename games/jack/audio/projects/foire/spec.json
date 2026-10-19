@@ -1,0 +1,45 @@
+{
+  "title": "Le Manège Hanté",
+  "author": "Jack cherche un taf: an original waltz, notes, harmony and arrangement written for the game (compose.py)",
+  "slug": "foire",
+  "comment": "The haunted fair. E minor waltz, 3/4, 138 BPM, 32 bars that loop: the carousel tune on a calliope with a music box an octave up, then again on a wheezy saw lead over strings. Oom on the downbeat, pah-pah on two electric pianos, a faint hat. compose.py writes source.mid.",
+  "source": "source.mid",
+  "bars": 32,
+  "rows_per_beat": 8,
+  "pattern_rows": 48,
+  "hz": 60,
+  "extra_bars": 0,
+  "stop_at_end": false,
+  "sections": { "FIRST": [1, 16], "SECOND": [17, 32] },
+  "channels": {
+    "FM1": { "name": "FM1 Calliope", "role": "lead", "pan": "C", "parts": [
+      { "track": 1, "voice": "high", "bars": "FIRST", "ins": "church_organ", "vol": 127, "vibrato": "34" },
+      { "track": 1, "voice": "high", "bars": "SECOND", "ins": "synth_lead", "vol": 127, "vibrato": "34" }
+    ] },
+    "FM2": { "name": "FM2 Music box L", "role": "double", "pan": "L", "fx_init": [["E5", "86"]], "parts": [
+      { "track": 1, "voice": "high", "bars": "FIRST", "ins": "bell", "vol": 120, "transpose": 12 },
+      { "track": 1, "voice": "high", "bars": "SECOND", "ins": "bright_strings", "vol": 120, "transpose": -12 }
+    ] },
+    "FM3": { "name": "FM3 Oom", "role": "bass", "pan": "C", "parts": [
+      { "track": 2, "voice": "low", "bars": [1, 32], "ins": "finger_bass", "vol": 127 }
+    ] },
+    "FM4": { "name": "FM4 Pah", "role": "harmony", "pan": "C", "parts": [
+      { "track": 3, "voice": "high", "bars": [1, 32], "ins": "e_piano", "vol": 122 }
+    ] },
+    "FM5": { "name": "FM5 Pah R", "role": "counter", "pan": "R", "parts": [
+      { "track": 3, "voice": "low", "bars": [1, 32], "ins": "e_piano", "vol": 116 }
+    ] },
+    "FM6": { "name": "FM6 Pah mid", "role": "harmony", "pan": "C", "parts": [
+      { "track": 3, "voice": "rank1", "bars": [1, 32], "ins": "e_piano", "vol": 127 }
+    ] },
+    "PSG1": { "name": "PSG1 Echo", "role": "echo", "parts": [
+      { "track": 1, "voice": "high", "bars": "SECOND", "ins": "echo", "vol": 8, "delay_rows": 4 }
+    ] },
+    "PSG2": { "name": "PSG2", "role": "arp", "parts": [] },
+    "PSG3": { "name": "PSG3", "role": "accent", "parts": [] },
+    "NOISE": { "name": "Noise", "role": "noise", "parts": [] }
+  },
+  "drums": { "track": 4, "dac": "FM6", "noise": "NOISE", "accent": "beat",
+    "map": { "42": "hat" }, "noise_vols": { "crash": 15, "ohat": 12, "hat": 12, "hat_weak": 12, "snare": 13 } },
+  "extras": []
+}

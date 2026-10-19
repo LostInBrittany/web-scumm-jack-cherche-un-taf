@@ -1,0 +1,13 @@
+ch     role      active   rms dB  target  centroid  pitch
+FM1    lead        41.6s   -21.0     -20    1777Hz  74/74
+FM2    double      41.9s   -28.8     -30    3932Hz  74/74
+FM3    bass        22.3s   -20.1     -20     150Hz  32/32
+FM4    harmony     35.4s   -26.8     -27    1236Hz  64/64
+FM5    counter     36.1s   -30.8     -32     839Hz  64/64
+FM6    harmony     36.0s   -23.3     -27    1235Hz  
+PSG1   echo        20.2s   -43.1     -41    1120Hz  37/37
+PSG2   arp       silent
+PSG3   accent    silent
+NOISE  noise        9.8s   -41.1     -39    2090Hz  
+mix: 41.85s peak 0.679 rms -16.2 dB, L-R 0.1 dB
+ISSUES: none

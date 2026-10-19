@@ -32,3 +32,11 @@ Rendered for the project with the Mega Drive audio pipeline in `tools/audio` (do
 web-scumm is an independent project. "SCUMM-style" describes a kind of game (verbs, a bag, rooms, dialogue with
 choices); the project is not affiliated with, endorsed by or derived from LucasArts, Lucasfilm, Disney or the ScummVM
 project, and ships none of their code, data or art.
+
+## Jack cherche un taf (games/jack/audio)
+Rendered with the same Mega Drive pipeline (`tools/audio`, Furnace not bundled).
+- Music: the opening of Bach's *Toccata in D minor* BWV 565 (the manor) and Grieg's *In the Hall of the Mountain King*
+  (the ghost train), both public domain and written out for the game, plus three original pieces (the square, the fair,
+  the ending jingle). Scores in `games/jack/audio/projects/*/compose.py`, arrangements in `spec.json`.
+- Sound effects: 19 recipes copied from the sample game (CC BY 4.0, attribution "Wano") and 9 written for the game
+  (`games/jack/audio/sfx.json`). The palette gained one patch, `church_organ`.

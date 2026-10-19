@@ -5,6 +5,7 @@ export default defineRoom({
   id: 'manoir',
   name: 'Le Manoir Frissonnant',
   decor: 'decor/manoir',
+  music: 'manoir',
   description: 'The stingy vampire count\'s office in a haunted manor: purple striped wallpaper, cobwebs in the corners, a big window with the full moon, an old wooden desk with a single candle, a heavy iron safe on the right, the count\'s portrait above it, the front door on the left',
   props: {
     casier: { name: 'casier', states: { ferme: 'props/casier_ferme', ouvert: 'props/casier_ouvert' }, initial: 'ferme' },
@@ -42,7 +43,7 @@ export default defineRoom({
     { id: 'manoir.look-casier-ouvert', verb: 'look', a: 'casier', if: { prop: ['casier', 'ouvert'] }, do: ['Vide. Il reste une odeur de citrouille. C\'est moi.'] },
     { id: 'manoir.ouvrir-casier', verb: ['use', 'open', 'push'], a: 'casier', if: { prop: ['casier', 'ferme'] }, do: [
       { anim: ['hero', 'use'], ms: 500 },
-      { prop: ['casier', 'ouvert'] }, { shake: 300 }, { set: 'casier_ouvert' },
+      { sfx: 'locker_open' }, { prop: ['casier', 'ouvert'] }, { shake: 300 }, { set: 'casier_ouvert' },
       { gain: 'lanterne' }, { gain: 'badge' }, { gain: 'chaussette' },
       'Ma lanterne, mon badge d\'employé du mois…',
       '…et une chaussette. Je n\'ai pas de pieds en tissu. Mystère.',
@@ -57,7 +58,7 @@ export default defineRoom({
       'Il faut que je lui parle de cette lanterne.',
     ] },
     { id: 'manoir.sortie', verb: ['use', 'open', 'push', 'pull'], a: 'porte', if: { all: ['casier_ouvert', 'lanterne_ok', '!manoir_quitte'] }, do: [
-      { set: 'manoir_quitte' }, { unlock: 'place' },
+      { sfx: 'creak' }, { set: 'manoir_quitte' }, { unlock: 'place' },
       'Adieu, manoir. Adieu, toiles d\'araignée. Je ne vous oublierai jamais.',
       { say: ['radinoff', 'Fermez la porte ! On chauffe pas la rue !'] },
       { goto: 'place', at: 'manoir' },

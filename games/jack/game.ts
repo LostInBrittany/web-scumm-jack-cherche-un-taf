@@ -57,6 +57,7 @@ export const game = defineGame({
         { id: 'game.intro.l2', say: ['radinoff', 'Hier, vous avez fait peur à un car entier de touristes.'] },
         { id: 'game.intro.l3', say: ['hero', 'Merci patron ! C\'est mon métier.'] },
         { id: 'game.intro.l4', say: ['radinoff', 'Ils sont partis en courant. SANS PAYER. Vous êtes viré.'], shout: true },
+        { sfx: 'thunder' },
         { id: 'game.intro.l5', say: ['hero', 'Viré ? À trois jours d\'Halloween ?'] },
         { id: 'game.intro.l6', say: ['radinoff', 'Videz votre casier. Et rendez la lanterne, elle appartient au manoir.'] },
       ] },
@@ -64,14 +65,22 @@ export const game = defineGame({
     ],
   },
   checkpoints: { ...manoirCp, ...placeCp, ...foireCp, ...trainCp },
-  audio: { music: {}, sfx: {} },
+  // Mega Drive renders built by `npm run audio` (docs/en/AUDIO.md, audio/projects/*/compose.py writes each score):
+  // the manor is Bach's Toccata in D minor and the ghost train Grieg's Mountain King (public domain, written out for
+  // the game), the square, the fair and the ending jingle are original. The effects come from audio/sfx.json.
+  audio: {
+    music: { manoir: 'manoir.mp3', place: 'place.mp3', foire: 'foire.mp3', train: 'train.mp3', fin: 'fin.mp3' },
+    sfx: { click: 'click.mp3', select: 'select.mp3', success: 'success.mp3', error: 'error.mp3', door_open: 'door_open.mp3', door_close: 'door_close.mp3', latch: 'latch.mp3', coins: 'coins.mp3', cloth: 'cloth.mp3', paper: 'paper.mp3', ring: 'ring.mp3', drop: 'drop.mp3', bell: 'bell.mp3', glass: 'glass.mp3', metal: 'metal.mp3', shuffle: 'shuffle.mp3', chips: 'chips.mp3', pluck: 'pluck.mp3', bong: 'bong.mp3', burp: 'burp.mp3', light_on: 'light_on.mp3', locker_open: 'locker_open.mp3', flash: 'flash.mp3', zap: 'zap.mp3', bouh: 'bouh.mp3', creak: 'creak.mp3', thunder: 'thunder.mp3', chains: 'chains.mp3' },
+  },
   skin: {
     icons: { map: 'starter/ui/map', pause: 'starter/ui/pause', music: 'starter/ui/music', spark: 'starter/ui/spark', pin: 'starter/ui/pin', news: 'starter/ui/news', plane: 'starter/ui/plane', car: 'starter/ui/car', confetti: ['starter/ui/confetti1', 'starter/ui/confetti2'] },
-    sounds: {},
+    sounds: { end: 'fin', confetti: 'success' },
     pixelArt: true,
   },
-  titleScreen: { decor: 'decor/place', footer: 'Jack cherche un taf' },
-  credits: ['Jack cherche un taf', '', 'Une histoire d\'Anna et Horacio', '', 'Fait avec web-scumm'],
+  titleScreen: { decor: 'decor/place', music: 'manoir', footer: 'Jack cherche un taf' },
+  credits: ['Jack cherche un taf', '', 'Une histoire d\'Anna et Horacio', '',
+    'Musique façon Mega Drive : Bach (Toccata en ré mineur) et Grieg (Dans l\'antre du roi de la montagne), arrangés pour le jeu, et trois airs originaux', '',
+    'Bruitages : en partie de Wano, projet web-scumm (CC BY 4.0)', '', 'Fait avec web-scumm'],
   ui: {
     walkTo: 'Aller à', newGame: 'Nouvelle partie', continue: 'Continuer', confirmErase: 'Effacer la partie sauvegardée ?', yes: 'Oui', no: 'Non',
     pause: 'Pause', resume: 'Reprendre', music: 'Musique', sfx: 'Sons', autosave: 'Sauvegarde auto', credits: 'Crédits', restart: 'Recommencer',

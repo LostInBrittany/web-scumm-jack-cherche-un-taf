@@ -1,0 +1,46 @@
+{
+  "title": "La Place des Monstres",
+  "author": "Jack cherche un taf: an original tune, notes, harmony and arrangement written for the game (compose.py)",
+  "slug": "place",
+  "comment": "The village square. D minor, 108 BPM, 16 bars that loop: a pizzicato tiptoe tune doubled by a bone xylophone, a creeping staccato bass, held bassoon chords, off-beat hats. compose.py writes source.mid.",
+  "source": "source.mid",
+  "bars": 16,
+  "rows_per_beat": 8,
+  "pattern_rows": 64,
+  "hz": 60,
+  "extra_bars": 0,
+  "stop_at_end": false,
+  "sections": { "TUNE": [1, 8], "MIDDLE": [9, 12], "RETURN": [13, 16] },
+  "channels": {
+    "FM1": { "name": "FM1 Pizzicato", "role": "lead", "pan": "C", "parts": [
+      { "track": 1, "voice": "high", "bars": "TUNE", "ins": "muted_pluck", "vol": 127 },
+      { "track": 1, "voice": "high", "bars": "MIDDLE", "ins": "horn_section", "vol": 127, "vibrato": "23" },
+      { "track": 1, "voice": "high", "bars": "RETURN", "ins": "muted_pluck", "vol": 127 }
+    ] },
+    "FM2": { "name": "FM2 Bone xylophone R", "role": "double", "pan": "R", "fx_init": [["E5", "86"]], "parts": [
+      { "track": 1, "voice": "high", "bars": "TUNE", "ins": "bell", "vol": 110, "transpose": 12 },
+      { "track": 1, "voice": "high", "bars": "RETURN", "ins": "bell", "vol": 110, "transpose": 12 }
+    ] },
+    "FM3": { "name": "FM3 Bass", "role": "bass", "pan": "C", "parts": [
+      { "track": 2, "voice": "low", "bars": [1, 16], "ins": "finger_bass", "vol": 127 }
+    ] },
+    "FM4": { "name": "FM4 Bassoons", "role": "harmony", "pan": "C", "parts": [
+      { "track": 3, "voice": "high", "bars": [1, 16], "ins": "horn_section", "vol": 116 }
+    ] },
+    "FM5": { "name": "FM5 Bassoons L", "role": "counter", "pan": "L", "parts": [
+      { "track": 3, "voice": "low", "bars": [1, 16], "ins": "soft_pad", "vol": 116 }
+    ] },
+    "FM6": { "name": "FM6 Drums", "role": "drums", "pan": "C", "parts": [] },
+    "PSG1": { "name": "PSG1 Echo", "role": "echo", "parts": [
+      { "track": 1, "voice": "high", "bars": "MIDDLE", "ins": "echo", "vol": 8, "delay_rows": 4, "transpose": 12 }
+    ] },
+    "PSG2": { "name": "PSG2 Arp", "role": "arp", "parts": [
+      { "type": "arp", "root_track": 2, "voice": "low", "bars": "MIDDLE", "every_rows": 2, "transpose": 24, "arp": "37", "ins": "arp_pluck", "vol": 8, "weak_vol": 6 }
+    ] },
+    "PSG3": { "name": "PSG3", "role": "accent", "parts": [] },
+    "NOISE": { "name": "Noise", "role": "noise", "parts": [] }
+  },
+  "drums": { "track": 4, "dac": "FM6", "noise": "NOISE", "accent": "beat",
+    "map": { "36": "kick", "38": "ghost", "42": "hat" } },
+  "extras": []
+}

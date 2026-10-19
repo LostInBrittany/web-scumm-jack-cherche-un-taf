@@ -2,16 +2,267 @@
   "licences": {
     "allow": [
       "CC BY 4.0",
-      "CC0 1.0"
+      "CC0 1.0",
+      "own work"
     ]
   },
   "assets": [
     {
       "match": "img:*",
-      "source": "Placeholder drawn from shapes by tools/placeholder-art.py (web-scumm template): replace before a release",
-      "author": "web-scumm",
-      "licence": "CC0 1.0",
-      "status": "placeholder"
+      "source": "Pixel art generated with an image model from the prompts in games/jack/prompts.md, prompts-episode2.md and ART_BRIEF.md; the original sheets are in games/jack/art/sheets, cut by tools/cut-sheet.py and cleaned by games/jack/art-tools",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:click.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:select.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:success.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:error.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:door_open.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:door_close.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:latch.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:coins.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:cloth.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:paper.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:ring.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:drop.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:bell.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:glass.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:metal.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:shuffle.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:chips.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:pluck.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:bong.mp3",
+      "source": "The web-scumm sample game's recipe (games/demo/audio/sfx.json), copied into games/jack/audio/sfx.json and rendered by npm run audio",
+      "author": "Wano",
+      "licence": "CC BY 4.0",
+      "status": "final",
+      "note": "Attribution: \"Sound effects by Wano, from the web-scumm project\""
+    },
+    {
+      "match": "sfx:burp.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:light_on.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:locker_open.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:flash.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:zap.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:bouh.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:creak.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:thunder.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "sfx:chains.mp3",
+      "source": "A recipe written for the game in games/jack/audio/sfx.json, rendered by npm run audio from the shared Mega Drive palette",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "music:manoir.mp3",
+      "source": "The opening of Bach's Toccata in D minor BWV 565 (public domain), written out and arranged for the game: games/jack/audio/projects/manoir (compose.py, spec.json), rendered by npm run audio",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "music:train.mp3",
+      "source": "Grieg's In the Hall of the Mountain King (public domain), written out and arranged for the game: games/jack/audio/projects/train (compose.py, spec.json), rendered by npm run audio",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "music:place.mp3",
+      "source": "An original piece written for the game: games/jack/audio/projects/place (compose.py, spec.json), rendered by npm run audio",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "music:foire.mp3",
+      "source": "An original piece written for the game: games/jack/audio/projects/foire (compose.py, spec.json), rendered by npm run audio",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
+    },
+    {
+      "match": "music:fin.mp3",
+      "source": "An original piece written for the game: games/jack/audio/projects/fin (compose.py, spec.json), rendered by npm run audio",
+      "author": "Anna et Horacio",
+      "licence": "own work",
+      "status": "final"
     }
   ]
 }

@@ -5,7 +5,7 @@ import { defineRoom, type Cmd } from 'web-scumm/content';
 // Shared by "use photomaton" (with the nose in the bag) and "use nose with photomaton".
 const PHOTO_REUSSIE: Cmd[] = [
   'Nez rouge en place. Sourire en place. Enfin, sourire de citrouille.',
-  { lose: 'nez' }, { shake: 200 },
+  { lose: 'nez' }, { sfx: 'flash' }, { shake: 200 },
   'FLASH. La machine hésite… puis elle rigole. Une jolie photo sort.',
   { gain: 'photo' }, { set: 'photo_ok' },
   'J\'ai l\'air d\'un comptable qui aime les ballons. Parfait.',
@@ -14,6 +14,7 @@ export default defineRoom({
   id: 'place',
   name: 'La place du village',
   decor: 'decor/place',
+  music: 'place',
   description: 'A cobbled village square at dusk, pumpkins everywhere. Left: the job agency "Pôle Frousse" with a counter window. Centre: the town hall with columns, steps and a flag. Right: a road sign to the funfair. A photo booth between them',
   props: {
     photomaton: { name: 'photomaton', img: 'props/photomaton' },
@@ -54,14 +55,14 @@ export default defineRoom({
     { id: 'place.photo-reussie', verb: 'use', a: 'photomaton', if: { all: [{ has: 'nez' }, '!photo_ok'] }, do: PHOTO_REUSSIE },
     { id: 'place.photo-affiche', verb: 'use', a: 'photomaton', if: { all: ['photo_ok', 'essai', '!affiche_posee', { not: { has: 'photo_ratee' } }] }, do: [
       'Sans le nez, cette fois. Pour la science.',
-      { shake: 600 },
+      { sfx: 'flash' }, { shake: 600 },
       'FLASH. La machine hurle et crache une photo terrifiante.',
       { gain: 'photo_ratee' },
       'Parfait. Enfin, parfaitement horrible.',
     ] },
     { id: 'place.photo-deja', verb: 'use', a: 'photomaton', if: 'photo_ok', do: ['J\'ai déjà ma photo. Je ne vais pas abuser.'] },
     { id: 'place.photo-ratee', verb: 'use', a: 'photomaton', if: '!photo_ratee_faite', do: [
-      { shake: 600 },
+      { sfx: 'flash' }, { shake: 600 },
       'Clic. Flash. Hmm. La machine tremble.',
       'Elle tousse de la fumée… et crache une photo.',
       { gain: 'photo_ratee' }, { set: 'photo_ratee_faite' },
@@ -97,7 +98,7 @@ export default defineRoom({
     { id: 'place.barbe-gloubi', verb: 'give', a: 'barbe', b: 'gloubi', do: [
       { lose: 'barbe' },
       { say: ['gloubi', 'BARBE À PAPA ! Gloubi heureux ! Gloubi trèèès heureux !'] },
-      { shake: 700 }, { set: 'gloubi_rot' }, { show: 'tas' },
+      { sfx: 'burp' }, { shake: 700 }, { set: 'gloubi_rot' }, { show: 'tas' },
       { say: ['gloubi', 'BUUUUURP.'], shout: true },
       'Un parapluie, un vélo d\'enfant, un dentier… et un boulon !',
       { say: ['gloubi', 'Pardon. Gloubi poli d\'habitude.'] },
@@ -125,7 +126,7 @@ export default defineRoom({
 
     // Le Brigadier
     { id: 'place.lanterne-brigadier', verb: 'give', a: 'lanterne', b: 'brigadier', do: [
-      { lose: 'lanterne' }, { set: 'route_ouverte' },
+      { lose: 'lanterne' }, { set: 'route_ouverte' }, { sfx: 'light_on' },
       'Il pose la lanterne sur son col. Elle s\'allume.',
       { say: ['brigadier', 'Oh ! OH ! Je vois ! Il y a un ciel ! Il est ORANGE ?'] },
       'Non, ça c\'est la lanterne. Le ciel est violet.',

@@ -1,0 +1,44 @@
+{
+  "title": "Le Train Fantôme (after Grieg)",
+  "author": "Jack cherche un taf: Grieg's In the Hall of the Mountain King (1875, public domain), notes, harmony and arrangement written for the game (compose.py)",
+  "slug": "train",
+  "comment": "Wolfgang's ghost train. B minor, 132 BPM, 16 bars that loop: the theme low on the horns, an octave up on strings over a power guitar, on the dominant in brass, then again with the whole band. No third-party transcription: compose.py writes source.mid.",
+  "source": "source.mid",
+  "bars": 16,
+  "rows_per_beat": 8,
+  "pattern_rows": 64,
+  "hz": 60,
+  "extra_bars": 0,
+  "stop_at_end": false,
+  "sections": { "LOW": [1, 4], "UP": [5, 8], "DOMINANT": [9, 12], "ALL": [13, 16] },
+  "channels": {
+    "FM1": { "name": "FM1 Theme", "role": "lead", "pan": "C", "parts": [
+      { "track": 1, "voice": "high", "bars": "LOW", "ins": "horn_section", "vol": 127 },
+      { "track": 1, "voice": "high", "bars": "UP", "ins": "bright_strings", "vol": 127 },
+      { "track": 1, "voice": "high", "bars": "DOMINANT", "ins": "lead_brass", "vol": 127 },
+      { "track": 1, "voice": "high", "bars": "ALL", "ins": "synth_lead", "vol": 127, "vibrato": "23" }
+    ] },
+    "FM2": { "name": "FM2 Guitar L", "role": "double", "pan": "L", "fx_init": [["E5", "86"]], "parts": [
+      { "track": 1, "voice": "high", "bars": [5, 16], "ins": "power_guitar", "vol": 112, "transpose": -12 }
+    ] },
+    "FM3": { "name": "FM3 Bass", "role": "bass", "pan": "C", "parts": [
+      { "track": 2, "voice": "low", "bars": [1, 16], "ins": "slap_bass", "vol": 127 }
+    ] },
+    "FM4": { "name": "FM4 Stabs", "role": "harmony", "pan": "C", "parts": [
+      { "track": 3, "voice": "high", "bars": [5, 16], "ins": "organ", "vol": 127 }
+    ] },
+    "FM5": { "name": "FM5 Stabs R", "role": "counter", "pan": "R", "parts": [
+      { "track": 3, "voice": "low", "bars": [5, 16], "ins": "e_piano", "vol": 108 }
+    ] },
+    "FM6": { "name": "FM6 Drums", "role": "drums", "pan": "C", "parts": [] },
+    "PSG1": { "name": "PSG1 Echo", "role": "echo", "parts": [
+      { "track": 1, "voice": "high", "bars": "ALL", "ins": "echo", "vol": 8, "delay_rows": 4, "transpose": 12 }
+    ] },
+    "PSG2": { "name": "PSG2", "role": "arp", "parts": [] },
+    "PSG3": { "name": "PSG3", "role": "accent", "parts": [] },
+    "NOISE": { "name": "Noise", "role": "noise", "parts": [] }
+  },
+  "drums": { "track": 4, "dac": "FM6", "noise": "NOISE", "accent": "beat",
+    "map": { "36": "kick", "38": "snare", "42": "hat" }, "extra_crash": ["13:1"] },
+  "extras": []
+}
