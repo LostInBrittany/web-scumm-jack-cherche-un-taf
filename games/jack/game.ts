@@ -55,6 +55,7 @@ export const game = defineGame({
     unlocked: ['manoir'],
     intro: [
       { cutscene: [
+        { face: 'radinoff' },
         { id: 'game.intro.l1', say: ['radinoff', 'Jack, mon petit. Asseyez-vous. Ah non, pas sur la chaise, elle est neuve.'] },
         { id: 'game.intro.l2', say: ['radinoff', 'Hier, vous avez fait peur à un car entier de touristes.'] },
         { id: 'game.intro.l3', say: ['hero', 'Merci patron ! C\'est mon métier.'] },

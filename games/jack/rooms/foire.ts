@@ -15,12 +15,14 @@ const EMBAUCHE: Cmd[] = [
 
 const FINALE: Cmd[] = [
   { cutscene: [
+    // Jack comes back from the train, on Wolfgang's right: they face each other.
+    { face: 'wolfgang' }, { face: 'right', who: 'wolfgang' },
     { say: ['wolfgang', 'Ils ont payé. TOUS. Deux fois. Ouaf !'] },
     { say: ['wolfgang', 'Jack, tu n\'es plus à l\'essai. Tu es la vedette du train fantôme.'] },
     'Engagé. Pour faire peur. Juste ce qu\'il faut.',
     { say: ['mireille', 'Bravo, Jack ! Je savais que tu trouverais.'] },
     { wait: 800 },
-    { set: 'comte_arrive' }, { show: 'radinoff', fade: 900 },
+    { set: 'comte_arrive' }, { show: 'radinoff', fade: 900 }, { face: 'radinoff' },
     { say: ['radinoff', 'Jack ! Mon petit Jack ! Mon manoir est vide. Les touristes n\'ont plus peur. Ils pique-niquent dans la crypte !'] },
     { say: ['radinoff', 'Revenez. Je vous réembauche. Au double du salaire !'] },
     'Le double de quoi ?',
@@ -33,6 +35,7 @@ const FINALE: Cmd[] = [
   ] },
   { cutscene: [
     { say: ['radinoff', 'Vous refusez ? Moi qui étais prêt à vous offrir… un ticket de bus. Usagé.'] },
+    { face: 'radinoff', who: 'wolfgang' },
     { say: ['wolfgang', 'Monsieur le Comte, un tour de train fantôme ? Deux euros.'] },
     { say: ['radinoff', 'Deux euros ?! …Bon. Pour voir ce qu\'il a de si spécial.'] },
     { hide: 'radinoff', fade: 600 },
