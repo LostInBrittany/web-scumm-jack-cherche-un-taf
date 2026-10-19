@@ -46,7 +46,7 @@ export const characters: Record<string, CharacterDef> = {
     description: 'a very slow, very polite mummy office clerk wrapped in beige bandages, round glasses, a pen behind the ear',
     refuse: 'Ce n\'est pas dans la liiiste des pièces à fournir.', hug: 'Attentiooon, je me déroule.' },
   maire: { name: 'M. le Maire', color: '#9be07c', height: 150, kind: ['person', 'monster'], portrait: 'maire/r1c2', ...npc('maire'),
-    variants: [{ if: 'lettre_ok', ...npc('maire_ok') }],
+    variants: [{ if: 'lettre_ok', portrait: 'maire_ok/r1c2', ...npc('maire_ok') }],
     description: 'Frankenstein\'s monster as a mayor: green square head with flat top and black hair, neck bolts, dark suit, red tie, blue-white-red mayor sash, big friendly politician smile',
     refuse: 'Je n\'accepte pas les cadeaux. Sauf les voix.', hug: 'Une poignée de main, plutôt. Si elle tient.' },
   gloubi: { name: 'Gloubi', color: '#8ee05a', height: 85, kind: ['person', 'blob'], portrait: 'gloubi/r1c2', ...npc('gloubi'),

@@ -1,384 +1,384 @@
 {
  "images": {
   "bandelette/r1c2": [
-   67,
-   90
+   70,
+   89
   ],
   "bandelette/r2c1": [
-   66,
-   109
+   71,
+   113
   ],
   "bandelette/r2c2": [
-   66,
-   107
-  ],
-  "bandelette/r2c3": [
-   52,
-   110
-  ],
-  "bandelette/r2c4": [
    68,
-   109
-  ],
-  "bandelette/r2c5": [
-   74,
-   109
-  ],
-  "bandelette/r2c6": [
-   63,
-   109
-  ],
-  "bandelette/r3c1": [
-   50,
-   113
-  ],
-  "bandelette/r3c2": [
-   48,
-   109
-  ],
-  "bandelette/r3c3": [
-   41,
-   113
-  ],
-  "bandelette/r3c4": [
-   71,
    112
   ],
-  "bandelette/r3c5": [
-   89,
-   111
+  "bandelette/r2c3": [
+   62,
+   115
   ],
-  "bandelette/r3c6": [
-   89,
-   94
+  "bandelette/r2c4": [
+   73,
+   113
   ],
-  "bandelette/r4c1": [
-   49,
-   120
+  "bandelette/r2c5": [
+   81,
+   112
   ],
-  "bandelette/r4c2": [
-   49,
-   119
+  "bandelette/r2c6": [
+   72,
+   112
   ],
-  "bandelette/r4c3": [
-   48,
-   120
-  ],
-  "bandelette/r4c4": [
-   51,
-   117
-  ],
-  "bandelette/r4c5": [
-   48,
-   116
-  ],
-  "bandelette/r4c6": [
-   52,
+  "bandelette/r3c1": [
+   60,
    114
   ],
+  "bandelette/r3c2": [
+   55,
+   113
+  ],
+  "bandelette/r3c3": [
+   45,
+   114
+  ],
+  "bandelette/r3c4": [
+   78,
+   114
+  ],
+  "bandelette/r3c5": [
+   99,
+   113
+  ],
+  "bandelette/r3c6": [
+   92,
+   98
+  ],
+  "bandelette/r4c1": [
+   59,
+   124
+  ],
+  "bandelette/r4c2": [
+   60,
+   124
+  ],
+  "bandelette/r4c3": [
+   58,
+   122
+  ],
+  "bandelette/r4c4": [
+   60,
+   122
+  ],
+  "bandelette/r4c5": [
+   58,
+   122
+  ],
+  "bandelette/r4c6": [
+   60,
+   122
+  ],
   "bouh/r1c2": [
-   74,
-   84
+   79,
+   83
   ],
   "bouh/r2c1": [
-   72,
-   81
+   77,
+   86
   ],
   "bouh/r2c2": [
-   64,
-   79
+   70,
+   86
   ],
   "bouh/r2c3": [
-   70,
-   82
+   69,
+   87
   ],
   "bouh/r2c4": [
-   71,
-   80
-  ],
-  "bouh/r2c5": [
-   70,
-   81
-  ],
-  "bouh/r2c6": [
-   66,
-   81
-  ],
-  "bouh/r3c1": [
-   63,
-   84
-  ],
-  "bouh/r3c2": [
    69,
    84
   ],
+  "bouh/r2c5": [
+   75,
+   86
+  ],
+  "bouh/r2c6": [
+   71,
+   87
+  ],
+  "bouh/r3c1": [
+   70,
+   85
+  ],
+  "bouh/r3c2": [
+   75,
+   86
+  ],
   "bouh/r3c3": [
-   59,
-   84
+   65,
+   89
   ],
   "bouh/r3c4": [
-   84,
-   83
+   89,
+   88
   ],
   "bouh/r3c5": [
-   93,
-   83
+   99,
+   88
   ],
   "bouh/r3c6": [
-   102,
-   75
+   104,
+   77
   ],
   "bouh/r4c1": [
-   63,
-   84
-  ],
-  "bouh/r4c2": [
-   60,
-   84
-  ],
-  "bouh/r4c3": [
-   61,
-   84
-  ],
-  "bouh/r4c4": [
-   62,
-   82
-  ],
-  "bouh/r4c5": [
-   63,
-   82
-  ],
-  "bouh/r4c6": [
-   65,
-   82
-  ],
-  "brigadier/r1c2": [
-   92,
-   62
-  ],
-  "brigadier/r2c1": [
-   77,
-   100
-  ],
-  "brigadier/r2c2": [
-   75,
+   70,
    96
   ],
-  "brigadier/r2c3": [
-   70,
+  "bouh/r4c2": [
+   72,
+   98
+  ],
+  "bouh/r4c3": [
+   76,
+   98
+  ],
+  "bouh/r4c4": [
+   75,
    99
   ],
-  "brigadier/r2c4": [
-   80,
+  "bouh/r4c5": [
+   75,
    99
   ],
-  "brigadier/r2c5": [
-   89,
+  "bouh/r4c6": [
+   75,
    99
   ],
-  "brigadier/r2c6": [
-   73,
+  "brigadier/r1c2": [
+   95,
+   64
+  ],
+  "brigadier/r2c1": [
+   79,
+   103
+  ],
+  "brigadier/r2c2": [
+   81,
    100
   ],
+  "brigadier/r2c3": [
+   78,
+   101
+  ],
+  "brigadier/r2c4": [
+   82,
+   102
+  ],
+  "brigadier/r2c5": [
+   93,
+   102
+  ],
+  "brigadier/r2c6": [
+   77,
+   101
+  ],
   "brigadier/r3c1": [
+   85,
+   103
+  ],
+  "brigadier/r3c2": [
+   78,
+   104
+  ],
+  "brigadier/r3c3": [
+   64,
+   104
+  ],
+  "brigadier/r3c4": [
+   105,
+   101
+  ],
+  "brigadier/r3c5": [
+   117,
+   101
+  ],
+  "brigadier/r3c6": [
+   116,
+   85
+  ],
+  "brigadier/r4c1": [
+   85,
+   110
+  ],
+  "brigadier/r4c2": [
+   78,
+   109
+  ],
+  "brigadier/r4c3": [
+   78,
+   109
+  ],
+  "brigadier/r4c4": [
+   81,
+   110
+  ],
+  "brigadier/r4c5": [
+   80,
+   109
+  ],
+  "brigadier/r4c6": [
+   83,
+   110
+  ],
+  "brigadier_lanterne/r1c2": [
+   117,
+   100
+  ],
+  "brigadier_lanterne/r2c1": [
+   79,
+   123
+  ],
+  "brigadier_lanterne/r2c2": [
+   77,
+   122
+  ],
+  "brigadier_lanterne/r2c3": [
+   75,
+   123
+  ],
+  "brigadier_lanterne/r2c4": [
+   83,
+   124
+  ],
+  "brigadier_lanterne/r2c5": [
+   92,
+   123
+  ],
+  "brigadier_lanterne/r2c6": [
+   78,
+   124
+  ],
+  "brigadier_lanterne/r3c1": [
+   85,
+   123
+  ],
+  "brigadier_lanterne/r3c2": [
+   74,
+   123
+  ],
+  "brigadier_lanterne/r3c3": [
+   60,
+   123
+  ],
+  "brigadier_lanterne/r3c4": [
+   92,
+   121
+  ],
+  "brigadier_lanterne/r3c5": [
+   112,
+   124
+  ],
+  "brigadier_lanterne/r3c6": [
+   111,
+   106
+  ],
+  "brigadier_lanterne/r4c1": [
+   80,
+   126
+  ],
+  "brigadier_lanterne/r4c2": [
+   73,
+   126
+  ],
+  "brigadier_lanterne/r4c3": [
+   71,
+   125
+  ],
+  "brigadier_lanterne/r4c4": [
+   75,
+   125
+  ],
+  "brigadier_lanterne/r4c5": [
+   73,
+   125
+  ],
+  "brigadier_lanterne/r4c6": [
+   73,
+   125
+  ],
+  "carrousel/r1c2": [
    79,
    100
   ],
-  "brigadier/r3c2": [
-   72,
-   101
-  ],
-  "brigadier/r3c3": [
-   59,
-   101
-  ],
-  "brigadier/r3c4": [
-   99,
-   99
-  ],
-  "brigadier/r3c5": [
-   113,
-   99
-  ],
-  "brigadier/r3c6": [
-   113,
-   84
-  ],
-  "brigadier/r4c1": [
-   81,
-   104
-  ],
-  "brigadier/r4c2": [
-   72,
-   104
-  ],
-  "brigadier/r4c3": [
-   71,
-   103
-  ],
-  "brigadier/r4c4": [
-   76,
-   107
-  ],
-  "brigadier/r4c5": [
-   74,
-   106
-  ],
-  "brigadier/r4c6": [
-   76,
-   107
-  ],
-  "brigadier_lanterne/r1c2": [
-   97,
-   90
-  ],
-  "brigadier_lanterne/r2c1": [
-   74,
-   115
-  ],
-  "brigadier_lanterne/r2c2": [
-   72,
-   114
-  ],
-  "brigadier_lanterne/r2c3": [
-   64,
-   116
-  ],
-  "brigadier_lanterne/r2c4": [
-   77,
-   116
-  ],
-  "brigadier_lanterne/r2c5": [
-   86,
-   118
-  ],
-  "brigadier_lanterne/r2c6": [
-   73,
-   115
-  ],
-  "brigadier_lanterne/r3c1": [
-   77,
-   119
-  ],
-  "brigadier_lanterne/r3c2": [
-   65,
-   118
-  ],
-  "brigadier_lanterne/r3c3": [
-   56,
-   120
-  ],
-  "brigadier_lanterne/r3c4": [
-   90,
-   118
-  ],
-  "brigadier_lanterne/r3c5": [
-   106,
-   119
-  ],
-  "brigadier_lanterne/r3c6": [
-   104,
-   105
-  ],
-  "brigadier_lanterne/r4c1": [
-   72,
-   123
-  ],
-  "brigadier_lanterne/r4c2": [
-   66,
-   123
-  ],
-  "brigadier_lanterne/r4c3": [
-   64,
-   121
-  ],
-  "brigadier_lanterne/r4c4": [
-   64,
-   122
-  ],
-  "brigadier_lanterne/r4c5": [
-   69,
-   122
-  ],
-  "brigadier_lanterne/r4c6": [
-   65,
-   123
-  ],
-  "carrousel/r1c2": [
-   80,
-   101
-  ],
   "carrousel/r2c1": [
-   70,
-   121
+   71,
+   122
   ],
   "carrousel/r2c2": [
    66,
-   121
-  ],
-  "carrousel/r2c3": [
-   61,
-   121
-  ],
-  "carrousel/r2c4": [
-   69,
-   120
-  ],
-  "carrousel/r2c5": [
-   76,
-   120
-  ],
-  "carrousel/r2c6": [
-   66,
-   120
-  ],
-  "carrousel/r3c1": [
-   66,
    122
   ],
+  "carrousel/r2c3": [
+   55,
+   122
+  ],
+  "carrousel/r2c4": [
+   70,
+   122
+  ],
+  "carrousel/r2c5": [
+   75,
+   122
+  ],
+  "carrousel/r2c6": [
+   64,
+   122
+  ],
+  "carrousel/r3c1": [
+   68,
+   123
+  ],
   "carrousel/r3c2": [
-   57,
-   120
+   59,
+   121
   ],
   "carrousel/r3c3": [
-   43,
+   45,
    122
   ],
   "carrousel/r3c4": [
-   84,
+   87,
    122
   ],
   "carrousel/r3c5": [
-   99,
-   121
+   100,
+   122
   ],
   "carrousel/r3c6": [
-   104,
-   103
+   101,
+   104
   ],
   "carrousel/r4c1": [
-   61,
-   129
+   60,
+   125
   ],
   "carrousel/r4c2": [
-   60,
-   129
+   62,
+   125
   ],
   "carrousel/r4c3": [
-   55,
-   129
+   57,
+   125
   ],
   "carrousel/r4c4": [
-   56,
-   127
+   57,
+   124
   ],
   "carrousel/r4c5": [
-   52,
-   129
+   55,
+   125
   ],
   "carrousel/r4c6": [
    58,
-   129
+   124
   ],
   "decor/carte": [
    640,
@@ -401,107 +401,107 @@
    400
   ],
   "ginette/r1c2": [
-   100,
-   92
+   91,
+   83
   ],
   "ginette/r2c1": [
-   90,
-   108
+   94,
+   113
   ],
   "ginette/r2c2": [
-   93,
-   105
+   94,
+   108
   ],
   "ginette/r2c3": [
-   83,
-   109
+   85,
+   114
   ],
   "ginette/r2c4": [
-   86,
-   108
-  ],
-  "ginette/r2c5": [
-   96,
-   108
-  ],
-  "ginette/r2c6": [
    89,
-   111
-  ],
-  "ginette/r3c1": [
-   72,
    110
   ],
-  "ginette/r3c2": [
-   80,
+  "ginette/r2c5": [
+   97,
+   113
+  ],
+  "ginette/r2c6": [
+   90,
+   115
+  ],
+  "ginette/r3c1": [
+   76,
    108
   ],
+  "ginette/r3c2": [
+   82,
+   104
+  ],
   "ginette/r3c3": [
-   72,
-   111
+   74,
+   104
   ],
   "ginette/r3c4": [
-   98,
-   109
-  ],
-  "ginette/r3c5": [
-   111,
-   111
-  ],
-  "ginette/r3c6": [
-   115,
-   102
-  ],
-  "ginette/r4c1": [
-   72,
-   109
-  ],
-  "ginette/r4c2": [
-   69,
-   105
-  ],
-  "ginette/r4c3": [
-   71,
+   101,
    106
   ],
+  "ginette/r3c5": [
+   110,
+   108
+  ],
+  "ginette/r3c6": [
+   117,
+   101
+  ],
+  "ginette/r4c1": [
+   74,
+   115
+  ],
+  "ginette/r4c2": [
+   74,
+   114
+  ],
+  "ginette/r4c3": [
+   76,
+   116
+  ],
   "ginette/r4c4": [
-   78,
-   102
+   79,
+   115
   ],
   "ginette/r4c5": [
    79,
-   101
+   111
   ],
   "ginette/r4c6": [
-   76,
-   107
+   80,
+   116
   ],
   "gloubi/r1c2": [
    108,
    82
   ],
   "gloubi/r2c1": [
-   101,
-   90
+   105,
+   91
   ],
   "gloubi/r2c2": [
-   108,
+   111,
    77
   ],
   "gloubi/r2c3": [
-   93,
+   95,
    95
   ],
   "gloubi/r2c4": [
-   97,
-   95
+   103,
+   94
   ],
   "gloubi/r2c5": [
-   109,
+   113,
    80
   ],
   "gloubi/r2c6": [
-   96,
+   100,
    95
   ],
   "gloubi/r3c1": [
@@ -509,75 +509,75 @@
    104
   ],
   "gloubi/r3c2": [
-   101,
-   104
-  ],
-  "gloubi/r3c3": [
-   86,
-   105
-  ],
-  "gloubi/r3c4": [
-   114,
+   102,
    103
   ],
+  "gloubi/r3c3": [
+   88,
+   104
+  ],
+  "gloubi/r3c4": [
+   115,
+   104
+  ],
   "gloubi/r3c5": [
-   123,
-   102
+   126,
+   104
   ],
   "gloubi/r3c6": [
-   120,
-   84
+   121,
+   85
   ],
   "gloubi/r4c1": [
-   97,
-   116
+   98,
+   119
   ],
   "gloubi/r4c2": [
-   96,
-   117
+   98,
+   119
   ],
   "gloubi/r4c3": [
-   94,
-   116
+   96,
+   119
   ],
   "gloubi/r4c4": [
-   96,
+   97,
    118
   ],
   "gloubi/r4c5": [
-   98,
-   117
+   100,
+   120
   ],
   "gloubi/r4c6": [
-   94,
-   118
+   98,
+   119
   ],
   "guimauve/r1c2": [
-   74,
+   77,
    92
   ],
   "guimauve/r2c1": [
-   83,
-   119
+   88,
+   120
   ],
   "guimauve/r2c2": [
-   87,
+   90,
    117
   ],
   "guimauve/r2c3": [
-   81,
-   118
+   87,
+   119
   ],
   "guimauve/r2c4": [
-   83,
-   117
+   88,
+   118
   ],
   "guimauve/r2c5": [
-   86,
+   88,
    118
   ],
   "guimauve/r2c6": [
-   84,
+   88,
    118
   ],
   "guimauve/r3c1": [
@@ -585,87 +585,87 @@
    120
   ],
   "guimauve/r3c2": [
-   74,
-   118
+   79,
+   119
   ],
   "guimauve/r3c3": [
-   82,
-   118
+   81,
+   119
   ],
   "guimauve/r3c4": [
-   89,
+   90,
    118
   ],
   "guimauve/r3c5": [
-   105,
-   118
+   107,
+   119
   ],
   "guimauve/r3c6": [
-   105,
-   108
+   108,
+   109
   ],
   "guimauve/r4c1": [
-   76,
-   124
+   77,
+   126
   ],
   "guimauve/r4c2": [
-   71,
-   124
+   76,
+   126
   ],
   "guimauve/r4c3": [
-   72,
-   124
+   78,
+   125
   ],
   "guimauve/r4c4": [
-   73,
-   123
+   79,
+   124
   ],
   "guimauve/r4c5": [
-   77,
-   123
+   81,
+   124
   ],
   "guimauve/r4c6": [
-   75,
-   123
+   78,
+   125
   ],
   "items/badge": [
-   91,
-   111
+   90,
+   109
   ],
   "items/bandelettes": [
-   100,
+   99,
    101
   ],
   "items/barbe": [
-   83,
-   126
+   84,
+   122
   ],
   "items/boulon": [
    100,
-   95
+   93
   ],
   "items/chaine": [
    101,
    87
   ],
   "items/chaussette": [
-   94,
-   120
+   95,
+   117
   ],
   "items/fiche_poste": [
    105,
    104
   ],
   "items/lanterne": [
-   83,
-   129
+   84,
+   126
   ],
   "items/lettre": [
-   115,
-   92
+   116,
+   88
   ],
   "items/mireille": [
-   106,
+   107,
    97
   ],
   "items/nez": [
@@ -673,7 +673,7 @@
    75
   ],
   "items/photo": [
-   107,
+   108,
    126
   ],
   "items/photo_ratee": [
@@ -757,156 +757,160 @@
    124
   ],
   "maire/r1c2": [
-   94,
-   99
+   103,
+   100
   ],
   "maire/r2c1": [
-   81,
-   121
+   88,
+   123
   ],
   "maire/r2c2": [
-   69,
-   118
-  ],
-  "maire/r2c3": [
-   63,
-   121
-  ],
-  "maire/r2c4": [
-   77,
-   117
-  ],
-  "maire/r2c5": [
-   87,
-   119
-  ],
-  "maire/r2c6": [
    75,
-   120
-  ],
-  "maire/r3c1": [
-   63,
-   119
-  ],
-  "maire/r3c2": [
-   57,
-   115
-  ],
-  "maire/r3c3": [
-   41,
-   119
-  ],
-  "maire/r3c4": [
-   88,
-   118
-  ],
-  "maire/r3c5": [
-   107,
-   116
-  ],
-  "maire/r3c6": [
-   103,
-   104
-  ],
-  "maire/r4c1": [
-   61,
-   124
-  ],
-  "maire/r4c2": [
-   65,
-   124
-  ],
-  "maire/r4c3": [
-   59,
-   124
-  ],
-  "maire/r4c4": [
-   61,
    122
   ],
-  "maire/r4c5": [
-   63,
+  "maire/r2c3": [
+   75,
    123
   ],
-  "maire/r4c6": [
-   63,
-   123
+  "maire/r2c4": [
+   86,
+   121
   ],
-  "maire_ok/r2c1": [
-   76,
-   124
-  ],
-  "maire_ok/r2c2": [
-   81,
-   124
-  ],
-  "maire_ok/r2c3": [
-   77,
-   124
-  ],
-  "maire_ok/r2c4": [
-   80,
-   124
-  ],
-  "maire_ok/r2c5": [
+  "maire/r2c5": [
    93,
    124
   ],
-  "maire_ok/r2c6": [
-   82,
+  "maire/r2c6": [
+   85,
+   123
+  ],
+  "maire/r3c1": [
+   69,
+   121
+  ],
+  "maire/r3c2": [
+   66,
+   114
+  ],
+  "maire/r3c3": [
+   47,
+   120
+  ],
+  "maire/r3c4": [
+   95,
+   121
+  ],
+  "maire/r3c5": [
+   113,
+   120
+  ],
+  "maire/r3c6": [
+   101,
+   104
+  ],
+  "maire/r4c1": [
+   71,
    124
   ],
+  "maire/r4c2": [
+   72,
+   124
+  ],
+  "maire/r4c3": [
+   68,
+   124
+  ],
+  "maire/r4c4": [
+   70,
+   121
+  ],
+  "maire/r4c5": [
+   68,
+   121
+  ],
+  "maire/r4c6": [
+   72,
+   121
+  ],
+  "maire_ok/r1c2": [
+   101,
+   90
+  ],
+  "maire_ok/r2c1": [
+   88,
+   126
+  ],
+  "maire_ok/r2c2": [
+   88,
+   126
+  ],
+  "maire_ok/r2c3": [
+   87,
+   126
+  ],
+  "maire_ok/r2c4": [
+   87,
+   126
+  ],
+  "maire_ok/r2c5": [
+   93,
+   126
+  ],
+  "maire_ok/r2c6": [
+   87,
+   126
+  ],
   "maire_ok/r3c1": [
-   65,
-   118
+   71,
+   116
   ],
   "maire_ok/r3c2": [
-   65,
-   117
+   71,
+   115
   ],
   "maire_ok/r3c3": [
    50,
    118
   ],
   "maire_ok/r3c4": [
-   93,
-   117
+   99,
+   118
   ],
   "maire_ok/r3c5": [
-   106,
-   115
+   107,
+   118
   ],
   "maire_ok/r3c6": [
-   107,
-   104
+   110,
+   109
   ],
   "maire_ok/r4c1": [
-   66,
-   127
-  ],
-  "maire_ok/r4c2": [
-   68,
-   126
-  ],
-  "maire_ok/r4c3": [
-   62,
+   74,
    125
   ],
-  "maire_ok/r4c4": [
-   67,
-   122
+  "maire_ok/r4c2": [
+   74,
+   125
   ],
-  "maire_ok/r4c5": [
-   67,
+  "maire_ok/r4c3": [
+   72,
+   126
+  ],
+  "maire_ok/r4c4": [
+   75,
    123
   ],
+  "maire_ok/r4c5": [
+   74,
+   124
+  ],
   "maire_ok/r4c6": [
-   70,
+   75,
    124
   ],
   "minigame/barbe_araignee": [
    86,
-   125
+   124
   ],
   "minigame/barbe_bleue": [
    91,
@@ -917,91 +921,91 @@
    126
   ],
   "minigame/barbe_rose": [
-   91,
+   90,
    126
   ],
   "minigame/barbe_verte": [
-   90,
+   91,
    126
   ],
   "minigame/cables_board": [
-   33,
-   76
+   47,
+   106
   ],
   "minigame/cables_noeud": [
-   90,
-   91
+   104,
+   112
   ],
   "minigame/cache_armoire": [
-   65,
-   92
+   82,
+   116
   ],
   "minigame/cache_cercueil": [
-   57,
-   92
+   75,
+   114
   ],
   "minigame/cache_cercueil_jack": [
-   87,
-   92
+   110,
+   115
   ],
   "minigame/cache_fond": [
    420,
    262
   ],
   "minigame/cache_lustre": [
-   75,
-   91
+   94,
+   109
   ],
   "minigame/cache_tonneau": [
-   56,
-   69
+   72,
+   87
   ],
   "minigame/main": [
    99,
-   124
+   123
   ],
   "minigame/pepite_big": [
-   111,
+   110,
    125
   ],
   "minigame/prise_bleu": [
-   91,
-   46
+   104,
+   53
   ],
   "minigame/prise_jaune": [
-   91,
-   47
+   102,
+   54
   ],
   "minigame/prise_rouge": [
-   90,
-   47
+   103,
+   54
   ],
   "minigame/prise_vert": [
-   92,
-   47
+   102,
+   54
   ],
   "minigame/squelette_calme": [
-   43,
-   92
+   61,
+   123
   ],
   "minigame/squelette_danse": [
-   76,
-   91
+   101,
+   120
   ],
   "props/casier_ferme": [
-   51,
-   113
+   52,
+   114
   ],
   "props/casier_ouvert": [
-   72,
-   113
+   74,
+   114
   ],
   "props/fantomes_greve": [
    105,
    115
   ],
   "props/fantomes_travail": [
-   88,
+   89,
    94
   ],
   "props/panneau_affiche": [
@@ -1009,108 +1013,108 @@
    117
   ],
   "props/panneau_vide": [
-   83,
+   84,
    118
   ],
   "props/pepite_calme": [
-   78,
-   84
+   80,
+   85
   ],
   "props/pepite_peur": [
-   81,
-   86
+   83,
+   88
   ],
   "props/photomaton": [
    84,
-   115
+   117
   ],
   "props/tableau_allume": [
-   94,
+   96,
    118
   ],
   "props/tableau_eteint": [
-   94,
-   117
+   96,
+   118
   ],
   "props/tas": [
-   115,
+   116,
    82
   ],
   "radinoff/r1c2": [
-   82,
+   83,
    98
   ],
   "radinoff/r2c1": [
-   81,
-   111
+   82,
+   112
   ],
   "radinoff/r2c2": [
-   76,
-   107
+   80,
+   109
   ],
   "radinoff/r2c3": [
-   74,
-   111
+   75,
+   112
   ],
   "radinoff/r2c4": [
-   87,
+   97,
    112
   ],
   "radinoff/r2c5": [
-   93,
-   110
+   94,
+   111
   ],
   "radinoff/r2c6": [
-   83,
-   109
+   88,
+   110
   ],
   "radinoff/r3c1": [
-   69,
-   115
+   71,
+   117
   ],
   "radinoff/r3c2": [
-   64,
-   115
+   67,
+   116
   ],
   "radinoff/r3c3": [
    54,
    115
   ],
   "radinoff/r3c4": [
-   92,
-   114
+   96,
+   115
   ],
   "radinoff/r3c5": [
-   112,
-   112
+   111,
+   114
   ],
   "radinoff/r3c6": [
-   114,
+   116,
    105
   ],
   "radinoff/r4c1": [
-   59,
-   124
+   62,
+   125
   ],
   "radinoff/r4c2": [
-   61,
-   124
+   63,
+   125
   ],
   "radinoff/r4c3": [
    62,
-   124
+   125
   ],
   "radinoff/r4c4": [
-   57,
-   124
+   61,
+   126
   ],
   "radinoff/r4c5": [
-   58,
-   124
+   60,
+   126
   ],
   "radinoff/r4c6": [
-   56,
-   124
+   59,
+   126
   ],
   "starter/ui/car": [
    145,
@@ -1153,80 +1157,80 @@
    145
   ],
   "wolfgang/r1c2": [
-   81,
-   101
+   84,
+   96
   ],
   "wolfgang/r2c1": [
-   79,
-   117
+   80,
+   118
   ],
   "wolfgang/r2c2": [
-   82,
-   116
-  ],
-  "wolfgang/r2c3": [
-   75,
+   81,
    117
   ],
+  "wolfgang/r2c3": [
+   72,
+   118
+  ],
   "wolfgang/r2c4": [
-   78,
+   81,
    118
   ],
   "wolfgang/r2c5": [
-   84,
-   118
+   82,
+   121
   ],
   "wolfgang/r2c6": [
-   76,
-   117
+   78,
+   118
   ],
   "wolfgang/r3c1": [
-   76,
-   118
+   68,
+   115
   ],
   "wolfgang/r3c2": [
-   60,
-   118
+   65,
+   117
   ],
   "wolfgang/r3c3": [
-   61,
+   62,
    119
   ],
   "wolfgang/r3c4": [
    92,
-   119
+   117
   ],
   "wolfgang/r3c5": [
-   105,
-   119
+   104,
+   118
   ],
   "wolfgang/r3c6": [
-   114,
-   110
+   108,
+   108
   ],
   "wolfgang/r4c1": [
-   62,
-   127
+   61,
+   126
   ],
   "wolfgang/r4c2": [
-   63,
-   129
+   64,
+   126
   ],
   "wolfgang/r4c3": [
-   62,
-   128
+   61,
+   125
   ],
   "wolfgang/r4c4": [
-   60,
-   125
+   65,
+   124
   ],
   "wolfgang/r4c5": [
    63,
-   126
+   124
   ],
   "wolfgang/r4c6": [
-   60,
-   126
+   65,
+   124
   ]
  },
  "audio": {
