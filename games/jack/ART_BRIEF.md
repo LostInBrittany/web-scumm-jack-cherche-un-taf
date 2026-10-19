@@ -28,7 +28,8 @@ Le dépôt est à la racine `/Users/horacio/git/games/jack-cherche-un-taf`. Lanc
    dessus sera coupée : régénère plutôt.
 7. Ne touche pas à `rooms/*.ts`, `layout/*.json`, `cast.ts`, `game.ts`. Seulement `art/` et `art/sheets/`.
 8. Ne supprime jamais une image : renomme l'ancienne en `<nom>_v1.png`. Les dossiers et fichiers `_v1`, `_v2`… et
-   `_rejected/` sont des archives : ne fais jamais de ménage dedans.
+   `_rejected/` servent pendant la retouche : ne les supprime pas toi-même. Une fois la nouvelle version validée et
+   commitée, on peut les supprimer (git les garde dans son historique).
 
 ## Déjà fait
 
