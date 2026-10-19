@@ -58,6 +58,10 @@ export function spanOf(path: string): string {
   if (lang) return `lang:${lang[1]}`;
   const top = path.split('/')[0];
   if (top === 'art' || top === 'audio') return 'assets';
+  // This fork's game (Jack cherche un taf): its art brief and the prompts of a later episode are story, its art
+  // tools and its gitignored private/ folder (raw sheets, backups, never in a Studio's clone) are assets.
+  if (path === 'ART_BRIEF.md' || /^prompts-[\w-]+\.md$/.test(path)) return 'story';
+  if (top === 'art-tools' || top === 'private') return 'assets';
   if (top === 'playtests' || top === 'replays') return 'playtests';
   if (top === 'reality') return 'reality';
   if (top === 'tests') return 'meta';

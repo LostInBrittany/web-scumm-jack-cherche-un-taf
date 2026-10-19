@@ -123,6 +123,8 @@ export const RULES: readonly Rule[] = [
   // The games.
   { re: /^games\/demo\//, gates: ['e2e', ...UNIT], why: 'the sample game' },
   { re: /^games\/reference\//, gates: ['reference', 'node24'], why: 'the reference chapter' },
+  // This fork's game (Jack cherche un taf): its own tests and the unit suite.
+  { re: /^games\/jack\//, gates: [...UNIT], why: "the fork's game" },
   // The Bridge's qualification profile (4.1.18): brought up by its own workflow (qualify.yml) and the candidate's
   // `deployment-smoke`; here its static test only.
   {
