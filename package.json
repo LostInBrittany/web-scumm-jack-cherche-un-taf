@@ -129,7 +129,7 @@
     "locks": "node scripts/locks.mjs"
   },
   "config": {
-    "game": "demo"
+    "game": "jack"
   },
   "devDependencies": {
     "@axe-core/playwright": "^4.13.0",
