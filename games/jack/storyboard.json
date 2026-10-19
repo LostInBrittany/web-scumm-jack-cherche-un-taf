@@ -830,7 +830,7 @@
     {
      "id": "foire-4",
      "title": "Pépite le dragon",
-     "action": "Parler à Mme Carrousel",
+     "action": "Parler à M. Carrousel",
      "lines": [
       {
        "who": "carrousel",
@@ -876,7 +876,7 @@
       },
       {
        "who": "carrousel",
-       "text": "Par contre, le poste de dompteur… Pépite est calme. Il n'a plus besoin de dompteur. Désolée !"
+       "text": "Par contre, le poste de dompteur… Pépite est calme. Il n'a plus besoin de dompteur. Désolé !"
       },
       {
        "who": "hero",
@@ -1065,7 +1065,7 @@
    ],
    "hints": [
     "Ici, on embauche. Mémé Guimauve cherche un vendeur.",
-    "La dame du manège a l'air embêtée. Parle-lui.",
+    "Le patron du manège a l'air embêté. Parle-lui.",
     "Pépite a peur. Il faut le caresser, tout doucement : UTILISE Pépite.",
     "Tu as ce qu'il faut. Retourne sur la place, Jack.",
     "Wolfgang voulait un dossier de Pôle Frousse. Donne-lui la fiche de poste.",

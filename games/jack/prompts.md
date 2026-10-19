@@ -620,7 +620,7 @@ Change ONLY the mouth, and the eyes in cell 5:
 Do not redraw, move, resize or recolor anything else. No text.
 ```
 
-### Mme Carrousel (`carrousel`)
+### M. Carrousel (`carrousel`)
 
 #### Base sheet `carrousel` (6 × 4, SCUMM poses)
 
@@ -629,7 +629,7 @@ Attach: `games/jack/art/_reference.png`.
 ```text
 Create a pixel-art character sprite sheet for a point-and-click adventure game.
 STYLE: match exactly the art style of the first attached image (reference sheet): retro pixel art in the spirit of 1990s LucasArts adventures (Day of the Tentacle, Monkey Island 2), 1 pixel = 1 pixel, crisp, no anti-aliasing: a warm expressive cartoon caricature with a clean dark one-pixel outline and flat cel-shaded tones, head about one third of the body height, friendly and funny.
-CHARACTER: a carousel owner in a red ringmaster coat with golden buttons and a black top hat, cheerful and worried.
+CHARACTER: a carousel owner, a man with a big moustache, in a red ringmaster coat with golden buttons and a black top hat, cheerful and worried.
 SHEET LAYOUT — follow it strictly:
 - Canvas 1536 x 1024 pixels, landscape.
 - An invisible grid of 6 columns x 4 rows, every cell exactly 256 x 256 pixels. One figure per cell, centered horizontally.
@@ -1004,7 +1004,7 @@ PIXEL RULES — strict:
 DO NOT draw any people or animals. DO NOT write any text, letters, numbers or logos: signs and screens stay blank.
 LOCATION: A small night funfair under a starry purple sky with garlands of coloured bulbs. Left: a pink and white cotton candy stand. Centre: a little carousel with a red roof. Right: a dark ghost train with big eyes over its entrance and a red wagon.
 MUST SHOW, clearly and easy to tap: stand de barbe à papa (left), manège (center), train fantôme (right), wagon (right), route de la place (left).
-EMPTY SPOTS: leave a plain, uncluttered spot for each of these, drawn separately and placed by the game: Pépite (center, at the back of the floor). Characters stand here too, keep their floor free: Mémé Guimauve (left, in the foreground), Mme Carrousel (center, in the foreground), Wolfgang (right, in the foreground).
+EMPTY SPOTS: leave a plain, uncluttered spot for each of these, drawn separately and placed by the game: Pépite (center, at the back of the floor). Characters stand here too, keep their floor free: Mémé Guimauve (left, in the foreground), M. Carrousel (center, in the foreground), Wolfgang (right, in the foreground).
 ```
 
 Other full-screen images (map, title, credits): use the background prompt above with your own LOCATION, and no floor band.
@@ -1031,8 +1031,8 @@ In this order (reference → hero → other characters → objects → backgroun
 14. Brigadier Sans-Tête: mouths `talk_brigadier` already done (keep them).
 15. Mémé Guimauve: `guimauve` is already cut (keep it).
 16. Mémé Guimauve: mouths `talk_guimauve` already done (keep them).
-17. Mme Carrousel: `carrousel` is already cut (keep it).
-18. Mme Carrousel: mouths `talk_carrousel` already done (keep them).
+17. M. Carrousel: `carrousel` is already cut (keep it).
+18. M. Carrousel: mouths `talk_carrousel` already done (keep them).
 19. Wolfgang: `wolfgang` is already cut (keep it).
 20. Wolfgang: mouths `talk_wolfgang` already done (keep them).
 21. Objects `items`: every piece exists (keep them).

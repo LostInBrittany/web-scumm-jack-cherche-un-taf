@@ -75,7 +75,7 @@ export default defineRoom({
   },
   look: {
     guimauve: ['Mémé Guimauve. Une sorcière à la retraite qui fait de la barbe à papa.', 'Elle sent le sucre et le chaudron.'],
-    carrousel: ['Mme Carrousel. Elle a l\'air inquiète.', 'Elle tourne en rond. Comme un manège. Mais pas le sien.'],
+    carrousel: ['M. Carrousel. Il a l\'air inquiet.', 'Il tourne en rond. Comme un manège. Mais pas le sien.'],
     wolfgang: ['Wolfgang, le patron du train fantôme. Un loup-garou à lunettes.', 'Il lit un livre de comptabilité. Pour se faire peur.'],
     pepite: ['Pépite, le petit dragon du manège. Il tremble.', 'Il se cache derrière sa queue. Elle est trop petite.'],
     stand: 'Le stand de barbe à papa. Ça sent la guimauve et le travail.',
@@ -98,13 +98,13 @@ export default defineRoom({
         'Pépite se calme… et éternue. Quelque chose vole jusqu\'à moi.',
         { gain: 'nez' },
         { say: ['carrousel', 'Un nez de clown ! Il l\'avait avalé l\'an dernier ! Garde-le, ça te va bien.'] },
-        { say: ['carrousel', 'Par contre, le poste de dompteur… Pépite est calme. Il n\'a plus besoin de dompteur. Désolée !'] },
+        { say: ['carrousel', 'Par contre, le poste de dompteur… Pépite est calme. Il n\'a plus besoin de dompteur. Désolé !'] },
         'Troisième licenciement de la journée. Record personnel.',
       ] },
     ] },
     { id: 'foire.pepite-peur', verb: ['use', 'push', 'pull', 'take'], a: 'pepite', if: '!pepite_calme', do: [
       'Pépite crache une flammèche. Ouille.',
-      'Je devrais d\'abord demander à la dame du manège.',
+      'Je devrais d\'abord demander au patron du manège.',
     ] },
     { id: 'foire.pepite-calme', verb: ['use', 'push', 'pull', 'take'], a: 'pepite', do: ['Il ronronne. Prrrt. Prrrrrrt.'] },
     { id: 'foire.chaussette-pepite', verb: 'give', a: 'chaussette', b: 'pepite', do: [
@@ -195,7 +195,7 @@ export default defineRoom({
   },
   hints: [
     { until: { any: ['barbe_gagnee', 'gloubi_rot'] }, lines: ['Ici, on embauche. Mémé Guimauve cherche un vendeur.', 'PARLE à Mémé Guimauve. Elle paie en barbe à papa.'] },
-    { until: 'carrousel_connu', lines: ['La dame du manège a l\'air embêtée. Parle-lui.'] },
+    { until: 'carrousel_connu', lines: ['Le patron du manège a l\'air embêté. Parle-lui.'] },
     { until: 'pepite_calme', lines: ['Pépite a peur. Il faut le caresser, tout doucement.', 'UTILISE Pépite pour le caresser.'] },
     { until: 'dossier_fini', lines: ['Tu as ce qu\'il faut. Retourne sur la place, Jack.'] },
     { until: 'essai', lines: ['Wolfgang voulait un dossier de Pôle Frousse. DONNE-lui la fiche de poste.'] },
