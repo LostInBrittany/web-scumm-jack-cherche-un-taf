@@ -19,6 +19,9 @@ export const game = defineGame({
   hintVoice: 'mireille',
   // Un seul toucher sur une sortie : Jack y va et passe dans le lieu suivant, comme dans les LucasArts.
   input: { exitOnTap: true },
+  // Jack s'arrête à bonne distance d'un personnage (une part de leur taille moyenne, selon la profondeur), pour que
+  // leurs gestes en parlant ne se croisent pas. Gloubi (très large), Wolfgang et Ginette ont leur point dans le layout.
+  actorGap: 0.8,
   // Le menu Réglages (pause) : vitesse et taille du texte, volumes, et la langue (locales/en.json, es.json).
   settings: true,
   // Les textes identiques d'une langue à l'autre exprès : des noms propres, un rot, des mots qui s'écrivent pareil.
