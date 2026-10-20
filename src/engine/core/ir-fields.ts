@@ -55,6 +55,8 @@ const game: Classes<GameDef> = {
   settings: 'presentation',
   // How a tap reads (`exitOnTap`, #188): the player's input, never what an action does.
   input: 'presentation',
+  // Where the hero stands to reach a character: geometry, like the layout's approach points.
+  actorGap: 'presentation',
   offline: 'meta',
   lint: 'meta',
   i18n: 'meta',

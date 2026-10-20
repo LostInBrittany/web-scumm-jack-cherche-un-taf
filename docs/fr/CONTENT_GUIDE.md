@@ -767,6 +767,13 @@ Champs lus par le moteur, en plus des positions : sur un accessoire (et dans cha
 un champ absent d'un état reprend celui de l'accessoire. Sur un acteur : `z` force sa couche (sinon, celle de ses pieds).
 Sur le lieu : `floor` (défaut 395) est le bas du sol ; un point d'approche calculé ne descend pas plus bas.
 
+Un personnage sans point `approach` dans le layout est abordé du côté qui regarde le milieu du lieu, à 44 unités
+quelle que soit la taille des personnages. Des grands personnages qui gesticulent en parlant finissent la main dans la
+tête l'un de l'autre : avec `actorGap` sur le jeu (par exemple `0.8`), la distance devient cette part de leur taille
+moyenne (`height` du héros et du personnage, ou `h` de l'acteur dans le layout), multipliée par l'échelle de
+profondeur là où se tient le personnage. Un point `approach` dans le layout reste prioritaire, pour un personnage
+qu'il faut aborder par l'autre côté.
+
 ## Écran titre et générique
 
 `titleScreen: { decor, video, logo, music, footer }` : la vidéo (fichier `games/<jeu>/art/decor/decor_<nom>.mp4`, réencodé par `npm run assets`) tourne en boucle, muette, derrière le logo ; le décor sert d'affiche.

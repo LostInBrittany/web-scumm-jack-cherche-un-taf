@@ -2,6 +2,7 @@
 // Part of the Engine (4.1.0 "Clarity"): its methods of the same name forward here, in the same order of effects.
 import { check } from './cond';
 import { FLOOR } from './define';
+import { scaleAt } from './stage';
 import type { CharacterDef, Id, Point, RoomDef } from './types';
 
 import { near } from './engine-shared';
@@ -136,6 +137,15 @@ export function inScene(eng: Engine, id: Id, room: RoomDef): boolean {
   return declared && eng.visible(id, room);
 }
 
+/** Distance from a character to where the hero stands to reach it: 44, or `actorGap` × their mean height × depth. */
+function gap(eng: Engine, L: ReturnType<Engine['layout']>, at: Point, h: number | undefined): number {
+  const k = eng.game.actorGap;
+  if (!k) return 44;
+  const heights = eng.game.skin?.heights;
+  const hero = eng.game.characters[eng.heroId()]?.height ?? heights?.hero ?? 84;
+  return Math.round(((k * (hero + (h ?? heights?.actor ?? 110))) / 2) * scaleAt(L, at));
+}
+
 /** Point where the hero stands to act on a target. */
 export function approach(eng: Engine, id: Id, room: RoomDef = eng.room()): Point | null {
   const L = eng.layout(room.id);
@@ -156,7 +166,11 @@ export function approach(eng: Engine, id: Id, room: RoomDef = eng.room()): Point
     const x = o?.x ?? a.x,
       y = o?.y ?? a.y;
     if (a.approach && near(a.approach, [x, y])) return a.approach;
-    return [x + (x > 320 ? -44 : 44), y];
+    const char = room.actors?.[id]?.char;
+    return [
+      x + (x > 320 ? -1 : 1) * gap(eng, L, [x, y], a.h ?? (char ? eng.game.characters[char]?.height : undefined)),
+      y,
+    ];
   }
   if (h?.rect) return [h.rect[0] + h.rect[2] / 2, Math.min(floor, h.rect[1] + h.rect[3] + 12)];
   if (h?.poly) {
@@ -165,7 +179,7 @@ export function approach(eng: Engine, id: Id, room: RoomDef = eng.room()): Point
     return [(Math.min(...xs) + Math.max(...xs)) / 2, Math.min(floor, Math.max(...ys) + 12)];
   }
   const g = eng.guests(room)[id];
-  if (g) return [g.at[0] + (g.at[0] > 320 ? -44 : 44), g.at[1]];
+  if (g) return [g.at[0] + (g.at[0] > 320 ? -1 : 1) * gap(eng, L, g.at, eng.game.characters[g.char]?.height), g.at[1]];
   return null;
 }
 

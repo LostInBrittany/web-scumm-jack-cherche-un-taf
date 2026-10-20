@@ -128,6 +128,29 @@ describe('fixture game', () => {
     expect(e.approach('shed')).toEqual([460, 380]);
   });
 
+  it('actorGap sets the distance to a character from both heights and the depth scale', async () => {
+    // Grandma (110 tall) stands at [450, 340]; the hero is 84 tall.
+    const at = async (g: GameDef, L = layouts) => {
+      const e = new Engine(structuredClone(g), L, new FakePresenter(), new MemoryStore());
+      await e.checkpoint('free');
+      await e.script([{ goto: 'house' }]);
+      return e.approach('grandma');
+    };
+    expect(await at(game)).toEqual([406, 340]);
+    expect(await at({ ...game, actorGap: 0.8 })).toEqual([372, 340]);
+    const deep = {
+      ...layouts,
+      house: {
+        ...layouts.house,
+        scale: [
+          [300, 0.5],
+          [400, 1],
+        ] as [[number, number], [number, number]],
+      },
+    };
+    expect(await at({ ...game, actorGap: 0.8 }, deep)).toEqual([396, 340]);
+  });
+
   it('{ ending } and the old { reveal } play the ending, then the lines, then the card', async () => {
     for (const cmd of [{ ending: true as const }, { reveal: true as const }]) {
       const { e, ui } = boot();

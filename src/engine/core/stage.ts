@@ -151,6 +151,20 @@ export function stageImages(room: RoomDef, layout: Layout = {}): Id[] {
   ];
 }
 
+/** A character's scale from its depth (feet y) on a `[[back y, scale], [front y, scale]]` ramp; 1 without one. */
+export function depthScale(scale: Layout['scale'], y: number): number {
+  if (!scale) return 1;
+  const [[y0, s0], [y1, s1]] = scale;
+  const t = Math.max(0, Math.min(1, (y - y0) / (y1 - y0)));
+  return s0 + (s1 - s0) * t;
+}
+
+/** Character scale at a point of a room: the walk zone it stands in (`walkZones`), else the layout's `scale`. */
+export function scaleAt(layout: Layout, p: Point): number {
+  const z = Object.values(layout.walkZones ?? {}).find((z) => inPolygon(p, z.area));
+  return depthScale(z?.scale ?? layout.scale, p[1]);
+}
+
 /** Whether a point is inside a polygon (even-odd). */
 export function inPolygon(p: Point, poly: Point[]): boolean {
   let c = false;

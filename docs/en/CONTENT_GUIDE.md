@@ -759,6 +759,12 @@ placement page), `z` (forced layer); a field missing from a state falls back to 
 their layer (otherwise, it follows their feet). On the room: `floor` (default 395) is the bottom of the floor; a computed
 approach point never goes lower.
 
+An actor with no `approach` point in the layout is reached from the side facing the middle of the room, 44 units
+away whatever the characters' size. Tall characters who gesture as they talk end up with a hand in each other's head:
+set `actorGap` on the game (for example `0.8`) and the distance becomes that share of the two characters' mean height
+(`height` of the hero and of the character, or the actor's `h` in the layout), times the depth scale where the
+character stands. An `approach` point in the layout still wins, for a character who needs the other side.
+
 ## Title screen and credits
 
 `titleScreen: { decor, video, logo, music, footer }`: the video (file `games/<id>/art/decor/decor_<name>.mp4`,

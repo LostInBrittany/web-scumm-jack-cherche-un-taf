@@ -4,7 +4,7 @@ import earcut from 'earcut';
 import { NavMesh } from 'navmesh';
 import { must } from '../core/must';
 import type { Layout, Point } from '../core/types';
-import { inPolygon, stageOf, type NormalLink, type NormalZone } from '../core/stage';
+import { depthScale, inPolygon, stageOf, type NormalLink, type NormalZone } from '../core/stage';
 import { zoneRoute } from '../core/motion';
 
 /** A walkable zone: triangulated once, then shortest paths between two points. */
@@ -110,15 +110,6 @@ export class WalkArea {
   }
 }
 
-/** A character's scale based on its depth (feet y). */
-function depthScale(layout: Layout, y: number): number {
-  const s = layout.scale;
-  if (!s) return 1;
-  const [[y0, s0], [y1, s1]] = s;
-  const t = Math.max(0, Math.min(1, (y - y0) / (y1 - y0)));
-  return s0 + (s1 - s0) * t;
-}
-
 /** One move of a walk: to a point, either walking or through a link (stairs, a ladder, a jump, a teleport). */
 export interface WalkStep {
   to: Point;
@@ -174,7 +165,7 @@ export class WalkTopology {
   /** Character scale at a point: its zone's `scale`, else the layout's. */
   scaleAt(p: Point): number {
     const z = this.zoneAt(p);
-    return depthScale({ scale: z?.scale ?? this.layout.scale }, p[1]);
+    return depthScale(z?.scale ?? this.layout.scale, p[1]);
   }
 
   /**
