@@ -4,6 +4,7 @@
   "slug": "manoir",
   "comment": "Count Radinoff's manor. D minor, 72 BPM, 16 bars that loop: the call three times an octave lower each time on the organ in octaves, the diminished chord with a thunderclap, then a running figure over the pedal. No third-party transcription: compose.py writes source.mid.",
   "source": "source.mid",
+  "palette": "../../palette.json",
   "bars": 16,
   "rows_per_beat": 8,
   "pattern_rows": 64,
