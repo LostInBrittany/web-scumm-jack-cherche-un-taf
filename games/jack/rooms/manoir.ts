@@ -1,4 +1,4 @@
-import { defineRoom } from 'web-scumm/content';
+import { defineRoom } from '@quest-n-click/engine/content';
 
 // Le bureau du Comte Radinoff (storyboard: manoir). Geometry in layout/manoir.json.
 export default defineRoom({

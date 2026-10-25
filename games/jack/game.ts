@@ -1,4 +1,4 @@
-import { defineGame } from 'web-scumm/content';
+import { defineGame } from '@quest-n-click/engine/content';
 import { characters } from './cast';
 import { items } from './items';
 import { rules } from './rules';

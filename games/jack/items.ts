@@ -1,4 +1,4 @@
-import type { ItemDef } from 'web-scumm/content';
+import type { ItemDef } from '@quest-n-click/engine/content';
 
 // Inventory items. `look` as a list = one line per look, cycling.
 export const items: Record<string, ItemDef> = {

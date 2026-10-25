@@ -1,8 +1,8 @@
 // What the engine and the tools load for this game. Keep this file as is.
-import type { Layout } from 'web-scumm/content';
-import type { AssetManifest } from 'web-scumm/player';
-import type { Minigame } from 'web-scumm/minigames';
-import type { CustomCommands } from 'web-scumm/content';
+import type { Layout } from '@quest-n-click/engine/content';
+import type { AssetManifest } from '@quest-n-click/engine/player';
+import type { Minigame } from '@quest-n-click/engine/minigames';
+import type { CustomCommands } from '@quest-n-click/engine/content';
 import { game } from './game';
 import manifestJson from './assets.gen.json';
 

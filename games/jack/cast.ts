@@ -1,4 +1,4 @@
-import type { CharacterDef, MouthSet, SpriteSet } from 'web-scumm/content';
+import type { CharacterDef, MouthSet, SpriteSet } from '@quest-n-click/engine/content';
 
 // Standard 6 × 4 sheet (see docs/en/PROMPTS.md): portraits row 1, walk row 2, poses row 3, front/back walks row 4.
 export function human(id: string, extra: SpriteSet = {}): SpriteSet {

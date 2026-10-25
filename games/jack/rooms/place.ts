@@ -1,4 +1,4 @@
-import { defineRoom, type Cmd } from 'web-scumm/content';
+import { defineRoom, type Cmd } from '@quest-n-click/engine/content';
 
 // La place du village (storyboard: place). Wide room (960). Geometry in layout/place.json.
 

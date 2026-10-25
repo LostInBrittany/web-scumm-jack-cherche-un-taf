@@ -1,4 +1,4 @@
-import { defineRoom, type Cmd } from 'web-scumm/content';
+import { defineRoom, type Cmd } from '@quest-n-click/engine/content';
 
 // La fête foraine (storyboard: foire, final). Geometry in layout/foire.json.
 
