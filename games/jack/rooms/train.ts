@@ -74,7 +74,9 @@ export default defineRoom({
       { minigame: 'cables', params: {
         board: 'minigame/cables_board', knot: 'minigame/cables_noeud',
         plugs: { rouge: 'minigame/prise_rouge', bleu: 'minigame/prise_bleu', vert: 'minigame/prise_vert', jaune: 'minigame/prise_jaune' },
-        sockets: ['jaune', 'rouge', 'bleu', 'vert'],
+        sockets: ['bleu', 'jaune', 'rouge', 'vert'],
+        // Nos fiches pointent vers la droite ; les prises sont au milieu du panneau (mesurées sur l'image).
+        tipDeg: 0, socketX: 0.62, socketY: [0.2, 0.42, 0.62, 0.82], plugInset: 44,
         tints: { rouge: '#dc3232', bleu: '#325adc', vert: '#3cb446', jaune: '#f0c828' },
         gags: ['lamp', 'windows'],
         lampOff: 'minigame/squelette_calme', lampOn: 'minigame/squelette_danse',
