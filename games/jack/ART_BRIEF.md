@@ -420,3 +420,31 @@ barrel there. No text.
 Comme pour l'épisode 1 : `npm run assets`, `npm run validate`, `npm run solve`, puis regarder
 `http://localhost:5173/?dev&at=train` et `?dev&at=repetition`. Signale-moi que c'est fini : je replacerai les zones
 cliquables du train sur le nouveau décor.
+
+## Refaire le panneau des prises (`minigame/cables_board`)
+
+Dans le mini-jeu des câbles, les « trous » du panneau ne sont que des anneaux de couleur : on ne comprend pas qu'il
+faut y brancher les fiches. Il faut de **vraies prises électriques femelles**, chacune avec les deux trous ronds où
+entrent les deux broches des fiches (`prise_bleu.png` & co).
+
+1. Renomme `art/minigame/cables_board.png` en `art/minigame/cables_board_v1.png`.
+2. Reprends la consigne de la planche `minigame_ep2` de `prompts-episode2.md` (style, COLOR RULES, PIXEL RULES, la
+   ligne transparente de « Choisir le fond »), mais pour **une seule image** au lieu d'une planche. Joins
+   `art/sheets/minigame_ep2.png` (le style), `art/minigame/cables_board_v1.png` (l'ancien panneau) et
+   `art/minigame/prise_bleu.png` (la fiche qui doit y entrer). Remplace la description des cases par :
+
+   ```
+   ONE object only, centred, nothing else in the image: a vertical grey metal electrical panel, about 1 wide for
+   2.5 tall, seen from the front, with four screws in its corners. On it, four round FEMALE wall sockets, one below
+   another, evenly spaced, all at the same horizontal position in the middle of the panel. Each socket is a recessed
+   round cup with exactly two round holes side by side for the two pins of a plug (European style), and a thick
+   coloured ring around it. From top to bottom the rings are: BLUE, YELLOW, RED, GREEN, the same saturated blue,
+   yellow, red and green as the attached plugs. The holes are dark and clearly visible, so a child understands at
+   once that the plugs go in there. No text, no labels, no symbols.
+   ```
+3. Enregistre-la en `art/sheets/cables_board.png`, vérifie `python3 games/jack/art-tools/check-alpha.py
+   games/jack/art/sheets/cables_board.png` (`TRANSPARENT`), puis découpe-la seule :
+   `python3 tools/cut-sheet.py games/jack/art/sheets/cables_board.png minigame --grid 1x1 --scale 2 --colors 64`
+   et renomme `art/minigame/r1c1.png` en `art/minigame/cables_board.png`.
+4. **Garde l'ordre bleu, jaune, rouge, vert de haut en bas** : le jeu l'attend (`sockets` dans `rooms/train.ts`).
+   Claude mesure ensuite la position des prises sur l'image (`socketX`, `socketY`) : dis-lui quand c'est fait.
