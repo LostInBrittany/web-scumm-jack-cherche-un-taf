@@ -67,8 +67,8 @@ métier de Jack (et à la revanche du Comte Radinoff).
 
 Le jeu est écrit par **Anna et Horacio**, avec l'aide de Claude Code.
 
-Il repose sur **[web-scumm](https://github.com/wanoo/web-scumm)**, un moteur libre de point-and-click pour le
-navigateur. Avec web-scumm, un jeu n'est pas du code mais des **données** : les lieux, les personnages, les objets,
+Il repose sur **[quest'n'click](https://github.com/Quest-n-Click/quest-n-click)** (anciennement web-scumm), un moteur
+libre de point-and-click pour le navigateur. Avec quest'n'click, un jeu n'est pas du code mais des **données** : les lieux, les personnages, les objets,
 les dialogues et les énigmes sont des objets TypeScript sans aucune logique. C'est ce qui permet au moteur de
 **prouver que le jeu peut être terminé** depuis le début, sans impasse, à chaque modification.
 
@@ -110,13 +110,13 @@ games/jack/
   art-tools/         nettoyage du liseré magenta, réduction des décors
 ```
 
-Le reste du dépôt est le moteur web-scumm au complet, avec ses jeux d'exemple (`games/demo`,
+Le reste du dépôt est le moteur quest'n'click au complet, avec ses jeux d'exemple (`games/demo`,
 `games/reference`, `games/signals`), pour qu'il reste facile à synchroniser avec le moteur d'origine. Sa documentation complète est dans [`README.md`](/README.md)
-à la racine et dans [`docs/fr/`](/docs/fr) (en français) et [`docs/en/`](/docs/en).
+à la racine et dans [`wiki/fr/`](/wiki/fr) (en français) et [`wiki/en/`](/wiki/en).
 
 ## Licence
 
-Le moteur web-scumm est © Wano, sous [licence MIT](/LICENSE). Le jeu Jack cherche un taf (son histoire, ses
+Le moteur quest'n'click est © Wano, sous [licence MIT](/LICENSE). Le jeu Jack cherche un taf (son histoire, ses
 personnages et ses dessins, dans `games/jack/`) est d'Anna et Horacio.
 
 ---
@@ -132,7 +132,7 @@ new job. You never die and never get stuck.
 landscape. The game speaks French, English (*Jack Needs a Job*) and Spanish (*Jack busca curro*): it follows the
 browser's language, and the pause menu's Settings switch it.
 
-It is built on **[web-scumm](https://github.com/wanoo/web-scumm)**, an open-source point-and-click engine where a game
+It is built on **[quest'n'click](https://github.com/Quest-n-Click/quest-n-click)** (formerly web-scumm), an open-source point-and-click engine where a game
 is data, not code, so the engine can prove the game can be finished. The game lives in
 [`games/jack/`](/games/jack); the rest of the repository is the complete engine, sample games included, so it stays
 easy to sync with upstream (its README is [`/README.md`](/README.md)).
