@@ -4,6 +4,7 @@
   "slug": "foire",
   "comment": "The haunted fair. E minor waltz, 3/4, 138 BPM, 32 bars that loop: the carousel tune on a calliope with a music box an octave up, then again on a wheezy saw lead over strings. Oom on the downbeat, pah-pah on two electric pianos, a faint hat. compose.py writes source.mid.",
   "source": "source.mid",
+  "palette": "../../palette.json",
   "bars": 32,
   "rows_per_beat": 8,
   "pattern_rows": 48,
