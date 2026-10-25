@@ -96,7 +96,7 @@ export const game = defineGame({
   titleScreen: { decor: 'decor/place', music: 'manoir', footer: 'Jack cherche un taf' },
   credits: ['Jack cherche un taf', '', 'Une histoire d\'Anna et Horacio', '',
     'Musique façon Mega Drive : Bach (Toccata en ré mineur) et Grieg (Dans l\'antre du roi de la montagne), arrangés pour le jeu, et trois airs originaux', '',
-    'Bruitages : en partie de Wano, projet web-scumm (CC BY 4.0)', '', 'Fait avec web-scumm'],
+    'Bruitages : en partie de Wano, projet web-scumm (CC BY 4.0)', '', 'Fait avec quest\'n\'click'],
   ui: {
     walkTo: 'Aller à', newGame: 'Nouvelle partie', continue: 'Continuer', confirmErase: 'Effacer la partie sauvegardée ?', yes: 'Oui', no: 'Non',
     pause: 'Pause', resume: 'Reprendre', music: 'Musique', sfx: 'Sons', autosave: 'Sauvegarde auto', credits: 'Crédits', restart: 'Recommencer',
