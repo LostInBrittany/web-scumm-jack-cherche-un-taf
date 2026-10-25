@@ -1,8 +1,0 @@
-{
-  "name": "refused-native",
-  "version": "0.0.0",
-  "private": true,
-  "description": "Stands in for cpu-features and nan, the optional native parts of ssh2: quest'n'click builds no native code (4.1.9, D19).",
-  "main": "index.js",
-  "license": "MIT"
-}

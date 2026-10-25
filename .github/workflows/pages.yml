@@ -1,5 +1,6 @@
 # Publishes Jack cherche un taf on GitHub Pages, on every push to main (or by hand from the Actions tab).
-# Only the game is built: the engine's own workflows (ci, qualify, release…) are for releasing web-scumm itself.
+# The engine comes from npm (@quest-n-click/engine); public/assets is not committed: `npm run build` makes it
+# (quest-n-click build runs assets first: Python 3 with Pillow for the images, ffmpeg for the sounds).
 name: pages
 
 on:
@@ -25,11 +26,17 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+      # npm ci runs postinstall: patch-package applies patches/ to the engine (the cables params, until a release has them).
       - run: npm ci
-      # The game's images are already prepared in public/assets (npm run assets, committed with the art).
-      - run: npm run build:game
+      # The engine's own pinned image packages (Pillow and what its tools use), checked against their hashes.
+      - run: python3 -m pip install --require-hashes -r node_modules/@quest-n-click/engine/requirements.txt
+      - run: npm test
+      - run: npm run build
         env:
-          GAME: jack
           BASE_PATH: /${{ github.event.repository.name }}/
       - uses: actions/upload-pages-artifact@v3
         with:

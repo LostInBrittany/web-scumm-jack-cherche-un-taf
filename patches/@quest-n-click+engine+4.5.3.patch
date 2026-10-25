@@ -1,0 +1,81 @@
+diff --git a/node_modules/@quest-n-click/engine/src/engine/minigames/cables.ts b/node_modules/@quest-n-click/engine/src/engine/minigames/cables.ts
+index 529fdb0..c8b3d25 100644
+--- a/node_modules/@quest-n-click/engine/src/engine/minigames/cables.ts
++++ b/node_modules/@quest-n-click/engine/src/engine/minigames/cables.ts
+@@ -16,6 +16,12 @@ import { must } from '../core/must';
+ //   gags?    ('lamp'|'phone'|'toaster'|'windows')[]  default: those whose images/text are provided
+ //   lampOn?, lampOff?, phone?, toaster?  gag images;  windowsText?  text of the fake blue screen
+ //   sfx?     { ring?, stamp? }       ring of the phone gag, sound of a plug connected correctly
++//   tipDeg?  number                  direction of the plug's tip in its image (degrees, screen coordinates; 0 = right,
++//                                    90 = down). Default 120, the sample plugs.
++//   socketX?, socketY?  number, number[]  where the sockets are on the board image, as fractions of its width and
++//                                    height (socketY top to bottom). Default 0.25 and [0.18, 0.38, 0.59, 0.785].
++//   plugInset? number                how far left of its socket a connected plug's centre sits (logical units),
++//                                    so a long plug's pins end in the socket. Default 4.
+ //   helpAfter?, background?, intro?, win?
+ 
+ type Color = string;
+@@ -29,7 +35,7 @@ export const PLUG_H = 56;
+ export const SOCKET_TOL = 42;
+ const REST_X = 64;
+ const REST_Y = [118, 178, 238, 298];
+-/** Direction of the plug's tip in the source image (degrees, screen coordinates). */
++/** Direction of the plug's tip in the source image (degrees, screen coordinates), unless `tipDeg` says otherwise. */
+ const TIP_DEG = 120;
+ 
+ type P = [number, number];
+@@ -90,6 +96,10 @@ export const cables: Minigame = {
+     const ring = str(sfx.ring, ''),
+       stamp = str(sfx.stamp, '');
+     const helpAfter = num(p.helpAfter, 4);
++    const tipDeg = num(p.tipDeg, TIP_DEG);
++    const socketX = num(p.socketX, SOCKET_REL.x);
++    const plugInset = num(p.plugInset, 4);
++    const socketY = Array.isArray(p.socketY) && p.socketY.length ? p.socketY.map(Number) : SOCKET_REL.y;
+     const windowsText = str(p.windowsText, '');
+     // A gag without its images (or without its text) is not offered.
+     const available: Record<string, boolean> = {
+@@ -130,7 +140,7 @@ export const cables: Minigame = {
+     const socketOf = (c: Color): P => {
+       const i = Math.max(0, PANEL_ORDER.indexOf(c));
+       // a socket past the fourth has no slot on the panel: NaN, as before the index was checked
+-      return [px0 + SOCKET_REL.x * pw, py0 + (SOCKET_REL.y[i] ?? Number.NaN) * PANEL.h];
++      return [px0 + socketX * pw, py0 + (socketY[i] ?? Number.NaN) * PANEL.h];
+     };
+     const rings = new Map<Color, HTMLDivElement>();
+     for (const c of colors) {
+@@ -249,7 +259,7 @@ export const cables: Minigame = {
+ 
+     /** The plug points left at rest (free end), right while held or once connected. */
+     const placePlug = (cb: Cable, pointRight: boolean) => {
+-      const rot = (pointRight ? 0 : 180) - TIP_DEG;
++      const rot = (pointRight ? 0 : 180) - tipDeg;
+       Object.assign(cb.plug.style, {
+         left: L(cb.pos[0]),
+         top: T(cb.pos[1]),
+@@ -466,7 +476,7 @@ export const cables: Minigame = {
+         if (hit === cb.color) {
+           cb.done = true;
+           active = null;
+-          cb.pos = [cb.socket[0] - 4, cb.socket[1]];
++          cb.pos = [cb.socket[0] - plugInset, cb.socket[1]];
+           placePlug(cb, true);
+           cb.plug.style.cursor = 'default';
+           rings.get(cb.color)?.classList.remove('mg-hl');
+diff --git a/node_modules/@quest-n-click/engine/tools/audio/palette.json b/node_modules/@quest-n-click/engine/tools/audio/palette.json
+index b72e834..658c600 100644
+--- a/node_modules/@quest-n-click/engine/tools/audio/palette.json
++++ b/node_modules/@quest-n-click/engine/tools/audio/palette.json
+@@ -75,6 +75,12 @@
+                        {"ar": 31, "dr": 0, "rr": 8, "sl": 0, "tl": 26, "mult": 2},
+                        {"ar": 31, "dr": 0, "rr": 8, "sl": 0, "tl": 30, "mult": 4},
+                        {"ar": 31, "dr": 0, "rr": 8, "sl": 0, "tl": 28, "mult": 3}]},
++    "church_organ": {"desc": "Full pipe organ for a lead (a Toccata): the organ's drawbars louder (carriers ~6 dB up), more feedback for a reedy edge, a slower release in the nave.",
++                     "alg": 7, "fb": 4, "ops": [
++                       {"ar": 31, "dr": 0, "rr": 6, "sl": 0, "tl": 16, "mult": 1},
++                       {"ar": 31, "dr": 0, "rr": 6, "sl": 0, "tl": 18, "mult": 2},
++                       {"ar": 31, "dr": 0, "rr": 6, "sl": 0, "tl": 26, "mult": 4},
++                       {"ar": 31, "dr": 0, "rr": 6, "sl": 0, "tl": 22, "mult": 3}]},
+     "orch_hit":     {"desc": "Big FM orchestra hit / accent stab.",
+                      "alg": 4, "fb": 6, "ops": [
+                        {"ar": 31, "dr": 12, "rr": 10, "sl": 6, "tl": 14, "mult": 1},

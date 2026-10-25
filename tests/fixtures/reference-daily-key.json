@@ -1,5 +1,0 @@
-{
- "_": "The reference game's daily-challenge TEST key (4.1.15): published on purpose so that tests and readers can sign a day's seed. It proves the mechanism, never a real challenge's trust; a real game's Bridge keeps its private key secret.",
- "kid": "reference-daily-test",
- "jwk": {"crv":"Ed25519","d":"-5xYCDlWDUlmN6z-63qoNsUNILUWAYYWomObf4GN2WI","x":"lbigQxp3ncZ_4aScu3-8hXDpy44WB55ZJ0yMy8BkE1o","kty":"OKP"}
-}

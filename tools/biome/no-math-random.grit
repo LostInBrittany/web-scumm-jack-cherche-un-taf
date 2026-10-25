@@ -1,7 +1,0 @@
-or {
-  `Math.random` as $r,
-  `globalThis.Math.random` as $r,
-  `window.Math.random` as $r,
-  `$m = Math` as $r,
-  `$m = globalThis.Math` as $r
-} where { register_diagnostic(span=$r, message="Math.random (or Math aliased) is forbidden in src/engine/core and src/engine/minigames: draw from core/prng.ts (ADR 0016, ADR 0018)") }

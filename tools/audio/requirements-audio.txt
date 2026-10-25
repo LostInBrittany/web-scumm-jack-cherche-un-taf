@@ -1,5 +1,0 @@
-numpy
-basic-pitch[onnx]
-setuptools<81
-# optional, better results on full mixes (large: pulls torch):
-# demucs
