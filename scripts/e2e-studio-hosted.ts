@@ -486,26 +486,70 @@ try {
     slots: { putSlot(n: number, s: unknown, m: unknown): Promise<boolean> };
     revision?: { here(): { rev: number } };
   };
-  const ready = previews.state().ready;
-  await page.getByRole('button', { name: 'Load the latest preview' }).click();
   const playEl = page.locator('iframe.playframe');
-  let inPlay: Frame | null = null;
-  for (let i = 0; i < 80; i++) {
-    inPlay = (await (await playEl.elementHandle())?.contentFrame()) ?? null;
-    if (inPlay?.url().includes(`/preview/${ready}/`)) break;
-    await page.waitForTimeout(250);
-  }
-  if (!inPlay) throw new Error('no Play frame');
-  await inPlay.waitForFunction(
-    () => {
-      const g = (window as unknown as { __game?: G }).__game;
-      return !!g?.revision && !!g.engine?.state;
-    },
-    null,
-    {
-      timeout: 30_000,
-    },
-  );
+  const playNow = async () => (await within(playEl.elementHandle(), 2_000))?.contentFrame() ?? null;
+  // "Load the latest preview", then the Play frame once its game runs that revision. The writes above (the layout,
+  // Undo) build their previews in the background: wait for the head's, or one finishing between this read and the click
+  // makes the button rightly load a revision the step did not expect (#255). Read again at each click: never a revision
+  // an earlier click expected. Then, as in 4b, the frame is looked up again at each try and each evaluation bounded:
+  // in Firefox, the frame caught as its navigation commits may never answer one (#264), and the old page, marked
+  // first, is never taken for the new one.
+  const loadLatest = async (): Promise<{ inPlay: Frame; ready: number | null }> => {
+    await previews.schedule();
+    const ready = previews.state().ready;
+    const head = await journal.revision();
+    check(
+      'the head revision has its preview before asking for the latest',
+      ready === head,
+      `ready ${ready}, head ${head}`,
+    );
+    await within(
+      (await playNow())
+        ?.evaluate(() => {
+          (window as unknown as { __e2eOld?: boolean }).__e2eOld = true;
+        })
+        .catch(() => undefined),
+      2_000,
+    );
+    const latestButton = page.getByRole('button', { name: 'Load the latest preview' });
+    await latestButton.click();
+    let at = '';
+    let silentSince = 0;
+    let again = false;
+    for (const end = Date.now() + 45_000; Date.now() < end; ) {
+      const f = await playNow();
+      at = f?.url() ?? '';
+      // There, still silent after 15 s: once, a new load of the page (a new document, which answers), said in the log.
+      if (!at.includes(`/preview/${ready}/`)) silentSince = 0;
+      else if (!silentSince) silentSince = Date.now();
+      else if (!again && Date.now() - silentSince > 15_000) {
+        again = true;
+        silentSince = 0;
+        console.log(`  note: the Play frame at ${at} did not answer for 15 s, "Load the latest preview" clicked again`);
+        await latestButton.click();
+      }
+      const runs =
+        !!f &&
+        at.includes(`/preview/${ready}/`) &&
+        (await within(
+          f
+            .evaluate(() => {
+              const w = window as unknown as { __game?: G; __e2eOld?: boolean };
+              return !w.__e2eOld && !!w.__game?.revision && !!w.__game.engine?.state;
+            })
+            .catch(() => false),
+          2_000,
+        ));
+      if (runs) return { inPlay: f, ready };
+      await page.waitForTimeout(250);
+    }
+    throw new Error(
+      `"Load the latest preview": no game running revision ${ready} in the Play frame, at ${at || 'none'}`,
+    );
+  };
+  const latest = await loadLatest();
+  let inPlay = latest.inPlay;
+  const ready = latest.ready;
   const shownRev = Number(/\/preview\/(\d+)\//.exec(inPlay.url())?.[1]);
   check('"Load the latest preview" loads the last ready revision', shownRev === ready, inPlay.url());
   const here = await inPlay.evaluate(() => (window as unknown as { __game: G }).__game.revision?.here().rev ?? null);
@@ -589,23 +633,7 @@ try {
   );
 
   // Back to the latest preview, the slot still there: Restart last (the new game's opening holds the menus).
-  await page.getByRole('button', { name: 'Load the latest preview' }).click();
-  for (let i = 0; i < 80; i++) {
-    inPlay = (await (await playEl.elementHandle())?.contentFrame()) ?? null;
-    if (inPlay?.url().includes(`/preview/${ready}/`)) break;
-    await page.waitForTimeout(250);
-  }
-  if (!inPlay) throw new Error('no Play frame');
-  await inPlay.waitForFunction(
-    () => {
-      const g = (window as unknown as { __game?: G }).__game;
-      return !!g?.revision && !!g.engine?.state;
-    },
-    null,
-    {
-      timeout: 30_000,
-    },
-  );
+  ({ inPlay } = await loadLatest());
   await askFromSlot(inPlay);
   await inPlay.locator('[data-revision-prompt] button[data-choice="restart"]').click();
   await inPlay.locator('.dim .menu button.warn').click();
@@ -673,7 +701,11 @@ try {
       console.log(
         'frame',
         f.url().slice(0, 120),
-        await f.evaluate(() => document.body?.innerHTML.slice(0, 600)).catch((e) => String(e)),
+        // Bounded: a frame that never answers (#264) would hold the rest of the dump until the run's deadline.
+        (await within(
+          f.evaluate(() => document.body?.innerHTML.slice(0, 600)).catch((e) => String(e)),
+          5_000,
+        )) ?? '(no answer within 5 s)',
       );
   if (process.env.E2E_DEBUG)
     for (const p of browser.contexts().flatMap((c) => c.pages()))

@@ -12,6 +12,7 @@ import { atomNodeId, liveClasses, puzzleGraph, puzzleIssues, type PuzzleGraph } 
 import { listenerActionId, ruleActionId, topicActionId } from '../core/content-ids';
 import type { SolveResult } from './solve';
 import { must } from '../core/must';
+import { heroLooks, shownFlags } from './lint-hero';
 
 type Severity = 'error' | 'warning' | 'info';
 
@@ -259,10 +260,13 @@ export function lintContent(game: GameDef, layouts: Record<Id, Layout>, opts: Li
     });
   }
 
-  // ---- actions dead for the solver that still change something: decoration, or a lost thread
+  // ---- actions dead for the solver that still change something: decoration, or a lost thread. A flag the player sees
+  // through a character's variant or a text switch (4.3.0: the hero chosen in the intro) is not a lost thread.
+  const shown = shownFlags(game);
   for (const n of g.nodes) {
     if (!['rule', 'topic', 'listener', 'script'].includes(n.kind) || classes.get(n.id) !== 'dead') continue;
-    if (!g.edges.some((e) => e.from === n.id && e.kind === 'produces')) continue;
+    const outs = g.edges.filter((e) => e.from === n.id && e.kind === 'produces');
+    if (!outs.length || outs.every((e) => e.to.startsWith('flag:') && shown.has(e.to.slice(5)))) continue;
     add({
       code: 'action-dead',
       severity: 'info',
@@ -271,6 +275,9 @@ export function lintContent(game: GameDef, layouts: Record<Id, Layout>, opts: Li
       fix: 'fine if intended; otherwise read what it sets somewhere',
     });
   }
+
+  // ---- the hero chosen in the intro (4.3.0): values of its flag that several heroes share with the written look
+  for (const f of heroLooks(game)) add(f);
 
   // ---- from a solver run
   const s = opts.solve;

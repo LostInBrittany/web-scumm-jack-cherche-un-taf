@@ -9,7 +9,7 @@ description: Produce the image-model prompts for the current game's art (charact
 rows, the special poses the rooms use, the states of each prop and the empty spots of each background.
 
 1. Make sure the content describes what to draw: `description` on each character in `cast.ts` and on each room,
-   `furniture` on a room for pieces no prop uses yet (see `docs/en/PROMPTS.md`). A `<describe: …>` placeholder in the
+   `furniture` on a room for pieces no prop uses yet (see `wiki/en/create.images.md`). A `<describe: …>` placeholder in the
    output means a description is missing: add it, don't fill the prompt yourself.
 2. `npm run prompts -- --missing` (or the MCP tool `asset_prompts { missing: true }`). It writes
    `games/<id>/prompts.md`; the structured result lists the missing image ids.

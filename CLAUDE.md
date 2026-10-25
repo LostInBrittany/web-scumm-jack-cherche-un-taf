@@ -1,4 +1,4 @@
-# web-scumm — notes for an AI assistant working in this repo
+# quest'n'click — notes for an AI assistant working in this repo
 
 The vendor-neutral manual is `AGENTS.md`: read it first; this file only adds what is specific to Claude Code (skills, MCP via `.mcp.json`).
 
@@ -12,10 +12,12 @@ game folder `games/<id>/` (TypeScript objects + JSON layouts + art). The sample 
 - `games/<id>/` — `game.ts` (verbs, characters, items, map, rules, start, ui texts, skin), `rooms/*.ts` (one per room),
   `layout/*.json` (geometry, written by the editor), `art/` (cut sprites, `<sheet>/r<row>c<col>.png`), `audio/`,
   `storyboard.json` (the script), `site.json` (title, description), `index.ts` (what the engine loads).
-- `docs/en/` — CONTENT_GUIDE (how to write a room), ENGINE, TOOLS, WORKFLOW (the method), PROMPTS (art generation),
-  PAGES (phone-friendly review pages), PRODUCTION.template (plan for sub-agents), UPGRADING (one section per release),
-  AUDIO, CLASSICS, BENCH, TUTORIAL (a first room in fifteen minutes). `docs/fr/` mirrors it in French. `docs/dev/` is
-  the work log (LOG.md, the decisions, the passes of each release).
+- `wiki/en/` — the documentation, one page per subject, published as the GitHub wiki (4.5.0): `create.*` (how to write
+  a game: rooms, the DSL, characters, images, music, classics, the working loop), `studio.*`, `engine.*`, `install.*`
+  (one upgrade-notes page per line), `bridge.*`, `team.*` and `clever.*`, `contribute.*`, `reference.*`;
+  `wiki/manifest.json` lists them. `wiki/fr/` mirrors it in French; `npm run wiki -- check` keeps both in step.
+  `docs/en` and `docs/fr` are transition pages to it. `docs/dev/` is the work log (LOG.md, the decisions, the passes
+  of each release).
 - `tools/` — validate, solve, refs, assets.py, cut-sheet.py, talk-kit/apply/normalize, pages/, audit-assets.
 
 ## Commands

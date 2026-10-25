@@ -1,28 +1,15 @@
-import { Pane } from 'tweakpane';
+import { type BladeApi, type FolderApi, Pane } from 'tweakpane';
 import type { App } from '../dom/app';
 import type { Id, Layout, Point } from '../core/types';
 import { FLOOR } from '../core/define';
 import { Overlay, type Handle } from './overlay';
-import { putLayout, studioOrigin } from './save-layout';
+import { putLayout, roundLayout, studioOrigin } from './save-layout';
+import { mirrorControls } from './mirror';
 import { must } from '../core/must';
 
 type Drag = { h: Handle; start: Point; orig: unknown };
 
 const clampPt = (p: Point): Point => [Math.max(0, Math.min(640, p[0])), Math.max(0, Math.min(400, p[1]))];
-
-/** Rounds coordinates to the unit (scale factors keep two decimals). */
-function roundLayout(L: Layout): Layout {
-  const r = (v: unknown): unknown => {
-    if (typeof v === 'number') return Math.round(v);
-    if (Array.isArray(v)) return v.map(r);
-    if (v && typeof v === 'object') return Object.fromEntries(Object.entries(v).map(([k, x]) => [k, r(x)]));
-    return v;
-  };
-  const out = r({ ...L, scale: undefined }) as Layout;
-  if (L.scale) out.scale = L.scale.map(([y, s]) => [Math.round(y), Math.round(s * 100) / 100]) as Layout['scale'];
-  else delete out.scale;
-  return out;
-}
 
 /**
  * Placement editor (?edit=<room>): drag clickable zones, props, characters, approach and entry points,
@@ -38,6 +25,8 @@ export class Editor {
   private drag: Drag | null = null;
   private pane!: Pane;
   private selected = { item: '(none)', values: '' };
+  private sel?: FolderApi;
+  private mirrors: BladeApi[] = [];
   private rebuilding = false;
   private rebuildAgain = false;
   private dirty = false;
@@ -102,6 +91,7 @@ export class Editor {
         const key = `${m.kind === 'hotspot' ? 'hs' : m.kind}:${m.id}`;
         this.overlay.o.selected = key;
         this.selected.item = key;
+        this.mirrorPane();
         this.overlay.draw();
         this.pane?.refresh();
       }
@@ -407,6 +397,7 @@ export class Editor {
           : h.t;
     this.overlay.o.selected = key;
     this.selected.item = key;
+    this.mirrorPane();
     const [k, id] = key.split(':');
     const kind = k === 'hs' ? 'hotspot' : k === 'prop' || k === 'actor' ? k : undefined;
     this.post({ type: 'select', key, kind, id: kind ? id : undefined });
@@ -447,6 +438,13 @@ export class Editor {
       } while (this.rebuildAgain);
       this.rebuilding = false;
     })();
+  }
+
+  /** The selected prop's or actor's mirror checkboxes (mirror.ts). */
+  private mirrorPane() {
+    for (const b of this.mirrors.splice(0)) b.dispose();
+    const ctx = { engine: this.app.engine, room: this.room, L: this.L, changed: (h: Handle) => this.changed(h, true) };
+    if (this.sel) this.mirrors = mirrorControls(this.sel, this.selected.item, ctx);
   }
 
   // -------------------------------------------------------------- saving
@@ -556,6 +554,9 @@ export class Editor {
     const sel = pane.addFolder({ title: 'Selection' });
     sel.addBinding(this.selected, 'item', { readonly: true });
     sel.addBinding(this.selected, 'values', { readonly: true, multiline: true, rows: 3 });
+    this.sel = sel;
+    this.mirrors = []; // the old pane took its own with it
+    this.mirrorPane();
 
     const miss = this.missing();
     if (miss.length) {

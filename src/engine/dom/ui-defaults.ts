@@ -36,6 +36,7 @@ export const DEFAULT_UI = {
   readableFont: 'Readable font',
   language: 'Language',
   captions: 'Sound captions',
+  verbKeys: 'Verb keys',
   volumeMusic: 'Music volume',
   volumeSfx: 'Sound volume',
   volumeVoice: 'Voice volume',

@@ -3,5 +3,5 @@
 // script, which attempts `node-gyp rebuild` of its binding and fails without the `nan` headers: no `.node` file
 // results, and `ssh2` runs on its pure JavaScript paths. Calling this module is the explicit refusal.
 module.exports = () => {
-  throw new Error('web-scumm-connectors refuses native code (cpu-features, nan): ssh2 runs in pure JavaScript');
+  throw new Error('quest-n-click-connectors refuses native code (cpu-features, nan): ssh2 runs in pure JavaScript');
 };

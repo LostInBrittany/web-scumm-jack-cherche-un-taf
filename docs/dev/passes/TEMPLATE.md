@@ -1,7 +1,7 @@
 # Manual passes, <version>
 
 The checks automation cannot make (D12: reported in the release notes, not blocking); how to make each one and what
-to bring back: `docs/en/FIELD.md`. Copy this file to
+to bring back: `wiki/en/contribute.field-passes.md`. Copy this file to
 `docs/dev/passes/<version>.md`, fill what was done, and leave "not done" where nothing was.
 
 | Pass | Status | Who, when | Device, OS, browser, versions | What failed |

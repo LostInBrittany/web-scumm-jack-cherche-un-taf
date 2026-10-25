@@ -5,7 +5,7 @@
   npm run audio -- ingest song.mid games/<id>/audio/projects/<slug>
   npm run audio -- all games/<id>/audio/projects/<slug>/spec.json   # .fur + .wav + .vgm + .mp3 + QA
   npm run audio -- sfx games/<id>/audio/sfx.json           # the sound effects of a game, from the shared palette
-See docs/en/AUDIO.md.
+See wiki/en/create.music.md.
 """
 import os, runpy, sys
 

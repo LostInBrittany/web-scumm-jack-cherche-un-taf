@@ -258,6 +258,20 @@ describe('a read-only transaction, and the maintenance lock (4.1.20 PR 1c)', () 
     await store.close();
   });
 
+  it('is given back once when released twice at the same time (4.3.0)', async () => {
+    // Kills store-postgres.ts giveBack's `if (given) return;` → false: two releases started together both pass
+    // release's own guard before its unlock is answered, and both reach giveBack; the connection goes back once.
+    const { mod, state } = fakePg({
+      rows: (sql) => (sql.includes('pg_try_advisory_lock') ? [{ ok: true }] : undefined),
+    });
+    const store = await open(mod);
+    const before = state.released.length;
+    const lock = await store.maintenanceLock('exclusive', { timeoutMs: 1000 });
+    await Promise.all([lock.release(), lock.release()]);
+    expect(state.released.length - before).toBe(1);
+    await store.close();
+  });
+
   it('given back after a refusal: healthy on a timeout, with the very error when its connection failed', async () => {
     // Refused on time: the connection is healthy, back to the pool without an error.
     const held = fakePg();

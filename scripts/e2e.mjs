@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // npm run e2e [url] [--game demo] [--at=<checkpoint>] [--prod] [--generic] [--keyboard]
-// Plays a web-scumm game by touch in a phone-sized browser (E2E_BROWSER=chromium|webkit|firefox).
+// Plays a quest'n'click game by touch in a phone-sized browser (E2E_BROWSER=chromium|webkit|firefox).
 //   - If games/<GAME>/e2e.mjs exists, it is loaded and must export `run(harness)`: a game-specific walkthrough,
 //     free to call the generic harness and to play its own minigames for real instead of skipping them.
 //   - Otherwise, this script asks `npm run solve -- --json` for an action path and replays it with
@@ -52,7 +52,18 @@ const harness = await launch(url, {
   renderer,
 });
 let ok = true;
-let teardownFrom = -1;
+let passed = false;
+// The stretches of `harness.errors` (from, to) in which WebKit may stop a Cache API call: the save round trip's reload
+// and the teardown. See `contextStopped` below.
+const stopWindows = [];
+const stopWindow = async (run) => {
+  const from = harness.errors.length;
+  try {
+    return await run();
+  } finally {
+    stopWindows.push([from, harness.errors.length]);
+  }
+};
 const axeFound = [];
 try {
   if (axeCheck) axeFound.push(...(await harness.axe('title')));
@@ -113,7 +124,7 @@ try {
     console.log('e2e: axe found no serious or critical violation (title, room, pause menu, ending)');
   }
   if (saveCheck) {
-    const r = await harness.saveRoundTrip();
+    const r = await stopWindow(() => harness.saveRoundTrip());
     if (!r.same) throw new Error(`a manual save did not come back identical after a reload (store ${r.store})`);
     if (noIndexedDb && r.store !== 'localStorage')
       throw new Error(`without IndexedDB the game should use its localStorage store, it used ${r.store}`);
@@ -122,8 +133,7 @@ try {
     console.log(`e2e: a manual save survived a reload (${r.store})`);
   }
   console.log('e2e: done');
-  // Errors collected from here on come with the browser's teardown.
-  teardownFrom = harness.errors.length;
+  passed = true;
 } catch (e) {
   ok = false;
   console.error('e2e: FAILED —', e.message);
@@ -133,20 +143,25 @@ try {
     /* page gone */
   }
 } finally {
-  await harness.close();
+  if (passed) await stopWindow(() => harness.close());
+  else await harness.close();
 }
-// WebKit's "Context is stopped" (as in scripts/e2e-pwa.mjs since 4.1.20; here first on #139, 18 Oct 2026): the
-// browser's context stopping as the run ends, a Cache API call cut short. Reported, not counted, only when it came
-// during the teardown, after every check passed, and only in its seen form on WebKit; anything else is a failure.
+// WebKit's "Context is stopped" (as in scripts/e2e-pwa.mjs since 4.1.20; here first on #139, 18 Oct 2026; in the
+// save round trip's reload on #263): a document going away (a reload, the browser closing) with a Cache API call of
+// the offline warm-up in flight. WebKit logs it itself, as a console error of source JS ("Cache API operation failed:
+// <reason>"), even when the page catches the promise, and Playwright's WebKit reports that as a `pageerror`: the page
+// cannot silence it. Reported, not counted, only when it came during the reload or the teardown of a run whose every
+// check passed, and only in its seen form on WebKit; anything else is a failure.
 const contextStopped = (e, i) =>
-  teardownFrom >= 0 &&
-  i >= teardownFrom &&
+  passed &&
+  stopWindows.some(([from, to]) => i >= from && i < to) &&
   (process.env.E2E_BROWSER ?? 'chromium') === 'webkit' &&
   /^pageerror (\w+: )?Cache API operation failed: Context is stopped on /.test(String(e));
 const stopped = harness.errors.filter(contextStopped);
 if (stopped.length) {
-  console.log(`e2e: webkit: "Context is stopped" during the teardown (reported, not counted)`);
-  if (process.env.GITHUB_ACTIONS) console.log('::warning::e2e webkit: "Context is stopped" during the teardown');
+  console.log(`e2e: webkit: "Context is stopped" during a reload or the teardown (reported, not counted)`);
+  if (process.env.GITHUB_ACTIONS)
+    console.log('::warning::e2e webkit: "Context is stopped" during a reload or the teardown');
 }
 const browserErrors = harness.errors.filter((e, i) => !contextStopped(e, i));
 if (browserErrors.length) {

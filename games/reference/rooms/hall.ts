@@ -16,7 +16,7 @@ export default defineRoom({
     out: 'Back to the street.',
   },
   on: [
-    // The code wheel (4.1.15, docs/en/REMIX.md): an optional, playful pirate check before Lou lets Pixel near his map.
+    // The code wheel (4.1.15, wiki/en/create.remix.md): an optional, playful pirate check before Lou lets Pixel near his map.
     // Its combination comes from the world's seed (the `copy-protection` stream); `parody`: three wrong answers and Lou
     // gives up. Not a protection of anything: a joke the player is in on.
     { id: 'hall.use-map', verb: ['use', 'push', 'open'], a: 'map', if: '!pirate_checked', do: [

@@ -16,7 +16,7 @@ const { instructionsFor, toolsServer } = await import('./tools-server');
 
 /** The engine's version, read from package.json (4.1.6): the server said 0.1.0 whatever the release. */
 const VERSION = String(JSON.parse(readFileSync(new URL('../../package.json', import.meta.url), 'utf8')).version);
-const log = (line: string) => console.error(`[web-scumm mcp] ${line}`);
+const log = (line: string) => console.error(`[quest-n-click mcp] ${line}`);
 const at = process.argv.indexOf('--server');
 const remote = at >= 0 ? process.argv[at + 1] : undefined;
 
@@ -33,7 +33,7 @@ if (remote) {
   const game = await backend.game();
   where = url;
   server = toolsServer(backend, {
-    name: 'web-scumm',
+    name: 'quest-n-click',
     version: VERSION,
     instructions: instructionsFor(game.title, url, true),
     log,
@@ -51,12 +51,12 @@ if (remote) {
   server = toolsServer(
     (s) =>
       coreBackend(studio, { root: ROOT, devUrl: DEV_URL, author: () => s.server.getClientVersion()?.name ?? 'ai' }),
-    { name: 'web-scumm', version: VERSION, instructions: instructionsFor(GAME, GAME_DIR), log },
+    { name: 'quest-n-click', version: VERSION, instructions: instructionsFor(GAME, GAME_DIR), log },
   );
 }
 
-process.on('uncaughtException', (e) => console.error('[web-scumm mcp] uncaught:', e));
-process.on('unhandledRejection', (e) => console.error('[web-scumm mcp] unhandled:', e));
+process.on('uncaughtException', (e) => console.error('[quest-n-click mcp] uncaught:', e));
+process.on('unhandledRejection', (e) => console.error('[quest-n-click mcp] unhandled:', e));
 
 await server.connect(new StdioServerTransport());
-console.error(`[web-scumm mcp] ready: ${where}`);
+console.error(`[quest-n-click mcp] ready: ${where}`);

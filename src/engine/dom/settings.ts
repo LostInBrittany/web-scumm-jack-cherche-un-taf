@@ -15,6 +15,8 @@ export interface Settings {
   sfxVolume: number;
   voiceVolume: number;
   captions: boolean;
+  /** The verbs' keyboard shortcuts (4.3.0, #203): on by default, offered in the settings when a verb has a `key`. */
+  verbKeys: boolean;
 }
 
 export const DEFAULT_SETTINGS: Settings = {
@@ -26,6 +28,7 @@ export const DEFAULT_SETTINGS: Settings = {
   sfxVolume: 1,
   voiceVolume: 1,
   captions: true,
+  verbKeys: true,
 };
 
 /** Applies the preferences: fonts, text size, volumes, motion. */
@@ -105,6 +108,16 @@ export function settingsMenu(app: App, d: HTMLElement, m: HTMLElement) {
       () => (S.captions ? ui.on : ui.off),
       () => {
         S.captions = !S.captions;
+      },
+    );
+  // Only in a game whose verbs have keys (4.3.0): a single-letter shortcut the player can turn off (WCAG 2.1.4), for
+  // whoever types by voice or hits keys by accident.
+  if (app.game.verbs.some((v) => v.key !== undefined))
+    row(
+      app.t('verbKeys'),
+      () => (S.verbKeys ? ui.on : ui.off),
+      () => {
+        S.verbKeys = !S.verbKeys;
       },
     );
   const langs = app.o.languages;

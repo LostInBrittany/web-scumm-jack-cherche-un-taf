@@ -38,7 +38,7 @@ export function releaseNotes(changelog, tag) {
 export function manualPasses(sheet) {
   const head = '### Manual passes (D12: reported, not blocking)\n\n';
   if (!sheet)
-    return `${head}None recorded for this release: the screen reader, Safari offline, a real phone, playtesters, recorded voices, listening and a signed tag were not checked by hand (docs/en/FIELD.md, docs/dev/passes/TEMPLATE.md).\n`;
+    return `${head}None recorded for this release: the screen reader, Safari offline, a real phone, playtesters, recorded voices, listening and a signed tag were not checked by hand (https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Contribute-Field-Passes, docs/dev/passes/TEMPLATE.md).\n`;
   // A sheet since 4.1.7 opens with the release's own table ("It may not ship while…"): only the people's passes count.
   const people = sheet.indexOf("## People's passes");
   // The first table after the heading only (4.1.18: a later table is not a pass), its rows without the header.

@@ -52,6 +52,37 @@ function assets(o: { refuse?: boolean; none?: boolean } = {}) {
 const folders = () => (existsSync(dir) ? readdirSync(dir).sort() : []);
 
 describe('the prepared sets at start', () => {
+  it('drop an older set with no file without a fault, a Prepare having ended while the start looked (4.2.3)', async () => {
+    const { p, log } = assets();
+    await db.run(
+      "INSERT INTO studio_prepared (id, epoch, rev, manifest, made_by, made_at) VALUES (1, 'e1', 6, '{}', 'lea', 1)",
+    );
+    // The start's look at the latest set answers set 1, then waits while a Prepare makes set 2.
+    let release!: () => void;
+    const held = new Promise<void>((r) => (release = r));
+    let looking!: () => void;
+    const looked = new Promise<void>((r) => (looking = r));
+    const all = db.all.bind(db);
+    db.all = async (sql: string, params?: unknown[]) => {
+      const rows = await all(sql, params);
+      if (sql.includes('ORDER BY id DESC LIMIT 1')) {
+        db.all = all;
+        looking();
+        await held;
+      }
+      return rows;
+    };
+    const starting = p.start();
+    await looked;
+    await p.prepare('max');
+    release();
+    await starting;
+    // Set 1 had no folder to remove: nothing failed, set 2 served.
+    expect(log).toEqual([]);
+    expect(p.folder()).toBe(join(dir, '2'));
+    expect(folders()).toEqual(['2']);
+  });
+
   it('never serve the older set a slow start ends with, after a Prepare ended meanwhile (4.2.3)', async () => {
     const { p, log } = assets();
     // Set 1, of two files, prepared by an earlier instance.

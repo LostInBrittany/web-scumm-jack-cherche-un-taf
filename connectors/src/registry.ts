@@ -1,4 +1,4 @@
-// The four connectors of 4.1.9, by id, built from the operator's configuration section (docs/en/CONNECTORS.md).
+// The four connectors of 4.1.9, by id, built from the operator's configuration section (wiki/en/bridge.connectors.md).
 import { type BadgeConfig, OpenBadgeConnector } from './badges/connector';
 import { EmailConnector, emailConfig } from './email/connector';
 import type { RealityConnector } from './sdk';

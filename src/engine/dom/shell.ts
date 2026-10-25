@@ -3,8 +3,9 @@
 
 import type { Id } from '../core/types';
 import { roving } from './a11y';
-import { el, esc } from './app-shared';
+import { el, esc, verbLabelHtml } from './app-shared';
 import type { App } from './app';
+import { fitSide } from './side-fit';
 
 // ================================================================== layout
 export function buildShell(app: App) {
@@ -35,9 +36,10 @@ export function buildShell(app: App) {
   app.verbsEl.setAttribute('aria-label', app.t('verbs'));
   roving(app.verbsEl, '.verb');
   for (const v of app.game.verbs) {
-    const b = el('button', 'verb', esc(v.label));
+    const b = el('button', 'verb', verbLabelHtml(v));
     b.style.color = v.color;
     b.dataset.verb = v.id;
+    if (v.key) b.setAttribute('aria-keyshortcuts', v.key.toUpperCase());
     b.onclick = () => app.pickVerb(v.id);
     app.verbsEl.append(b);
   }
@@ -71,7 +73,7 @@ export function buildShell(app: App) {
   const icons = app.game.skin.icons;
   // Several playable characters: one button per other character (their portrait, or their initial), before the map.
   for (const pid of app.game.players?.ids ?? []) {
-    const c = app.game.characters[pid];
+    const c = app.engine.character(pid);
     const b = el(
       'button',
       'tool player',
@@ -136,9 +138,12 @@ export function buildShell(app: App) {
 
 /** @internal Read by the modules of dom/ (4.1.0). */
 export function layout(app: App) {
+  // The content box: #app's padding is the safe areas (notch, home indicator), which the game must stay out of.
   const r = app.root.getBoundingClientRect();
-  const W = r.width,
-    H = r.height;
+  const pad = getComputedStyle(app.root);
+  const px = (v: string) => Number.parseFloat(v) || 0;
+  const W = r.width - px(pad.paddingLeft) - px(pad.paddingRight),
+    H = r.height - px(pad.paddingTop) - px(pad.paddingBottom);
   app.desk = matchMedia('(pointer: fine)').matches && W >= 720 && H >= 450;
   app.g.classList.toggle('desk', app.desk);
   let sw: number, sh: number;
@@ -156,6 +161,8 @@ export function layout(app: App) {
     });
     app.verbsEl.style.fontSize = `${Math.max(12, Math.round(ph * 0.105))}px`;
     for (const b of app.verbsEl.children) (b as HTMLElement).style.height = '';
+    app.invEl.classList.remove('fit');
+    app.invEl.style.removeProperty('--slot-max');
     if (app.sbar.parentElement !== app.side) app.side.prepend(app.sbar);
   } else {
     const sideW = Math.max(176, Math.min(300, W - H * 1.6));
@@ -172,8 +179,6 @@ export function layout(app: App) {
     });
     const colW = (sideW - 16) / 3;
     app.verbsEl.style.fontSize = `${Math.max(10, Math.min(16, Math.floor(colW / 4.1)))}px`;
-    for (const b of app.verbsEl.children)
-      (b as HTMLElement).style.height = `${Math.max(44, Math.min(56, Math.round(H * 0.12)))}px`; // a touch target: 44 px at least (4.1.6)
     if (app.sbar.parentElement !== app.scene) app.scene.append(app.sbar);
   }
   Object.assign(app.scene.style, {
@@ -185,7 +190,49 @@ export function layout(app: App) {
   app.sw = sw;
   app.view.resize(app.u);
   app.renderA11yTargets();
-  if (app.items) app.renderInv();
+  if (app.items)
+    app.renderInv(); // which fits the column (fitSideColumn)
+  else fitSideColumn(app);
+}
+
+/**
+ * Phone layout: verb and slot heights that keep the whole column, the tools row included, on the screen (side-fit.ts).
+ * Measured from the column itself (its padding, gaps, the tools row as the fonts and the text size draw it); run by
+ * renderInv, so again when the bag's page buttons show or hide and when the verbs come back after a talk or the map
+ * (while they are hidden, the column holds the choices or the places, which scroll on their own).
+ */
+export function fitSideColumn(app: App) {
+  if (app.desk || app.verbsEl.hidden) return;
+  const side = app.side;
+  const H = side.clientHeight;
+  if (!H) return;
+  const cs = getComputedStyle(side);
+  const px = (v: string) => Number.parseFloat(v) || 0;
+  const shown = [app.verbsEl, app.invEl, app.invNav, app.toolsEl].filter((e) => !e.hidden);
+  const box = (e: HTMLElement) => {
+    const s = getComputedStyle(e);
+    return px(s.paddingTop) + px(s.paddingBottom) + px(s.borderTopWidth) + px(s.borderBottomWidth);
+  };
+  const verbs = app.verbsEl.children.length;
+  const verbRows = Math.ceil(verbs / 3);
+  const slotRows = 2;
+  const vGap = px(getComputedStyle(app.verbsEl).rowGap);
+  const iGap = px(getComputedStyle(app.invEl).rowGap);
+  let chrome = px(cs.paddingTop) + px(cs.paddingBottom) + Math.max(0, shown.length - 1) * px(cs.rowGap);
+  for (const e of shown) {
+    if (e === app.verbsEl) chrome += Math.max(0, verbRows - 1) * vGap;
+    else if (e === app.invEl) chrome += box(e) + (slotRows - 1) * iGap;
+    else chrome += e.offsetHeight; // the tools row, the bag's page buttons (`.tools`' auto margin is free room)
+  }
+  const cols = app.invCols;
+  const inv = getComputedStyle(app.invEl);
+  const slotSquare =
+    (app.invEl.clientWidth - px(inv.paddingLeft) - px(inv.paddingRight) - (cols - 1) * px(inv.columnGap)) / cols;
+  const fit = fitSide({ height: H, chrome, verbRows, slotRows, slotSquare });
+  for (const b of app.verbsEl.children) (b as HTMLElement).style.height = `${fit.verbH}px`;
+  app.invEl.classList.toggle('fit', fit.slotMax !== null);
+  if (fit.slotMax === null) app.invEl.style.removeProperty('--slot-max');
+  else app.invEl.style.setProperty('--slot-max', `${fit.slotMax}px`);
 }
 
 /** Keyboard and screen-reader representation of the visible coordinate-based scene hotspots. */

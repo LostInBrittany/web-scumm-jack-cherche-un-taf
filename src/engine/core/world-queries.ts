@@ -28,16 +28,16 @@ export function guests(eng: Engine, room: RoomDef = eng.room()): Record<Id, { ch
 export function nameOf(eng: Engine, id: Id, room: RoomDef = eng.room()): string {
   if (eng.game.items[id] && eng.state.inventory.includes(id)) return eng.game.items[id].name;
   const act = room.actors?.[id];
-  if (act) return act.name ?? eng.game.characters[act.char]?.name ?? id;
-  if (eng.guests(room)[id]) return eng.game.characters[id]?.name ?? id;
+  if (act) return act.name ?? eng.character(act.char)?.name ?? id;
+  if (eng.guests(room)[id]) return eng.character(id)?.name ?? id;
   if (room.props?.[id]?.name) return room.props[id].name!;
   if (room.hotspots?.[id]) return room.hotspots[id].name;
   if (eng.game.items[id]) return eng.game.items[id].name;
-  if (eng.game.characters[id]) return eng.game.characters[id].name;
+  if (eng.game.characters[id]) return eng.character(id)!.name;
   return id;
 }
 
-/** A character's sheet with the variant that applies to the current state (sprites, mouths, portrait). */
+/** A character's sheet with the variant that applies to the current state (name, sprites, mouths, portrait, palette). */
 export function character(eng: Engine, id: Id): CharacterDef | undefined {
   const c = eng.game.characters[id];
   if (!c?.variants || !eng.state) return c;
@@ -45,6 +45,7 @@ export function character(eng: Engine, id: Id): CharacterDef | undefined {
   return v
     ? {
         ...c,
+        name: v.name ?? c.name,
         sprites: v.sprites ?? c.sprites,
         mouths: v.mouths ?? c.mouths,
         portrait: v.portrait ?? c.portrait,
@@ -137,13 +138,16 @@ export function inScene(eng: Engine, id: Id, room: RoomDef): boolean {
   return declared && eng.visible(id, room);
 }
 
-/** Distance from a character to where the hero stands to reach it: 44, or `actorGap` × their mean height × depth. */
-function gap(eng: Engine, L: ReturnType<Engine['layout']>, at: Point, h: number | undefined): number {
+/**
+ * Distance from a character to where the hero stands to reach it: 44, or `actorGap` × their mean height × depth. `h` is
+ * the character's height as the view draws it (an actor's, or a guest's with the hero's default); anything but a
+ * positive finite `actorGap` keeps the 44.
+ */
+function gap(eng: Engine, L: ReturnType<Engine['layout']>, at: Point, h: number): number {
   const k = eng.game.actorGap;
-  if (!k) return 44;
-  const heights = eng.game.skin?.heights;
-  const hero = eng.game.characters[eng.heroId()]?.height ?? heights?.hero ?? 84;
-  return Math.round(((k * (hero + (h ?? heights?.actor ?? 110))) / 2) * scaleAt(L, at));
+  if (typeof k !== 'number' || !Number.isFinite(k) || k <= 0) return 44;
+  const hero = eng.game.characters[eng.heroId()]?.height ?? eng.game.skin?.heights?.hero ?? 84;
+  return Math.round(((k * (hero + h)) / 2) * scaleAt(L, at));
 }
 
 /** Point where the hero stands to act on a target. */
@@ -167,10 +171,9 @@ export function approach(eng: Engine, id: Id, room: RoomDef = eng.room()): Point
       y = o?.y ?? a.y;
     if (a.approach && near(a.approach, [x, y])) return a.approach;
     const char = room.actors?.[id]?.char;
-    return [
-      x + (x > 320 ? -1 : 1) * gap(eng, L, [x, y], a.h ?? (char ? eng.game.characters[char]?.height : undefined)),
-      y,
-    ];
+    // The actor's height as dom/room.ts draws it.
+    const tall = a.h ?? (char ? eng.game.characters[char]?.height : undefined) ?? eng.game.skin?.heights?.actor ?? 110;
+    return [x + (x > 320 ? -1 : 1) * gap(eng, L, [x, y], tall), y];
   }
   if (h?.rect) return [h.rect[0] + h.rect[2] / 2, Math.min(floor, h.rect[1] + h.rect[3] + 12)];
   if (h?.poly) {
@@ -179,7 +182,11 @@ export function approach(eng: Engine, id: Id, room: RoomDef = eng.room()): Point
     return [(Math.min(...xs) + Math.max(...xs)) / 2, Math.min(floor, Math.max(...ys) + 12)];
   }
   const g = eng.guests(room)[id];
-  if (g) return [g.at[0] + (g.at[0] > 320 ? -1 : 1) * gap(eng, L, g.at, eng.game.characters[g.char]?.height), g.at[1]];
+  if (g) {
+    // A guest is a playable character: dom/room.ts draws it with the hero's default height, not an actor's.
+    const tall = eng.game.characters[g.char]?.height ?? eng.game.skin?.heights?.hero ?? 84;
+    return [g.at[0] + (g.at[0] > 320 ? -1 : 1) * gap(eng, L, g.at, tall), g.at[1]];
+  }
   return null;
 }
 

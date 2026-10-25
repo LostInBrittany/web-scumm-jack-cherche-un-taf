@@ -1,7 +1,7 @@
 // npm run provenance: where the shipped assets come from, under which licences, and whether they are the files that
 // were reviewed. `--lock` writes games/<id>/provenance.lock.json (each file's SHA-256 and size with its entry's claims)
-// after a review; `validate --release` then refuses any file or claim that changed since (docs/en/TOOLS.md "Asset
-// provenance"). Exit codes: 0 clean, 1 something to review (coverage, lock, licences).
+// after a review; `validate --release` then refuses any file or claim that changed since
+// (wiki/en/create.asset-provenance.md#provenance). Exit codes: 0 clean, 1 something to review (coverage, lock, licences).
 import {
   entryOf,
   licenceVerdict,
@@ -28,7 +28,7 @@ const { game } = await loadGameModule();
 const prov = readJson<Provenance>(PROVENANCE);
 if (!prov) {
   console.log(
-    `✖  [${GAME}] no provenance.json: say where every asset comes from first (docs/en/TOOLS.md "Asset provenance")`,
+    `✖  [${GAME}] no provenance.json: say where every asset comes from first (https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Create-Asset-Provenance#provenance)`,
   );
   process.exit(1);
 }

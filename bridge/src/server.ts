@@ -1,4 +1,4 @@
-// The Bridge over HTTP (4.1.1, docs/en/REALITY-OPS.md): the routes onto `Bridge`, Server-Sent Events, CORS for the
+// The Bridge over HTTP (4.1.1, wiki/en/bridge.install-run.md): the routes onto `Bridge`, Server-Sent Events, CORS for the
 // game's origins, a body limit, and the demonstration webhook (an HMAC-signed request turned into a finite signal by
 // its connector's own Biscuit). node:http only. 4.1.10: several tenants on one server (each request resolved to its
 // tenant's Bridge before anything is read), `/livez`, `/readyz`, `/healthz`, and `trust-proxy` by allowlist (D20).

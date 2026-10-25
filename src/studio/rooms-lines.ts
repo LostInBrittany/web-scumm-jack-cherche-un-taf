@@ -7,6 +7,8 @@ import type { Cmd, Id, RoomDef } from '@engine/core/types';
 import { timeline, type Timeline } from '@engine/tools/timeline';
 import { must } from '../engine/core/must';
 import { api, type GameInfo, type RoomData, type TextRef } from './api';
+import { parseText, renderText } from '@engine/core/text-switch';
+import { previewFlags } from './hero-picker';
 import { focusEditor } from './rooms-bridge';
 import { asList, chipText, condText, MAX_TEXT, speaker, valueAt } from './rooms-text';
 import { autoGrow, h, toast } from './ui';
@@ -62,11 +64,13 @@ export function line(
     count.classList.toggle('over', n > MAX_TEXT);
   };
   showCount();
+  const shown = switchPreview(host, ref.value);
+  if (shown) t.addEventListener('input', () => shown.update(t.value));
   const row = h(
     'div',
     { class: 'line', 'data-path': path, title: `${path} · ${ref.file}:${ref.line}` },
     opts.label ? h('span', { class: 'who', style: opts.color ? { color: opts.color } : undefined }, opts.label) : null,
-    t,
+    shown ? h('div', { class: 'txt' }, t, shown.el) : t,
     count,
     opts.deletable
       ? h(
@@ -113,6 +117,25 @@ export function line(
     }
   });
   return row;
+}
+
+/**
+ * Under a text holding a text switch or `{hero}` (4.3.0), read-only: the text as a player reads it with the values picked
+ * in the Play tab's "Text switches" (hero-picker.ts; none picked: each switch's `*=` or first text). The text itself
+ * stays as written, braces and all. Null for a text without either.
+ */
+export function switchPreview(host: Pick<LinesHost, 'info'>, text: string) {
+  const p = parseText(text);
+  if (!p.switches.length && !p.hero) return null;
+  const el = h('div', { class: 'switch-preview muted small' });
+  const update = (v: string) => {
+    const flags = [...new Set(parseText(v).switches.map((w) => w.flag))];
+    const as = flags.map((f) => `${f}=${previewFlags[f] === undefined ? '?' : String(previewFlags[f])}`).join(' ');
+    const hero = host.info.characters[host.info.hero ?? '']?.name ?? 'the hero';
+    el.textContent = `→ ${renderText(v, previewFlags, hero)}${as ? `  (${as})` : ''}`;
+  };
+  update(text);
+  return { el, update };
 }
 
 /** "+ line" input appending to the list at `path` (`look.piano`, `hints[2].lines`). */

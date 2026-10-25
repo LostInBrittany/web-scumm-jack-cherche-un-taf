@@ -92,3 +92,35 @@ describe('the manifest', () => {
     expect(await manifestHash(renamed)).not.toBe(h);
   });
 });
+
+// Killed mutants (4.3.0 reread of the exemptions): the decoders are strict on their own, not only behind the callers'
+// checks. `b64url` and `importBridgeKey` are public; a header is read before any key is chosen.
+describe('the protocol decoders, strict on their own', () => {
+  const bytes = (s: string, extra: number[] = []) => {
+    const pre = new TextEncoder().encode(s);
+    return Uint8Array.from([...pre, ...extra]);
+  };
+  const b64 = (u: Uint8Array) => Buffer.from(u).toString('base64url');
+
+  it('b64url refuses standard base64 and whitespace, which atob would take', async () => {
+    const { b64url } = await import('@engine/reality/protocol');
+    expect(() => b64url.decode('ab+/')).toThrow('not base64url');
+    expect(() => b64url.decode('ab cd')).toThrow('not base64url');
+    expect(b64url.decode('ab-_')).toHaveLength(3);
+  });
+
+  it('a header that is not UTF-8 is unreadable, not a key of another name', async () => {
+    const kid = corpus.keys[0]!.kid;
+    const h = b64(bytes(`{"alg":"EdDSA","kid":"${kid}`, [0xff, 0x22, 0x7d]));
+    const r = await verifySignal(`${h}.e30.AAAA`, await keyring(), {
+      ...corpus.expect,
+      signals: new Set(corpus.expect.signals),
+    });
+    expect(r).toMatchObject({ ok: false, code: 'header' });
+  });
+
+  it('imports a verification key that cannot be exported', async () => {
+    const k = await importBridgeKey('k', corpus.keys[0]!.raw);
+    expect(k.key.extractable).toBe(false);
+  });
+});

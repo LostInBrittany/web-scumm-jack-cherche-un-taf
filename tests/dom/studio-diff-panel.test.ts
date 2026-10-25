@@ -1,6 +1,7 @@
 // @vitest-environment happy-dom
 // The Check tab's changes between revisions (4.2.3 PR 4, H3): asked by two revisions, said file by file by what the game
-// names, "file changed" when nothing more can be said, a refusal said.
+// names, "file changed" when nothing more can be said, a refusal said. 4.4.0: the rooms it names drawn at both
+// revisions on demand, side by side, where they differ outlined; a side that cannot be drawn, and a hosted Studio, said.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 let answer: { status: number; body: unknown } = { status: 200, body: { files: [] } };
@@ -87,5 +88,94 @@ describe('the changes between revisions', () => {
     await flush();
     await flush();
     expect(el.querySelector('.error')!.textContent).toBe('no revision 9 yet');
+  });
+
+  it('asks the captures on demand and shows each room at both revisions, its change outlined', async () => {
+    const el = diffPanel();
+    document.body.append(el);
+    const [f, t] = el.querySelectorAll('input');
+    f!.value = '4';
+    t!.value = '6';
+    asked.length = 0;
+    answer = {
+      status: 200,
+      body: {
+        files: [
+          {
+            path: 'layout/garden.json',
+            change: 'changed',
+            values: { added: [], removed: [], changed: ['props.tank.x'] },
+          },
+        ],
+      },
+    };
+    el.querySelector('button')!.click();
+    await flush();
+    await flush();
+    const capture = [...el.querySelectorAll('button')].find((b) => /Capture the rooms/.test(b.textContent!))!;
+    const png = 'data:image/png;base64,iVBORw0KGgo=';
+    answer = {
+      status: 200,
+      body: {
+        from: 4,
+        to: 6,
+        size: [960, 600],
+        rooms: [
+          {
+            room: 'garden',
+            why: ['layout/garden.json'],
+            before: { file: 'a.png', url: png },
+            after: { file: 'b.png', url: png },
+            box: [96, 60, 480, 300],
+          },
+          {
+            room: 'market',
+            why: ['rooms/market.ts'],
+            before: { file: 'c.png', url: png },
+            after: { file: 'd.png', url: png },
+            same: true,
+          },
+          {
+            room: 'attic',
+            why: ['rooms/attic.ts'],
+            before: { missing: 'no room "attic" at r4' },
+            after: { file: 'e.png', url: png },
+          },
+        ],
+        cut: true,
+        ms: 4200,
+      },
+    };
+    capture.click();
+    await flush();
+    await flush();
+    expect(asked).toEqual(['diff/4..6', 'diff/4..6/captures']);
+    const rooms = el.querySelectorAll('.diff-room');
+    expect(rooms).toHaveLength(3);
+    expect(rooms[0]!.textContent).toContain('garden · layout/garden.json');
+    expect(rooms[0]!.querySelectorAll('img')).toHaveLength(2);
+    expect(rooms[0]!.textContent).toContain('r4 · a.png');
+    expect(rooms[0]!.textContent).toContain('r6 · b.png');
+    // The change outlined on the after side, in percents of the capture.
+    const box = rooms[0]!.querySelector<HTMLElement>('.diff-box')!;
+    expect([box.style.left, box.style.top, box.style.width, box.style.height]).toEqual([
+      '10.00%',
+      '10.00%',
+      '50.00%',
+      '50.00%',
+    ]);
+    expect(rooms[1]!.textContent).toContain('no visible change');
+    expect(rooms[1]!.querySelector('.diff-box')).toBeNull();
+    expect(rooms[2]!.textContent).toContain('no room "attic" at r4');
+    expect(el.textContent).toContain('… and more rooms (captures cut at 6)');
+    // A hosted Studio: the reason, as the server says it.
+    answer = {
+      status: 501,
+      body: { error: 'x', unavailable: true, reason: "the diff's captures need a local Studio" },
+    };
+    capture.click();
+    await flush();
+    await flush();
+    expect(el.querySelector('.diff-captures-out .error')!.textContent).toBe("the diff's captures need a local Studio");
   });
 });

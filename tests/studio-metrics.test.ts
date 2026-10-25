@@ -328,3 +328,42 @@ describe('backup --to-bucket', () => {
     }
   });
 });
+
+describe("a preview's and a job's phases (4.4.0)", () => {
+  it('are read from their log lines, each phase its own series, a bad value left out', async () => {
+    const m = new Metrics('t'.repeat(32));
+    m.fromLog({
+      event: 'preview',
+      rev: 2,
+      ms: 4_000,
+      failed: false,
+      queuedMs: 1_500,
+      snapMs: 20,
+      jobMs: 3_000,
+      storeMs: 1_000,
+      sinceWriteMs: 5_520,
+    });
+    // A line without its own time is not a preview's; a phase that is no duration is left out.
+    m.fromLog({ event: 'preview', rev: 3, queuedMs: 1 });
+    m.fromLog({ event: 'preview', rev: 4, ms: 1, queuedMs: -1, snapMs: Number.NaN, jobMs: '3' });
+    m.fromLog({ event: 'worker-call', kind: 'preview', outcome: 'ok', putMs: 30, postMs: 6_000, getMs: 40, delMs: 0 });
+    m.fromLog({ event: 'worker-call', outcome: 'ok', putMs: 30 });
+    const text = await m.render();
+    expect(sample(text, 'studio_preview_phase_seconds_count{phase="queued"}')).toBe(1);
+    expect(sample(text, 'studio_preview_phase_seconds_sum{phase="queued"}')).toBe(1.5);
+    expect(sample(text, 'studio_preview_phase_seconds_sum{phase="snapshot"}')).toBe(0.02);
+    expect(sample(text, 'studio_preview_phase_seconds_sum{phase="job"}')).toBe(3);
+    expect(sample(text, 'studio_preview_phase_seconds_sum{phase="store"}')).toBe(1);
+    expect(sample(text, 'studio_preview_phase_seconds_sum{phase="since_write"}')).toBe(5.52);
+    expect(sample(text, 'studio_preview_phase_seconds_count{phase="snapshot"}')).toBe(1);
+    expect(sample(text, 'studio_preview_phase_seconds_count{phase="job"}')).toBe(1);
+    expect(sample(text, 'studio_preview_build_seconds_count{outcome="built"}')).toBe(2);
+    expect(sample(text, 'studio_worker_job_phase_seconds_sum{kind="preview",phase="put"}')).toBe(0.03);
+    expect(sample(text, 'studio_worker_job_phase_seconds_sum{kind="preview",phase="post"}')).toBe(6);
+    expect(sample(text, 'studio_worker_job_phase_seconds_sum{kind="preview",phase="get"}')).toBe(0.04);
+    expect(sample(text, 'studio_worker_job_phase_seconds_count{kind="preview",phase="del"}')).toBe(1);
+    expect(text.match(/^studio_worker_job_phase_seconds_count/gm)).toHaveLength(4);
+    expect(text).toContain('# HELP studio_preview_build_seconds');
+    expect(text).not.toMatch(/studio_preview_build_seconds A revision's preview: the snapshot/);
+  });
+});

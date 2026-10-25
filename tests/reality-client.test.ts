@@ -421,3 +421,29 @@ describe("the client's V2 context (4.1.10)", () => {
     expect(r).toEqual({ out: ['applied', 'refused'], refused: ['audience-mismatch'] });
   });
 });
+
+// Killed mutant (4.3.0 reread of the exemptions): the payload of a refusal recorded as skipped is read with the right
+// base64 padding whatever its length; `(4 + n % 4) % 4` would pad three `=`, which atob refuses.
+describe('a skipped refusal, whatever the length of its payload', () => {
+  it('reads the payload at every length modulo 4', async () => {
+    const b = await fakeBridge();
+    const lengths = new Set<number>();
+    for (let i = 0; i < 4; i++) {
+      await b.sign(i + 1, 'mail.answer.wrong', { expiresAt: NOW - CLOCK_SKEW_MS - 1, dedupeKey: `d-${'x'.repeat(i)}` });
+      lengths.add(b.journal[i]!.split('.')[1]!.length % 4);
+    }
+    expect(lengths).toContain(3);
+    const store = new MemoryStore();
+    const e = await engine(store);
+    const c = new RealityClient({
+      engine: e,
+      store,
+      port: b.port(),
+      keyring: [b.key],
+      playerId: PLAYER,
+      now: () => NOW,
+    });
+    for (const j of b.journal) expect(await c.handle(j)).toBe('skipped');
+    expect(e.state.reality?.cursor).toBe(4);
+  });
+});

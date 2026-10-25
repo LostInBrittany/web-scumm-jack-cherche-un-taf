@@ -114,3 +114,27 @@ describe("the database's clock", () => {
     expect(asked).toBeGreaterThan(0);
   });
 });
+
+// Killed mutants (4.3.0 reread of the exemptions): `check` and `list` read in a read-only transaction. On SQLite that
+// is a plain BEGIN, a WAL snapshot that another process's write lock does not hold up; a write transaction (BEGIN
+// IMMEDIATE) would wait for that lock and, after busyMs, answer StoreBusyError (a 503) instead. The other process (the
+// CLI, the MCP server on the same database) is staged by a raw node:sqlite connection holding the write lock.
+describe('reading the leases while another process holds the write lock', () => {
+  it('check and list answer from a snapshot, without waiting for the lock', async () => {
+    const file = join(root, 'j.sqlite');
+    const db = await openSqliteDb(file, { busyMs: 200 });
+    const l = new Leases(db, { ttlMs: 60_000 });
+    await l.take(tom, ['rooms/b']);
+    const { DatabaseSync } = await import('node:sqlite');
+    const other = new DatabaseSync(file);
+    other.exec('BEGIN IMMEDIATE');
+    try {
+      await expect(l.check(lea, ['rooms/a'])).resolves.toBeUndefined();
+      expect((await l.list()).map((x) => x.span)).toEqual(['rooms/b']);
+    } finally {
+      other.exec('ROLLBACK');
+      other.close();
+      await db.close();
+    }
+  });
+});

@@ -60,6 +60,7 @@ if (process.argv.includes('--report')) {
   process.stdout.write(reportMarkdown(report(game, layouts, { locales: loadLocales(resolve(GAME_DIR, 'locales')) })));
   process.exit(0);
 }
+const locales = loadLocales(resolve(GAME_DIR, 'locales'));
 const { errors, warnings } = validate(game, layouts, {
   assets,
   minigameIds,
@@ -67,7 +68,8 @@ const { errors, warnings } = validate(game, layouts, {
   minigameBindings,
   commands: mod.commands,
   release,
-  translated: Object.keys(loadLocales(resolve(GAME_DIR, 'locales'))).some((l) => l !== (game.lang ?? 'en')),
+  translated: Object.keys(locales).some((l) => l !== (game.lang ?? 'en')),
+  locales,
 });
 // Asset provenance: where every shipped image and sound comes from, and under which licence.
 const provFile = resolve(GAME_DIR, 'provenance.json');
@@ -109,7 +111,7 @@ if (existsSync(provFile) && assets) {
   if (commercial) errors.push(...commercialVerdict(keys, prov, (p) => existsSync(resolve(WORK, p))));
 } else if (release)
   errors.push(
-    'provenance.json › missing: a release says where every asset comes from (docs/en/TOOLS.md "Asset provenance")',
+    'provenance.json › missing: a release says where every asset comes from (https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Create-Asset-Provenance#provenance)',
   );
 // The scores' stem files (3.6): the same rate, channels and samples, the loop inside them, pcmBytes as decoded. The
 // built files (npm run assets), measured with ffprobe.

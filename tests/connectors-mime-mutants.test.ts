@@ -90,6 +90,15 @@ describe('the MIME reader on its fallbacks', () => {
 });
 
 describe('htmlToText', () => {
+  // 4.4.0: the tags were found in `html.toLowerCase()` at `html`'s indexes, and a character whose lower case is longer
+  // (İ, U+0130, lowers to two code units) shifted them: a script or a comment leaked into the text, visible text went.
+  it('a character whose lower case is longer shifts no tag', () => {
+    expect(htmlToText('İ<script>alert(1)</script>ok')).toBe('İ ok');
+    expect(htmlToText('İ<!-- a > secret -->ok')).toBe('İok');
+    expect(htmlToText('<style>İİİİİİİİİİ</style>Hello > world')).toBe(' Hello > world');
+    expect(htmlToText('<SCRIPT>x</SCRIPT>İ<P>y')).toBe(' İ y');
+  });
+
   it('drops comments, and the rest after an unclosed one', () => {
     expect(htmlToText('a<!-- b > c -->d')).toBe('ad');
     expect(htmlToText('a<!-->b')).toBe('a');

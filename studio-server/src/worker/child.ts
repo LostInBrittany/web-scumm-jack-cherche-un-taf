@@ -51,10 +51,12 @@ if (kind === 'preview') {
     writeFileSync(outFile, JSON.stringify({ error: String((e as Error).message).slice(0, 2_000) }));
   }
 } else if (kind === 'migrate') {
-  const { migrateIn } = await import('./migrate');
+  const { migrateIn, renameImportsIn } = await import('./migrate');
   try {
+    // The former name's imports first (4.3.0, D47): a game of 4.2.x or before loads only once they are renamed.
+    const renamed = renameImportsIn(dir);
     const mod = (await importFresh(join(dir, 'index.ts'))) as GameModule;
-    writeFileSync(outFile, JSON.stringify({ data: migrateIn(dir, mod.game) }));
+    writeFileSync(outFile, JSON.stringify({ data: migrateIn(dir, mod.game, renamed) }));
   } catch (e) {
     writeFileSync(outFile, JSON.stringify({ error: String((e as Error).message).slice(0, 2_000) }));
   }
@@ -81,8 +83,17 @@ if (kind === 'preview') {
     JSON.stringify(m, (_k, v) => (typeof v === 'function' ? undefined : v)),
   );
 } else {
-  const r = await validateDir(dir, { root: ROOT, importFresh });
-  writeFileSync(outFile, JSON.stringify({ errors: r.errors, warnings: r.warnings }));
+  // A game whose code does not load (4.3.0: the former name's imports, D47) is said as such, apart from a crash.
+  let mod: GameModule | undefined;
+  try {
+    mod = (await importFresh(join(dir, 'index.ts'))) as GameModule;
+  } catch (e) {
+    writeFileSync(outFile, JSON.stringify({ unloadable: String((e as Error)?.message ?? e).slice(0, 2_000) }));
+  }
+  if (mod) {
+    const r = await validateDir(dir, { root: ROOT, importFresh, mod });
+    writeFileSync(outFile, JSON.stringify({ errors: r.errors, warnings: r.warnings }));
+  }
 }
 // Done: a timer or a socket the game left open does not keep this process to its deadline.
 process.exit(0);

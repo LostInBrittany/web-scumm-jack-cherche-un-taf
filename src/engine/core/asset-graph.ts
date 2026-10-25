@@ -1,6 +1,6 @@
 // The asset graph: which files each part of the game needs, from the content, in one place. The renderer's room
 // preload, the background warm-up, the full offline plan, the provenance keys and the weight budgets all read it, so
-// a file one of them knows about cannot escape the others (docs/en/ENGINE.md "Assets").
+// a file one of them knows about cannot escape the others (wiki/en/engine.how-it-works.md#assets).
 //
 // Keys: `img:<manifest image id>`, `sfx:<file>`, `music:<file>` (a score's stem files too), `voice:<file>`, `video:<file>`. Scopes:
 // - `title`: the title screen (backdrop, logo, music, video), the column's and the map button's icons, the bag at the
@@ -8,8 +8,8 @@
 // - `room:<id>`: what showing and playing that room can ask for: its backdrop, props in every state and animation,
 //   every character who can stand there (its actors, the playable characters who can reach it, characters moved
 //   there) with variants, mouths and portrait, its music, and what its commands can play or show (sound effects,
-//   music changes, voice clips, the icons of items gained there, the people called on the phone, the images and
-//   sounds a minigame is given);
+//   music changes, voice clips, the icons of items gained there, the people called on the phone, the choices' card
+//   images, the images and sounds a minigame is given);
 // - `map`: the map's regions, portraits, vehicles and pins;
 // - `game`: what the game-wide rules, events and scripts can play or show, in any room;
 // - `offline`: every file the game ships (the manifest's images and videos, every audio file): the full warm-up.
@@ -18,6 +18,7 @@
 import { eachCmd } from './cmds';
 import type { Cmd, GameDef, Id, Layout, RoomDef } from './types';
 import { stageImages } from './stage';
+import { voiceBase } from './voice-key';
 
 export type AssetKind = 'img' | 'sfx' | 'music' | 'voice' | 'video';
 export interface AssetManifestLike {
@@ -93,6 +94,16 @@ function addMusic(game: GameDef, out: Set<string>, id: Id | undefined, stems: bo
   else add(out, 'music', a.music?.[id]);
 }
 
+/** The keyed clips (`<id>~<flag>=<value>…`, voice-key.ts) of `audio.voices`, by the line id they belong to. */
+function keyedClips(voices: Record<Id, string> | undefined): Map<Id, string[]> {
+  const out = new Map<Id, string[]>();
+  for (const [k, f] of Object.entries(voices ?? {})) {
+    const base = voiceBase(k);
+    if (base !== k) out.set(base, [...(out.get(base) ?? []), f]);
+  }
+  return out;
+}
+
 /** What commands can play or show: sounds, music, voice clips, gained items' icons, phone callers, minigame assets. */
 function cmdAssets(
   game: GameDef,
@@ -102,9 +113,12 @@ function cmdAssets(
   stems = true,
 ) {
   const a = game.audio ?? {};
+  const keyed = keyedClips(a.voices);
   const voice = (id?: Id, explicit?: Id) => {
     const v = explicit ?? id;
     if (v && a.voices?.[v]) add(out, 'voice', a.voices[v]);
+    // A line with switches has a clip per value (`<id>~<flag>=<value>`, voice-key.ts): any of them may play.
+    if (!explicit && id) for (const f of keyed.get(id) ?? []) add(out, 'voice', f);
   };
   for (const list of lists)
     eachCmd(list, (c) => {
@@ -120,7 +134,11 @@ function cmdAssets(
         }
       } else if ('say' in c) voice(c.id, (c as { voice?: Id }).voice);
       else if ('toast' in c || 'guide' in c) voice(c.id);
-      else if ('choice' in c) c.choice.forEach((o) => voice(o.id));
+      else if ('choice' in c)
+        c.choice.forEach((o) => {
+          voice(o.id);
+          add(out, 'img', o.img);
+        });
       else if ('gain' in c) add(out, 'img', game.items[c.gain]?.icon);
       else if ('transfer' in c) add(out, 'img', game.items[c.transfer[0]]?.icon);
       else if ('phone' in c) {
@@ -242,7 +260,7 @@ export function assetGraph(
   const map = new Set<string>();
   const M = game.map;
   for (const reg of Object.values(M?.regions ?? {})) add(map, 'img', reg.image);
-  for (const p of Object.values(M?.places ?? {})) add(map, 'img', p.portrait);
+  for (const p of Object.values(M?.places ?? {})) for (const f of asList(p.portrait)) add(map, 'img', f);
   for (const v of Object.values(M?.vehicles ?? {})) add(map, 'img', v);
   addMusic(game, map, M?.music, stems);
   for (const x of [icons?.pin, icons?.news, icons?.plane, icons?.car]) add(map, 'img', x);
@@ -261,9 +279,11 @@ export function assetGraph(
     stems,
   );
   // Answers by kind (`rules.kinds`) speak with their id's voice clip, in any room.
+  const keyed = keyedClips(a.voices);
   for (const k of game.rules?.kinds ?? []) {
     const id = (k as { id?: Id }).id;
     if (id && a.voices?.[id]) add(g, 'voice', a.voices[id]);
+    if (id) for (const f of keyed.get(id) ?? []) add(g, 'voice', f);
   }
   for (const x of Object.values(icons ?? {}))
     for (const f of asList(x as string | string[] | undefined)) add(g, 'img', f);

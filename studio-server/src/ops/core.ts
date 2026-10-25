@@ -1,4 +1,4 @@
-// Studio core: every operation of the Studio API (docs/en/STUDIO.md) as a plain function over a game folder.
+// Studio core: every operation of the Studio API (wiki/en/studio.api.md) as a plain function over a game folder.
 // Used by the Vite plugin (tools/studio/plugin.ts), the tests and the MCP server. Never exits the process: errors
 // are thrown as StudioError (with an HTTP-like status), results are plain JSON.
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -14,7 +14,7 @@ import {
   rmSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, isAbsolute, join, relative, resolve } from 'node:path';
+import { basename, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import ts from '@typescript/typescript6';
 import type { Layout, Point } from '../../../src/engine/core/types';
@@ -32,10 +32,12 @@ import {
 } from '../../../src/engine/tools/puzzle';
 import { coverageMarkdown, storyboardCoverage } from '../../../src/engine/tools/coverage';
 import { loadAssets, loadLayouts, loadLocales } from '../../../src/engine/tools/load';
-import { GAME_DIR, ROOT, type GameModule } from '../../../tools/game';
+import { ASSETS_DIR, GAME_DIR, ROOT, WORK, type GameModule } from '../../../tools/game';
 import { gameIR } from '../../../tools/game-ir';
 import type { GameIR } from '../../../src/engine/core/ir';
 import { diffFile, type FileDiff, type Side } from '../../../tools/studio/semantic-diff';
+import { roomsToCapture } from '../../../tools/studio/diff-rooms';
+import { captureDiff } from './diff-captures';
 import {
   type GroupingsFile,
   groupingsProblems,
@@ -58,16 +60,18 @@ import { applyLocale } from '../../../src/engine/tools/i18n';
 import {
   mergeSheet,
   toCsv,
+  voiceIds,
   voiceTable,
   VOICE_STATUSES,
   type VoiceSheet,
   type VoiceStatus,
 } from '../../../src/engine/tools/voices';
-import { lineIds } from '../../../src/engine/core/content-ids';
+import { heroMatrix as heroMatrixOf, type HeroMatrix } from '../../../src/engine/tools/hero-matrix';
 import { PersonalUndo, type UndoDir } from './undo';
 import { type DiagnoseKind, HOSTED_SOLVE_MS, lintIn, playtestsIn, type SolveParams, solveIn } from './diagnose';
 import type {
   CoverageData,
+  DiffCaptures,
   LintData,
   PlaytestsData,
   AddEntity,
@@ -90,7 +94,7 @@ import type {
 
 import { openSqliteDb } from '../../../bridge/src/store-sqlite';
 import { fsBlobStore } from './blobs';
-import { StudioError } from './errors';
+import { GameDoesNotLoad, isGameDoesNotLoad, isStudioError, StudioError } from './errors';
 import { ABSENT, sha256 } from './durable';
 import { type FileEffect, Journal } from './journal';
 import { validateDir } from './validate-dir';
@@ -258,11 +262,17 @@ export function createStudio(opts: StudioOptions = {}) {
   };
 
   async function loadModule(d = dir): Promise<GameModule> {
+    if (opts.executor)
+      try {
+        return (await opts.executor.load(d)) as GameModule;
+      } catch (e) {
+        throw isGameDoesNotLoad(e) ? e : new StudioError(`the game does not load: ${(e as Error).message}`, 500);
+      }
     try {
-      if (opts.executor) return (await opts.executor.load(d)) as GameModule;
       return (await importFresh(join(d, 'index.ts'))) as GameModule;
     } catch (e) {
-      throw new StudioError(`the game does not load: ${(e as Error).message}`, 500);
+      // The game's own code, imported here: its failure is the game's (the guard's baseline may be it).
+      throw isGameDoesNotLoad(e) ? e : new GameDoesNotLoad((e as Error).message);
     }
   }
 
@@ -328,17 +338,31 @@ export function createStudio(opts: StudioOptions = {}) {
   const UNGUARDED = /^(notes\.json|storyboard\.(json|md)|voices\.json|playtests\/|art\/|audio\/|private\/)/;
 
   /** The game's validation errors at the journal's head, kept per revision (the guard compares against them). */
-  let baseline: { rev: number; errors: Set<string> } | undefined;
+  let baseline: { rev: number; errors: Set<string>; unloadable?: string } | undefined;
 
   /**
    * The guard (P3): the game as it would be after the operation, built in a staging folder (links to every file, the
    * changed ones written), validated; an operation that adds a validation error is refused (422) before anything is
    * logged. Judged on the final state, so "create the object + refer to it" in one operation passes.
    */
+  /** A validator that could not answer (a worker that refused, timed out, left no result): a 503, never a verdict. */
+  const unanswered = (e: unknown): StudioError =>
+    isStudioError(e) ? e : new StudioError(`the edit cannot be judged now: ${(e as Error)?.message ?? e}`, 503);
+
   async function guard(j: Journal, changed: FileEffect[], diff: string): Promise<void> {
     if (changed.every((e) => UNGUARDED.test(e.path))) return;
     const rev = await j.revision();
-    if (baseline?.rev !== rev) baseline = { rev, errors: new Set((await validateIn(dir)).errors) };
+    // A head whose code does not load (4.3.0: a game still importing the former name's `web-scumm/…`, D47) has no
+    // verdict to compare with: an operation is then judged by whether the game loads after it, its errors becoming the
+    // next baseline. Only the game's own failure counts: a worker that refused, timed out or left no result propagates
+    // (a 503, say) and nothing is kept, so the next write asks again.
+    if (baseline?.rev !== rev)
+      try {
+        baseline = { rev, errors: new Set((await validateIn(dir)).errors) };
+      } catch (e) {
+        if (!isGameDoesNotLoad(e)) throw unanswered(e);
+        baseline = { rev, errors: new Set(), unloadable: e.message };
+      }
     const stage = join(root, '.cache', 'studio-stage', `${gameId}-${process.pid}-${Date.now().toString(36)}`);
     try {
       linkTree(dir, stage);
@@ -355,9 +379,21 @@ export function createStudio(opts: StudioOptions = {}) {
       // as not found: that says the assets wait for `npm run assets`, not that the edit is wrong. With prepared images,
       // `addEntity` refuses an unknown one itself.
       const unprepared = !Object.keys(loadAssets(join(stage, 'assets.gen.json'))?.images ?? {}).length;
-      const added = (await validateIn(stage)).errors.filter(
-        (e) => !was.has(e) && !(unprepared && e.includes('image not found')),
-      );
+      const after = await validateIn(stage).catch((e: unknown) => {
+        if (!isGameDoesNotLoad(e)) throw unanswered(e);
+        throw Object.assign(
+          new StudioError(
+            baseline?.unloadable
+              ? `refused: the game still does not load after the edit (${e.message}); nothing was written`
+              : `refused: the game would no longer load after the edit (${e.message}); nothing was written`,
+            422,
+          ),
+          { body: { errors: [e.message], diff } },
+        );
+      });
+      const added = baseline.unloadable
+        ? []
+        : after.errors.filter((e) => !was.has(e) && !(unprepared && e.includes('image not found')));
       if (added.length)
         throw Object.assign(
           new StudioError(
@@ -619,6 +655,51 @@ export function createStudio(opts: StudioOptions = {}) {
     return { from, to, files, ...(changed.length > 500 ? { cut: true } : {}) };
   }
 
+  /**
+   * The diff's captures (4.4.0): each room the diff between `from` and `to` names, rendered at both revisions
+   * (diff-captures.ts). Local only: a hosted Studio's game code runs on the worker, which has no browser.
+   */
+  async function diffCaptures(from: number, to: number): Promise<DiffCaptures> {
+    if (opts.executor)
+      return {
+        unavailable: true,
+        reason: "the diff's captures need a local Studio (npm run studio): a hosted Studio has no browser to draw them",
+      };
+    const d = await diff(from, to);
+    // The head's rooms and their files: what a changed file names (a room added or removed is named by its paths).
+    const roomFiles: Record<string, string> = {};
+    for (const r of (await loadModule()).game.rooms)
+      try {
+        roomFiles[r.id] = relative(dir, roomFile(r.id)).split(sep).join('/');
+      } catch {
+        /* a room without a file of its own: named by its layout only */
+      }
+    const pick = roomsToCapture(d.files, roomFiles);
+    return captureDiff(
+      {
+        journal: await journal(),
+        gameDir: dir,
+        game: gameId,
+        publicDir: join(WORK, 'public'),
+        assetsDir: ASSETS_DIR,
+        outDir: join(shotsDir(), `${gameId}-diff-${from}-${to}`),
+        rel,
+        // The worker's child on this machine, loaded on demand (the dev server's plugin imports this file).
+        build: async (snapshot, rev) =>
+          (await import('../worker/local')).localPreview(snapshot, {
+            rev,
+            game: gameId,
+            studioOrigin: 'http://localhost:9',
+            assetsVersion: '0',
+          }),
+      },
+      from,
+      to,
+      pick.rooms,
+      pick.cut,
+    );
+  }
+
   /** The game's IR (4.1.12, ADR 0013), with the file and line of each id and the trusted extensions' hash. */
   async function ir(): Promise<GameIR> {
     return gameIR(await loadModule(), dir);
@@ -873,6 +954,9 @@ export function createStudio(opts: StudioOptions = {}) {
   ): Promise<{ ok: true }> {
     return serial(async () => {
       const mod = await loadModule();
+      const g = mod.game;
+      // The keys of a language come from its text (4.3.1): a translation may add switches the source has not.
+      const table = lang === (g.lang ?? 'en') ? undefined : loadLocales(join(dir, 'locales'))[lang];
       const sheet = readJson<VoiceSheet>(voicesFile(), {});
       const cur = sheet[lang]?.[id];
       const row = {
@@ -881,7 +965,7 @@ export function createStudio(opts: StudioOptions = {}) {
         note: patch.note ?? cur?.note ?? '',
         actor: patch.actor ?? cur?.actor ?? '',
       };
-      const m = mergeSheet(sheet, lang, [row], new Set(lineIds(mod.game).map((x) => x.id)));
+      const m = mergeSheet(sheet, lang, [row], voiceIds(table ? applyLocale(g, table) : g));
       if (m.unknown.length) throw new StudioError(`no line "${id}" in the game`, 404);
       if (m.bad.length) throw new StudioError(m.bad[0]);
       await write(`voices ${lang}: ${id}`, [{ file: voicesFile(), after: JSON.stringify(m.sheet, null, 2) + '\n' }]);
@@ -891,6 +975,10 @@ export function createStudio(opts: StudioOptions = {}) {
   async function voicesCsv(lang?: string): Promise<{ lang: string; csv: string }> {
     const v = await voices(lang);
     return { lang: v.lang, csv: toCsv(v.rows) };
+  }
+  /** 4.4.0: the hero × language matrix (tools/hero-matrix.ts), read-only, over the game and its locale tables. */
+  async function heroMatrix(): Promise<HeroMatrix> {
+    return heroMatrixOf((await loadModule()).game, loadLocales(join(dir, 'locales')));
   }
 
   /**
@@ -1053,6 +1141,7 @@ export function createStudio(opts: StudioOptions = {}) {
     loadGame: loadModule,
     gameInfo,
     diff,
+    diffCaptures,
     ir,
     getRoom,
     texts,
@@ -1087,6 +1176,7 @@ export function createStudio(opts: StudioOptions = {}) {
     voices,
     setVoice,
     voicesCsv,
+    heroMatrix,
   };
 }
 

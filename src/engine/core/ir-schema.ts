@@ -44,11 +44,28 @@ const KEYS = new Set<string>(CMD_KEYS);
  */
 export const cmdSchema: z.ZodType = z.union([
   z.string(),
-  z.record(z.string(), z.unknown()).refine((o) => Object.keys(o).filter((k) => KEYS.has(k)).length >= 1, {
-    message: 'a command names one key of CMD_KEYS',
-  }),
+  z
+    .record(z.string(), z.unknown())
+    .refine((o) => Object.keys(o).filter((k) => KEYS.has(k)).length >= 1, {
+      message: 'a command names one key of CMD_KEYS',
+    })
+    .refine((o) => !('choice' in o) || z.array(choiceSchema).safeParse(o.choice).success, {
+      message: 'a choice is a list of options { id?, text, img?, if?, once?, do }',
+    }),
 ]);
 const cmds = z.array(cmdSchema);
+/** One option of a `{ choice }` command (`Choice`). `img` is presentation: the IR leaves it out (core/ir.ts). */
+export const choiceSchema = z.strictObject({
+  id: id.optional(),
+  text: z.string(),
+  img: doc(id.optional(), {
+    description: 'An image (manifest id): the option shows as a card, the image with its text under it.',
+    fr: 'Une image (id du manifeste) : l’option s’affiche en carte, l’image avec son texte dessous.',
+  }),
+  if: condSchema.optional(),
+  once: z.boolean().optional(),
+  do: z.lazy(() => cmds),
+});
 const listLine = z.union([z.string(), z.strictObject({ id, text: z.string() })]);
 
 /** An objective as a game writes it (`GameDef.objectives[id]`, ADR 0014): the Studio's form is generated from it. */

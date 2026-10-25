@@ -1,4 +1,4 @@
-// Generic Playwright harness for a web-scumm game, shared by scripts/e2e.mjs and any games/<id>/e2e.mjs.
+// Generic Playwright harness for a quest'n'click game, shared by scripts/e2e.mjs and any games/<id>/e2e.mjs.
 // A phone-sized, touch-enabled Chromium drives the real browser build through window.__game (see src/main.ts):
 // every helper below ends up as a real tap, the same way a finger would act on a phone, never a synthetic
 // state write. Screenshots land in E2E_OUT (default /tmp/e2e, cleared at the start of each run).
@@ -29,11 +29,11 @@ import { mkdirSync, readdirSync, rmSync } from 'node:fs';
 import { AxeBuilder } from '@axe-core/playwright';
 
 const VIEWPORT = { width: 844, height: 390 };
-// Logical scene coordinates (640 x 400): the same system as the placement editor (docs/en/TOOLS.md).
+// Logical scene coordinates (640 x 400): the same system as the placement editor (wiki/en/studio.placement.md#placement-editor).
 const LOGICAL = { width: 640, height: 400 };
 
 /**
- * axe rules the engine accepts, each for a stated reason (docs/en/ENGINE.md "Accessibility"); everything else that axe
+ * axe rules the engine accepts, each for a stated reason (wiki/en/play.accessibility.md#engine); everything else that axe
  * rates serious or critical fails `npm run e2e -- --axe`.
  */
 const AXE_ACCEPTED = [];
@@ -108,7 +108,7 @@ export async function launch(url, opts = {}) {
   });
 
   const dest = new URL(url);
-  // ?dev&at=<checkpoint> : dev-server only (ignored in a production build, see docs/en/TOOLS.md), skips the title screen.
+  // ?dev&at=<checkpoint> : dev-server only (ignored in a production build, see wiki/en/reference.dev-url-parameters.md), skips the title screen.
   if (opts.dev !== false) dest.searchParams.set('dev', '');
   if (opts.at) dest.searchParams.set('at', opts.at);
   // opts.lang: the game's language (`?lang=`), for the release-language check (`leaks()`).
@@ -274,7 +274,11 @@ export async function launch(url, opts = {}) {
     throw new Error(`verb: refused "${label}"`);
   }
 
+  // The labels of the page as loaded: another load (a reload, another `?lang=`) reads them again.
   let verbsCache = null;
+  page.on('framenavigated', (f) => {
+    if (f === page.mainFrame()) verbsCache = null;
+  });
   async function verbs() {
     if (!verbsCache)
       verbsCache = await page.evaluate(() =>
@@ -705,7 +709,7 @@ export async function launch(url, opts = {}) {
 
   /**
    * axe-core on the page as it is now: the `serious` and `critical` violations, minus the rules the engine documents as
-   * accepted (`AXE_ACCEPTED`, docs/en/ENGINE.md "Accessibility"). Returns `[]` when the screen passes.
+   * accepted (`AXE_ACCEPTED`, wiki/en/play.accessibility.md#engine). Returns `[]` when the screen passes.
    */
   async function axe(name) {
     const r = await new AxeBuilder({ page }).include('#app').analyze();

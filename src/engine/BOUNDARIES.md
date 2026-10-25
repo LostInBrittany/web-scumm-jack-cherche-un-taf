@@ -61,6 +61,7 @@ methods, as in the core:
 | `dom/room-stage.ts` | a room's stage for the painter: conditions evaluated, images placed on the backdrop (4.1.11) |
 | `dom/frame-renderer.ts` | a painter (DOM or Canvas) as a `Renderer`: whole frames, an unchanged one skipped, a changed one by its differences |
 | `dom/shell.ts` | the shell's elements, their layout for the screen, the accessible targets (from the frame's targets) |
+| `dom/side-fit.ts` | the phone column's fit (pure): verb and slot heights that keep the tools row on a short screen |
 | `dom/input.ts` | verbs, the inventory bar, taps and double taps (`verbFor`, `nearMiss`), the keyboard, the action line |
 | `dom/speech.ts` | lines with their voice, the transcript, phone calls, the choice of responses |
 | `dom/map-view.ts` | the map and the travel animation |

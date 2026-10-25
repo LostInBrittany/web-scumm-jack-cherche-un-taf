@@ -36,8 +36,8 @@ export function topology(c) {
   }
   const env = {
     ...process.env,
-    // The project's name is compose.yml's (`web-scumm-qualify`): the network the one-off containers join is named by it.
-    COMPOSE_PROJECT_NAME: 'web-scumm-qualify',
+    // The project's name is compose.yml's (`quest-n-click-qualify`): the network the one-off containers join is named by it.
+    COMPOSE_PROJECT_NAME: 'quest-n-click-qualify',
     QUALIFY_BUILD: build,
     QUALIFY_DATA: data,
     // The worker's code and the game it verifies (second reading of 4.1.19 PR 5): the committed tree of what it needs,

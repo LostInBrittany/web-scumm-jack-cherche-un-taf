@@ -35,9 +35,8 @@ void bootGame({
   // A preview's revision, from its base (`/preview/<rev>/`): saves say where they were made (ADR 0026).
   revision: preview ? previewRevision(import.meta.env.BASE_URL) : undefined,
   dev: {
-    // The dev tools (?dev, ?edit=<room>): on the dev server, in a Studio demo build (docs/en/STUDIO.md, "Demo
-    // mode") and in a hosted Studio's previews. Without these query params, the player's game is the same in every
-    // build.
+    // The dev tools (?dev, ?edit=<room>): on the dev server, in a Studio demo build (wiki/en/studio.demo-mode.md) and
+    // in a hosted Studio's previews. Without these query params, the player's game is the same in every build.
     enabled: (q) => (import.meta.env.DEV || demo || preview) && (q.has('dev') || q.has('edit')),
     // The Studio demo's edits (kept in this browser) on top of the compiled game, and a memory store so the edited
     // game never touches the player's saved game (same origin as the game on a static host).

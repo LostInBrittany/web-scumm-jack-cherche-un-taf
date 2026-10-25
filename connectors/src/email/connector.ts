@@ -1,4 +1,4 @@
-// The email connector (4.1.9, docs/en/CONNECTORS.md "Email", docs/dev/threat-models/email.md). A message reaches it
+// The email connector (4.1.9, wiki/en/bridge.connector-email.md, docs/dev/threat-models/email.md). A message reaches it
 // from a provider's signed webhook or from a mailbox it polls over IMAP. It is read in a worker (`parse.ts`), bound to
 // a player (the recipient's `+p-…` tag, or the sender who sent a pairing code), matched against the answers the game
 // declares (whole words, no pattern), and proposed once: `dedupeKey = sha256('email:' + Message-ID)`. Nothing of the

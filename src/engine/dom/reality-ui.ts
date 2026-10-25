@@ -1,4 +1,4 @@
-// The player's link to the world outside (4.1.1, docs/en/REALITY.md): loaded by `import()` only when the game declares
+// The player's link to the world outside (4.1.1, wiki/en/bridge.what-it-is.md): loaded by `import()` only when the game declares
 // `reality`, so a game without it carries none of this. The pause menu's "World link": link this game (a code to give
 // to the game's connector), see the link's state, unlink. Once linked, a RealityClient reads the Bridge (one tab at a
 // time, through the Web Locks API), verifies each signal, hands it to the engine, waits for the durable save, then
@@ -6,7 +6,7 @@
 //
 // What is kept in the browser: the Bridge's URL, the pseudonymous player id and the capability, under
 // `<game>:reality-link` in localStorage. The capability only reads and acknowledges this game's signals; it is
-// sensitive all the same (docs/en/REALITY-OPS.md), and never written into a save or a session.
+// sensitive all the same (wiki/en/bridge.install-run.md), and never written into a save or a session.
 import type { App } from './app';
 import { RealityClient } from '../reality/client';
 import { httpPort } from '../reality/http-port';

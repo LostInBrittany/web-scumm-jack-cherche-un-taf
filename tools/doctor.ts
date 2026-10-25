@@ -2,8 +2,7 @@
 // doctor-checks.ts; `--release` requires what `release-check` runs (Python and its modules, ffmpeg; no browser).
 import { spawnSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { chromium, firefox, webkit } from 'playwright';
-import { collectChecks, doctorReport, type Check } from './doctor-checks';
+import { collectChecks, doctorReport, playwrightBrowsers, type Check } from './doctor-checks';
 
 const release = process.argv.includes('--release');
 const checks = collectChecks(
@@ -14,11 +13,8 @@ const checks = collectChecks(
     },
     exists: existsSync,
     nodeVersion: process.versions.node,
-    browsers: {
-      Chromium: chromium.executablePath(),
-      Firefox: firefox.executablePath(),
-      WebKit: webkit.executablePath(),
-    },
+    // Imported only here: a created project runs the doctor without the playwright package (4.5.0).
+    browsers: await playwrightBrowsers(() => import('playwright')),
   },
   { release },
 );

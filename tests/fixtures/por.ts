@@ -1,4 +1,4 @@
-// Micro-games for the solver's partial-order reduction (docs/en/BENCH.md): independent actions whose orders multiply
+// Micro-games for the solver's partial-order reduction (wiki/en/contribute.benchmarks.md): independent actions whose orders multiply
 // the states. tests/por.test.ts checks that the reduction finds the same answers with fewer engine runs.
 import type { GameDef, Layout } from '@engine/core/types';
 

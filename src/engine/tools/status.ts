@@ -29,7 +29,7 @@ export function solveHeadline(r: {
     case 'solved':
       return r.mode === 'prove'
         ? `solved: ${end} stays reachable from every one of the ${r.states} reachable states`
-        : `solved: ${end} is reached (${r.states} states explored; --prove checks every state)`;
+        : `solved: ${end} is reached on one path (${r.states} states explored; only --prove checks every state, every answer of a choice included)`;
     case 'softlocks':
       return `softlocks: ${r.softlockCount} reachable state(s) can no longer reach ${end}`;
     case 'unsolved':

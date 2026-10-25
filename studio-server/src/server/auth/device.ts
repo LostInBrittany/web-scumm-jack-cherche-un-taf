@@ -93,7 +93,12 @@ export async function deviceLogin(
   const config = await configFor(meta.issuer, meta.client_id, !!o.allowInsecure);
   const d = await client.initiateDeviceAuthorization(config, { scope: 'openid offline_access' });
   o.tell(d.verification_uri_complete ?? d.verification_uri, d.user_code);
-  const t = await client.pollDeviceAuthorizationGrant(config, d);
+  // The provider's refusal by its OAuth code (access_denied, expired_token, unauthorized_client…), not a bare
+  // "ResponseBodyError" (4.4.0).
+  const t = await client.pollDeviceAuthorizationGrant(config, d).catch((e: unknown) => {
+    const { error, error_description } = (e as { error?: string; error_description?: string }) ?? {};
+    throw error ? new Error(`the login was refused: ${error}${error_description ? ` (${error_description})` : ''}`) : e;
+  });
   const clientId = meta.client_id;
   const file = o.file ?? defaultTokenFile();
   await locked(file, async () => {

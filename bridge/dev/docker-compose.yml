@@ -1,4 +1,4 @@
-# A Postgres for the Bridge's distributed profile on a developer's machine (4.1.10, docs/en/REALITY-OPS.md): the image
+# A Postgres for the Bridge's distributed profile on a developer's machine (4.1.10, wiki/en/bridge.install-run.md): the image
 # CI's `bridge-postgres` job runs, pinned by digest. `docker compose -f bridge/dev/docker-compose.yml up -d`, then
 # BRIDGE_PG_URL=postgres://bridge:bridge@127.0.0.1:55432/bridge npx vitest run tests/bridge-reality-store.test.ts
 services:

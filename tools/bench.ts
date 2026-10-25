@@ -5,7 +5,7 @@
 //   and 8 workers, and whether each result is the same as with one.
 // --matrix [--eras]: the 3.3 "Scale" reference table instead: the exhaustive proof on 20 and 40 rooms × 1, 2 and 3 playable
 //   characters (12 items, 30 flags, 1 walker, 2 scripts, 8 topics; --max states each), with where the time goes and
-//   how many distinct character positions the states hold. Markdown on stdout (docs/en/BENCH.md "v3.3").
+//   how many distinct character positions the states hold. Markdown on stdout (wiki/en/contribute.benchmarks.md#history).
 // Generates a game of that size (src/engine/tools/stress.ts) and times every tool on it: validate, solve (global and
 // per chapter, plain and with the partial-order reduction), the content report, the world and puzzle graphs, text
 // extraction and translation, a save migration.

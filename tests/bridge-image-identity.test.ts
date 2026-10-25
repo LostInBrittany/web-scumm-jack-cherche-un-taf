@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 // @ts-expect-error: a plain .mjs module without declarations
-import { identityFor, TAG } from '../scripts/bridge-image.mjs';
+import { ARCHIVE, identityFor, TAG } from '../scripts/bridge-image.mjs';
 
 const ANSWERS: Record<string, string> = {
   '{{.Id}}': 'sha256:config\n',
@@ -41,7 +41,7 @@ describe('the image identity', () => {
       manifestDigest: 'sha256:oci',
       os: 'linux',
       architecture: 'amd64',
-      archive: 'web-scumm-bridge-image.tar',
+      archive: ARCHIVE,
       archiveSha256: sum('an image archive'),
       compression: 'none',
       archiveBytes: 16,

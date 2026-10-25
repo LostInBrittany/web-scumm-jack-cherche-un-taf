@@ -4,6 +4,7 @@
 // written in ONE transaction, so a page closed mid-write leaves the run at its previous chunk, never half a chunk.
 import type { ChunkStore, RunHead, StoredChunk } from '../core/journal-chunks';
 
+// The database's name from web-scumm, kept so existing runs are still found (D47).
 const DB = 'web-scumm-runs';
 const HEADS = 'heads';
 const CHUNKS = 'chunks';

@@ -26,6 +26,19 @@
     "softlocks": 0
    }
   },
+  "heroes": {
+   "witness": {
+    "status": "solved",
+    "finished": true,
+    "inputs": 3,
+    "digests": "7f247b6db64d5681"
+   },
+   "proof": {
+    "status": "solved",
+    "states": 3,
+    "softlocks": 0
+   }
+  },
   "classics.insults": {
    "witness": {
     "status": "solved",
@@ -381,16 +394,66 @@
    "ended": true,
    "inputs": 7,
    "last": "23325ca7"
+  },
+  "demo-4.2.3.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.2.4.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.2.5.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.3.0.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.3.1.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.4.0.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.5.0.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.5.1.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.5.2.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
+  },
+  "demo-4.5.3.json": {
+   "ended": true,
+   "inputs": 7,
+   "last": "23325ca7"
   }
  },
  "surface": {
-  "api": "a029b70768d9feba"
+  "api": "166ef6f6dfabb00c"
  },
  "tests": {
-  "files": 319,
-  "declarations": 2687
+  "files": 376,
+  "declarations": 3404
  },
  "bundle": {
-  "initialJsKB": 133
+  "initialJsKB": 136
  }
 }

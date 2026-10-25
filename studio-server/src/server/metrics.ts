@@ -18,7 +18,14 @@ import type { Applied, Operation } from '../ops/journal';
 const BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120, 300];
 
 /** The log events counted (`studio_log_events_total`): the failures an operator alerts on. */
-const COUNTED_EVENTS = new Set(['ship-failed', 'health-failed', 'reconcile-failed', 'prepared-start-failed', 'error']);
+const COUNTED_EVENTS = new Set([
+  'ship-failed',
+  'health-failed',
+  'reconcile-failed',
+  'prepared-start-failed',
+  'worker-staging-left',
+  'error',
+]);
 
 /** A label's value as Prometheus reads it (backslash, double quote and line feed escaped). */
 const labelValue = (v: string) => v.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\n/g, '\\n');
@@ -96,6 +103,24 @@ export function sameSecret(given: string, expected: string): boolean {
   return timingSafeEqual(a, b);
 }
 
+/** A duration of a log line, in ms: a finite number at least 0, else undefined. */
+const msOf = (v: unknown): number | undefined =>
+  typeof v === 'number' && Number.isFinite(v) && v >= 0 ? v : undefined;
+/** The phases of a `preview` line (previews.ts) and of a `worker-call` line (remote-executor.ts), and their labels. */
+const PREVIEW_PHASES = [
+  ['queuedMs', 'queued'],
+  ['snapMs', 'snapshot'],
+  ['jobMs', 'job'],
+  ['storeMs', 'store'],
+  ['sinceWriteMs', 'since_write'],
+] as const;
+const JOB_PHASES = [
+  ['putMs', 'put'],
+  ['postMs', 'post'],
+  ['getMs', 'get'],
+  ['delMs', 'del'],
+] as const;
+
 /** The outcome of a job as the remote executor sees it. */
 type JobOutcome = 'ok' | 'failed' | 'timeout' | 'error';
 
@@ -115,7 +140,15 @@ export class Metrics implements JobObserver {
   );
   readonly previews = new Histogram(
     'studio_preview_build_seconds',
-    "A revision's preview: the snapshot, the worker's build, the files stored; by outcome.",
+    "A revision's preview: the worker's build and the files stored, from the snapshot packed (not included) to the preview recorded; by outcome.",
+  );
+  readonly previewPhases = new Histogram(
+    'studio_preview_phase_seconds',
+    "A revision's preview by phase: queued (from the write to the build's start), snapshot, job (the worker's, its queue included), store, since_write (from the write to the preview ready).",
+  );
+  readonly jobPhases = new Histogram(
+    'studio_worker_job_phase_seconds',
+    "The processing worker's jobs by kind and phase, as the Studio runs them: put (the snapshot staged), post (the worker's answer), get (the result read), del (the staging deleted).",
   );
   readonly judgements = new Histogram(
     'studio_health_judgement_seconds',
@@ -187,8 +220,17 @@ export class Metrics implements JobObserver {
   /** A line the server logs: the previews' and the health's durations, and the failures, are read from it. */
   fromLog(line: Record<string, unknown>): void {
     const ms = typeof line.ms === 'number' && Number.isFinite(line.ms) ? line.ms : undefined;
-    if (line.event === 'preview' && ms !== undefined)
+    if (line.event === 'preview' && ms !== undefined) {
       this.previews.observe(ms / 1000, { outcome: line.failed ? 'failed' : 'built' });
+      for (const [key, phase] of PREVIEW_PHASES) {
+        const v = msOf(line[key]);
+        if (v !== undefined) this.previewPhases.observe(v / 1000, { phase });
+      }
+    } else if (line.event === 'worker-call' && typeof line.kind === 'string')
+      for (const [key, phase] of JOB_PHASES) {
+        const v = msOf(line[key]);
+        if (v !== undefined) this.jobPhases.observe(v / 1000, { kind: line.kind, phase });
+      }
     else if (line.event === 'health' && ms !== undefined)
       this.judgements.observe(ms / 1000, { verdict: line.ok ? 'pass' : 'fail' });
     if (typeof line.event === 'string' && COUNTED_EVENTS.has(line.event)) this.events.inc({ event: line.event });
@@ -224,6 +266,8 @@ export class Metrics implements JobObserver {
       this.operations,
       this.jobs,
       this.previews,
+      this.previewPhases,
+      this.jobPhases,
       this.judgements,
       this.conflicts,
       this.responses,

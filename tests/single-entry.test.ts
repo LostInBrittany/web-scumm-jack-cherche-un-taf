@@ -29,6 +29,8 @@ const WRITERS: Record<string, string> = {
     "elsewhere: the CLI's token file (0600) in the user's configuration folder",
   'studio-server/src/server/main.ts':
     'journal: import copies a game beside the instance folder and renames it in before the journal adopts it; export writes a folder named on the command line; worker-keys writes a key pair to a folder named on the command line',
+  'studio-server/src/ops/diff-captures.ts':
+    "elsewhere: the diff's captures and the two revisions' scratch copies, in .cache/studio/<game>-diff-<from>-<to>/",
   'studio-server/src/worker/snapshot.ts':
     "elsewhere: a job's snapshot, unpacked into the worker's fresh job folder in .cache/jobs/",
   'studio-server/src/worker/main.ts':
@@ -47,6 +49,10 @@ const WRITERS: Record<string, string> = {
     "elsewhere: the job's output file beside its folder in .cache/jobs/, read and removed by the supervisor",
   // Game folders written directly (local mode: adopted by the journal; hosted: unavailable or in the executor).
   'tools/migrate.ts': 'adopted: web-scumm migrate rewrites a project (an exclusive operation in 4.2.3)',
+  'tools/migrate-name.ts':
+    "adopted: quest-n-click migrate renames the former name's imports and commands in a project (4.3.0, D47)",
+  'studio-server/src/worker/migrate.ts':
+    "elsewhere: the worker's own copy of the snapshot in its job folder, the imports renamed before the game loads (4.3.0)",
   'tools/assets.py': 'adopted: npm run assets writes assets.gen.json (and public/assets, outside the game)',
   'tools/cut-sheet.py': 'adopted: run by hand; the Studio runs it on a scratch copy',
   'tools/talk-apply.py': 'adopted: npm run talk writes art/',
@@ -63,7 +69,6 @@ const WRITERS: Record<string, string> = {
   'tools/audio/mdpipe/transcribe.py': 'adopted: npm run audio writes audio/',
   // Never a game folder.
   'cli/create.mjs': 'elsewhere: web-scumm create makes a new project folder',
-  'tools/api-doc.ts': 'elsewhere: docs/',
   'tools/audit-corpus.ts': 'elsewhere: .cache/',
   'tools/backup-memory.ts': 'elsewhere: .cache/ (measures)',
   'tools/bridge-cluster.ts': 'elsewhere: .cache/ (load reports)',
@@ -74,7 +79,29 @@ const WRITERS: Record<string, string> = {
   'tools/code-wheel.ts': 'elsewhere: printable pages in the folder named by --out',
   'tools/code-wheel-pdf.py': 'elsewhere: the PDF named on the command line',
   'tools/dist.ts': 'elsewhere: dist/',
-  'tools/dsl-doc.ts': 'elsewhere: docs/',
+  'tools/wiki/acceptance.ts':
+    "elsewhere: level 2's prompts (`wiki -- acceptance --export-prompts`), in the folder named on the command line (outside the working tree, or under .cache/)",
+  'tools/wiki/build.ts':
+    'elsewhere: the wiki build, in the folder named by --out (outside the working tree, or under .cache/)',
+  'tools/wiki/bundle.ts':
+    "elsewhere: the documentation bundle, in the folder named by --out (a package's docs-bundle/, never under a folder the repository tracks)",
+  'tools/wiki/claims.ts':
+    "elsewhere: wiki/reviews.json, the claims' scope reviews `wiki -- review-claim` records (of the folder --wiki names)",
+  'tools/wiki/coverage.ts':
+    "elsewhere: the coverage matrix and what it generates, wiki/coverage.json, wiki/legacy.json and the manifest's replaces in wiki/manifest.json (of the folder --wiki names)",
+  'tools/wiki.ts': 'elsewhere: the documentation archive, the file named by `wiki -- archive --out`',
+  'tools/wiki/generated.ts':
+    "elsewhere: a generated page's region in wiki/en|fr/<page>.md and its identifiers in wiki/manifest.json (`npx tsx tools/dsl-doc.ts`, `npx tsx tools/api-doc.ts`: create.dsl, engine.api)",
+  'tools/wiki/generators.ts':
+    "elsewhere: the generated reference pages' region in wiki/en|fr/<page>.md and their identifiers in wiki/manifest.json (`wiki -- generate`, of the folder --wiki names)",
+  'tools/wiki/pages.ts':
+    "elsewhere: the site's /docs/, into the empty folder named by `wiki -- pages --out` (the organization's site builds it)",
+  'tools/wiki/publication.ts':
+    "elsewhere: a clone of the wiki's repository in a temporary folder (its pages and publication.json, pushed), and the deploy key (0600) beside it",
+  'tools/wiki/transition.ts':
+    'elsewhere: the transition pages docs/en|fr/*.md (C2), under the root `wiki -- transition --root` names',
+  'tools/wiki/translations.ts':
+    'elsewhere: wiki/translations.json, the pairs `wiki -- translations --ack` records (of the folder --wiki names)',
   'tools/field/bundle.ts': 'elsewhere: field bundles',
   'tools/field/field.ts': 'elsewhere: field reports',
   'tools/field/surfaces.mjs': 'elsewhere: qualification surfaces',
@@ -92,12 +119,14 @@ const WRITERS: Record<string, string> = {
   'tools/release/baseline.mjs': 'elsewhere: release outputs',
   'tools/release/candidate.mjs': 'elsewhere: release outputs',
   'tools/release/lib.mjs': 'elsewhere: release outputs',
+  'tools/release/npm-stage.mjs': 'elsewhere: the run summary (GITHUB_STEP_SUMMARY)',
   'tools/release/run-jobs.mjs': 'elsewhere: release outputs',
   'tools/release/ship.mjs': 'elsewhere: release outputs',
   'tools/release/signing.mjs': 'elsewhere: release outputs',
   'tools/release/site-files.mjs': 'elsewhere: release outputs',
   'tools/runs-load.ts': 'elsewhere: .cache/ (load reports)',
   'tools/select-game.ts': 'elsewhere: the link to the selected game',
+  'tools/rename-org.mjs': "elsewhere: the repository's own tracked files, their addresses after the transfer (D51)",
   'tools/speedrun/livesplit.mjs': 'elsewhere: LiveSplit files',
   'tools/speedrun/reference-run.ts': 'elsewhere: reference runs',
   'tools/studio/snapshot.ts': "elsewhere: the demo Studio's public/studio-demo/",

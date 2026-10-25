@@ -25,7 +25,7 @@ export function setup(c) {
     tarballs = join(base, 'pack');
     sh(process.execPath, [join(ROOT, 'scripts', 'pack.mjs'), `--out=${tarballs}`], { stdio: 'inherit' });
   }
-  const bridgeTgz = join(resolve(tarballs), `web-scumm-bridge-${version}.tgz`);
+  const bridgeTgz = join(resolve(tarballs), `quest-n-click-bridge-${version}.tgz`);
   if (!existsSync(bridgeTgz)) throw new Error(`${bridgeTgz}: no Bridge archive of ${version}`);
   // The image (4.1.19, plan §6.2): the candidate's, loaded and checked by its digests (`--image-from=`, built once by
   // scripts/bridge-image.mjs in the candidate); else built here from the archive and the image's versioned lock.

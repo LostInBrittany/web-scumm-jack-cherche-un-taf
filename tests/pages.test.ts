@@ -5,7 +5,7 @@ import { join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import * as fixture from './fixture';
 import type { GameModule } from '../tools/game';
-import { loadContext, type PageContext } from '../tools/pages/lib';
+import { loadContext, outPath, ROOT, type PageContext } from '../tools/pages/lib';
 import { buildStoryboard, readStoryboard, storyboardMarkdown } from '../tools/pages/storyboard';
 import { buildReview, listSheets } from '../tools/pages/review';
 import { buildPlacement } from '../tools/pages/placement';
@@ -66,6 +66,21 @@ function tempGame(): string {
 async function ctxFor(dir: string): Promise<PageContext> {
   return loadContext({ gameDir: dir, mod: fixture as unknown as GameModule });
 }
+
+describe('the output path', () => {
+  it('a page’s default name ends with .html; an explicit --out file is kept as given (4.5.0)', () => {
+    expect(outPath(undefined, 'world')).toBe(join(ROOT, 'dist-pages', 'world.html'));
+    expect(outPath(undefined, 'puzzles.html')).toBe(join(ROOT, 'dist-pages', 'puzzles.html'));
+    expect(outPath('out/dir', 'puzzles')).toBe(resolve('out/dir', 'puzzles.html'));
+    expect(outPath('out/mine.html', 'world')).toBe(resolve('out/mine.html'));
+  });
+  it('the world and puzzles pages ask for a .html file', () => {
+    for (const page of ['world', 'puzzles'])
+      expect(readFileSync(join(import.meta.dirname, '..', 'tools', 'pages', `${page}.ts`), 'utf8')).toContain(
+        `outPath(args.out, '${page}.html')`,
+      );
+  });
+});
 
 describe('storyboard page', () => {
   it('renders boards, speakers, notes and rewrites slots, and the markdown export', async () => {

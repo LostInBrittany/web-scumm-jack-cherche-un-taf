@@ -10,9 +10,91 @@
 // manifest.
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { atLeast } from './candidate.mjs';
 
-export const REPO = process.env.WEB_SCUMM_REPO ?? 'wanoo/web-scumm';
+export const REPO = process.env.WEB_SCUMM_REPO ?? 'Quest-n-Click/quest-n-click';
 export const CANDIDATE_WORKFLOW = `${REPO}/.github/workflows/candidate.yml`;
+/**
+ * The repository's name before 4.2.5 (D47): a release or a candidate made before the rename is attested by a workflow
+ * of wanoo/web-scumm, and its signing certificate keeps saying so. Verifying one of them asks for that identity.
+ */
+export const FORMER_REPO = 'wanoo/web-scumm';
+/** The first release attested under the repository's new name. */
+export const RENAMED = '4.2.5';
+/**
+ * The repository before its transfer to the Quest-n-Click organization (4.5.2, D51): from 4.2.5 to 4.5.1 a workflow of
+ * wanoo/quest-n-click attested the files, and GitHub keeps those attestations under the user wanoo, not under the
+ * repository it moved: `--repo Quest-n-Click/quest-n-click` finds none of them.
+ */
+export const PRE_TRANSFER_REPO = 'wanoo/quest-n-click';
+/** The first release attested by the repository in the organization. */
+export const TRANSFERRED = '4.5.2';
+/**
+ * The repository's numeric id (D51): wanoo/web-scumm, wanoo/quest-n-click and Quest-n-Click/quest-n-click are one
+ * repository, renamed then transferred, and every certificate they signed names it as `sourceRepositoryIdentifier`.
+ * A repository created again under a former name would have another id: an attestation is accepted only when it names
+ * this one. A fork sets WEB_SCUMM_REPO and, to keep the check, its own WEB_SCUMM_REPO_ID; with WEB_SCUMM_REPO alone the
+ * id is not checked (`PINNED_ID` null), the name and the workflow still are.
+ */
+export const REPO_ID = process.env.WEB_SCUMM_REPO_ID ?? '1402166796';
+export const PINNED_ID = process.env.WEB_SCUMM_REPO && !process.env.WEB_SCUMM_REPO_ID ? null : REPO_ID;
+
+/**
+ * Why `gh attestation verify --format json`'s output does not stand for the repository `id`; null when every
+ * attestation it returns names it (`verificationResult.signature.certificate.sourceRepositoryIdentifier`). No id to
+ * pin (a fork without its own): null.
+ */
+export function repoIdProblem(json, id = PINNED_ID) {
+  if (id === null) return null;
+  let list;
+  try {
+    list = JSON.parse(json);
+  } catch {
+    return 'the verification output is not JSON';
+  }
+  if (!Array.isArray(list) || list.length === 0) return 'the verification returned no attestation';
+  for (const a of list) {
+    const got = a?.verificationResult?.signature?.certificate?.sourceRepositoryIdentifier;
+    if (got === undefined || got === null || got === '') return `an attestation names no repository id (want ${id})`;
+    if (String(got) !== String(id)) return `an attestation names repository id ${got}, not ${id}`;
+  }
+  return null;
+}
+
+/** The identities attested before the transfer, the most recent first: their attestations live under their owner. */
+export const PRE_TRANSFER = [PRE_TRANSFER_REPO, FORMER_REPO];
+/**
+ * The repository whose workflow attested the files of a release of `version` (its identity): wanoo/web-scumm up to
+ * 4.2.4, wanoo/quest-n-click from 4.2.5 to 4.5.1, the repository (Quest-n-Click/quest-n-click) from 4.5.2.
+ */
+export const repoOfRelease = (version) => {
+  if (process.env.WEB_SCUMM_REPO) return process.env.WEB_SCUMM_REPO;
+  const v = String(version).replace(/^v/, '');
+  return atLeast(v, TRANSFERRED) ? REPO : atLeast(v, RENAMED) ? PRE_TRANSFER_REPO : FORMER_REPO;
+};
+const preTransfer = (identity) => PRE_TRANSFER.some((r) => r.toLowerCase() === String(identity).toLowerCase());
+
+/**
+ * Where `gh attestation verify` looks an identity's attestations up, and how it pins the signer. The repository's own
+ * (or a fork's): `--repo <identity>`, with `--signer-workflow` when one is asked. A pre-transfer identity: `--owner`
+ * its owner (where GitHub keeps them), the identity pinned by `--signer-workflow <identity>/.github/workflows/<wf>`
+ * or, when no workflow is asked, `--signer-repo <identity>`: an owner alone would accept any of its repositories.
+ */
+export function lookupArgs(identity, signerWorkflow) {
+  if (!preTransfer(identity))
+    return ['--repo', identity, ...(signerWorkflow ? ['--signer-workflow', signerWorkflow] : [])];
+  if (signerWorkflow && !signerWorkflow.toLowerCase().startsWith(`${identity.toLowerCase()}/`))
+    throw new Error(`${signerWorkflow}: not a workflow of ${identity}`);
+  return [
+    '--owner',
+    identity.split('/')[0],
+    ...(signerWorkflow ? ['--signer-workflow', signerWorkflow] : ['--signer-repo', identity]),
+  ];
+}
+
+/** Where `gh attestation download` finds an identity's attestations: `--repo`, or `--owner` before the transfer. */
+export const downloadArgs = (identity) =>
+  preTransfer(identity) ? ['--owner', identity.split('/')[0]] : ['--repo', identity];
 
 export const sha256 = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
@@ -57,18 +139,37 @@ export const runOfStatement = (json) => /\/actions\/runs\/(\d+)(?:\/attempts\/\d
 
 /**
  * A file's provenance attestation, verified by the GitHub CLI: `bundle` and `trustedRoot` given, nothing is fetched
- * (offline); else the attestation is looked up on GitHub. `signerWorkflow` asks for the workflow that signed it,
- * `sourceRef` for the branch it ran on.
+ * (offline); else the attestation is looked up on GitHub (`lookupArgs`: under the owner for an identity attested
+ * before the transfer). `signerWorkflow` asks for the workflow that signed it, `sourceRef` for the branch it ran on.
+ * `former`: a file whose version is not known (a field bundle's candidate) may also be attested by the repository
+ * before its transfer (PRE_TRANSFER_REPO, 4.2.5 to 4.5.1) or under its former name (FORMER_REPO, before 4.2.5), tried
+ * in that order after the repository, and nothing else.
  * Returns the run id the attestation names; throws when it does not verify.
  */
-export function verifyAttestation(
-  file,
-  { repo = REPO, bundle, trustedRoot, signerWorkflow, sourceRef, gh = 'gh', timeoutMs } = {},
-) {
-  const args = ['attestation', 'verify', file, '--repo', repo, '--format', 'json'];
+export function verifyAttestation(file, options = {}) {
+  const { repo = REPO, signerWorkflow, former = false } = options;
+  try {
+    return verifyOnce(file, options);
+  } catch (e) {
+    if (!former) throw e;
+    let last = e;
+    for (const identity of PRE_TRANSFER) {
+      if (identity.toLowerCase() === repo.toLowerCase()) continue;
+      const old = signerWorkflow?.replace(`${repo}/`, `${identity}/`);
+      try {
+        return verifyOnce(file, { ...options, repo: identity, signerWorkflow: old });
+      } catch (err) {
+        last = err;
+      }
+    }
+    throw last;
+  }
+}
+
+function verifyOnce(file, { repo = REPO, bundle, trustedRoot, signerWorkflow, sourceRef, gh = 'gh', timeoutMs } = {}) {
+  const args = ['attestation', 'verify', file, ...lookupArgs(repo, signerWorkflow), '--format', 'json'];
   if (bundle) args.push('--bundle', bundle);
   if (trustedRoot) args.push('--custom-trusted-root', trustedRoot);
-  if (signerWorkflow) args.push('--signer-workflow', signerWorkflow);
   if (sourceRef) args.push('--source-ref', sourceRef);
   let out;
   try {
@@ -86,6 +187,9 @@ export function verifyAttestation(
       .join(' ');
     throw new Error(`${file}: its attestation does not verify (${why})`);
   }
+  // The name and the workflow verified, the repository itself: the id every certificate names (D51).
+  const wrong = repoIdProblem(out);
+  if (wrong) throw new Error(`${file}: its attestation does not verify (${wrong})`);
   return { runId: runOfStatement(out) };
 }
 

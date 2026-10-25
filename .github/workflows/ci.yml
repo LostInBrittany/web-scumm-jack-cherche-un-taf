@@ -1,23 +1,28 @@
 name: ci
 on:
   push:
-    # main deploys to Pages; a tag releases. A topic branch runs through its pull request (4.1.4; the ruleset on main
-    # requires these checks on the pull request's head), so a push runs once, not twice.
+    # main runs everything. A topic branch runs through its pull request (4.1.4; the ruleset on main requires these
+    # checks on the pull request's head), so a push runs once, not twice. A tag runs no ci (4.5.3, #291, D55): its
+    # commit is one of main's, already tested here, and release.yml checks that main's run on that SHA is green. The
+    # engine deploys no Pages (4.5.2, D52): the project's website, quest-n-click.cleverapps.io, serves the release's
+    # web.tar.gz at /demo/ and the latest documentation.
     branches: [main]
-    tags: ['v*']
   pull_request:
-# The token does nothing but read (4.1.3); the Pages job asks for what it needs. One run per ref at a time: a push
-# that supersedes another cancels it (the runners are the bottleneck).
+  # By hand: everything, on the branch it is started from.
+  workflow_dispatch:
+# The token does nothing but read (4.1.3). One run per ref at a time: a push that supersedes another cancels it (the
+# runners are the bottleneck).
 permissions:
   contents: read
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A run started by hand cancels no running run: it waits for it.
+  cancel-in-progress: ${{ github.event_name != 'workflow_dispatch' }}
 # Three tiers (4.1.9, lot 0). The fast tier, on every change: `plan`, `check` (format, lint, knip, types, the game's
 # gates, the build, the baseline) and `coverage` (the unit suite, once). The second tier needs `check` and runs only
 # what the change can break, as `plan` (tools/ci-plan.ts) classifies the diff: a job it spares still runs, says "not
 # needed by the plan" and succeeds, because the ruleset requires each job by name and a skipped job is not a success.
-# On main, on a tag and on a pull request labelled `full-ci`: everything. The third tier (mutation on a `full-ci`
+# On main and on a pull request labelled `full-ci`: everything. The third tier (mutation on a `full-ci`
 # pull request, the nightly corpus and heavy proofs, release-check) runs off the pull request path. `pr-gate` reads every job's result: the
 # candidate single required check, once a few runs have been green.
 jobs:
@@ -43,7 +48,7 @@ jobs:
           plan=$(node --experimental-strip-types --no-warnings tools/ci-plan.ts "$flag")
           echo "plan=$plan" >> "$GITHUB_OUTPUT"
   # The fast tier: what every change must pass, in one job. `build:game` and not `build`, which would run the unit
-  # suite a second time (`coverage` runs it). The dist it builds in the shape Pages deploys (game + Studio demo) is
+  # suite a second time (`coverage` runs it). The dist it builds in the shape the site serves (game + Studio demo) is
   # kept as an artifact: the e2e rows and pwa-firefox play it instead of building it again.
   check:
     needs: plan
@@ -57,10 +62,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
-      - run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+      - run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
@@ -86,7 +91,7 @@ jobs:
       - run: npm run quality:baseline -- --check --dist
       # The exhaustive proof of the sample game (seconds); a big game proves on the weekly prove workflow instead.
       - run: npm run prove:game
-      # The shipped dependencies' advisories: when the lockfile or package.json moved, and always on main and tags.
+      # The shipped dependencies' advisories: when the lockfile or package.json moved, and always on main.
       - if: fromJSON(needs.plan.outputs.plan).auditDeps
         run: npm run audit:deps
       # The two-entry build the e2e rows play (game + Studio demo): a chunk the game needs but the worker does not
@@ -102,20 +107,11 @@ jobs:
           include-hidden-files: true
           if-no-files-found: error
           retention-days: 3
-      # The same shape under the repository's base path, for Pages.
-      - run: npm run build:web
-        env:
-          BASE_PATH: /${{ github.event.repository.name }}/
-          STUDIO: '1'
-          VITE_STUDIO_DEMO: '1'
-      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5
-        if: github.ref == 'refs/heads/main'
-        with:
-          path: dist
   # The unit suite under V8 coverage, once (4.1.9: `node-24` no longer runs `quality`, `check` no longer runs the suite).
   # The floors of vite.config.ts fail here; the ratchet (a floor three points or more under what is measured) warns on
-  # a pull request and fails on main and on a tag (`--strict`, as the nightly and release-check).
+  # a pull request and fails on main (`--strict`, as the nightly and release-check).
   coverage:
+    needs: plan
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -126,10 +122,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
-      - run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+      - run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
@@ -270,7 +266,7 @@ jobs:
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: npm run reality:xcheck -- --require-rust
-  # The connectors of the world outside (4.1.9, D19, docs/en/CONNECTORS.md): the SDK's contract on the four connectors
+  # The connectors of the world outside (4.1.9, D19, wiki/en/bridge.connectors.md): the SDK's contract on the four connectors
   # against a real Bridge, their abuse and fuzz tests, the sample chapter's replays, a game without server code, then
   # the fuzz harness for half a minute per connector (the nightly runs a minute) and the connectors' tarball installed
   # without native code (ssh2's install script attempts a build and fails: no .node file). Gate: `reality`.
@@ -313,8 +309,10 @@ jobs:
         run: |
           node scripts/pack.mjs --out=.cache/pack
           mkdir -p .cache/operator && cd .cache/operator && echo '{"name":"operator","private":true}' > package.json
-          npm install --omit=optional --ignore-scripts --no-audit --no-fund ../pack/web-scumm-connectors-*.tgz
-          npx web-scumm-connector --help | grep -q 'usage: web-scumm-connector'
+          npm install --omit=optional --ignore-scripts --no-audit --no-fund ../pack/quest-n-click-connectors-[0-9]*.tgz
+          npx quest-n-click-connector --help | grep -q 'usage: quest-n-click-connector'
+          # The former command (D47) went in 4.3.0: the archive no longer carries it.
+          ! ls node_modules/.bin | grep -q '^web-scumm'
           ! find node_modules -name '*.node' | grep -q .
   # The hosted Studio (4.2.1): the journal on Postgres with its blobs in S3, the service lease, the processing worker
   # through presigned URLs, the spans' leases racing on Postgres, and the login, back-channel logout and a disabled
@@ -356,11 +354,11 @@ jobs:
         timeout-minutes: 20
       # The asset tools (4.2.2 PR 6b): "Prepare assets" runs them in the worker's child of the e2e stack.
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: bash scripts/ci-ffmpeg.sh
@@ -409,9 +407,15 @@ jobs:
         timeout-minutes: 10
       - if: env.RUN == 'true'
         run: npm run studio-client && npm run e2e:studio-hosted && npm run e2e:studio-hosted -- --browser=firefox && npm run e2e:studio-collab && npm run e2e:studio-collab -- --browser=firefox
+      # The diff's captures (4.4.0): two revisions really built and drawn in Chromium, which the unit jobs do not
+      # install (there the drawing test is skipped; here it is required).
+      - if: env.RUN == 'true'
+        env:
+          STUDIO_TEST_CAPTURES: '1'
+        run: npx vitest run tests/studio-diff-captures.test.ts --maxWorkers=1
   # The Bridge's distributed profile (4.1.10, D20): the store contract, the tenants crossed and the fan-out across
   # instances, on a real Postgres 16 (a service container, pinned by digest). The truth for Postgres: the maintainer's
-  # machine runs it only with a local server (docs/en/REALITY-OPS.md). Gate: `reality`.
+  # machine runs it only with a local server (wiki/en/bridge.install-run.md). Gate: `reality`.
   bridge-postgres:
     needs: plan
     runs-on: ubuntu-24.04
@@ -458,12 +462,19 @@ jobs:
   reality:
     needs: [plan, check]
     runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).reality && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
     timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, webkit]
     env:
+      HOME: /root
       RUN: ${{ fromJSON(needs.plan.outputs.plan).reality }}
     steps:
       - if: env.RUN != 'true'
@@ -471,22 +482,23 @@ jobs:
       - if: env.RUN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (python -m pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (npx playwright install --with-deps ${{ matrix.browser }}) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: npm run assets
@@ -528,11 +540,11 @@ jobs:
           cache: npm
       # The same prerequisites as `coverage`: the unit suite runs the art tools and probes the stems (tests/tooling.test.ts).
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
@@ -582,7 +594,7 @@ jobs:
       - if: env.RUN == 'true'
         run: npx tsx tools/select-game.ts && npm run -s tsc -- --noEmit
       - if: env.RUN == 'true'
-        run: npm run test:node -- --exclude tests/bridge.test.ts --exclude tests/file-size.test.ts --exclude tests/prompts.test.ts --exclude tests/status.test.ts --exclude tests/studio-demo.test.ts --exclude tests/tooling.test.ts --exclude tests/connectors-terminal.test.ts --exclude tests/connectors-ssh.test.ts --exclude tests/connectors-sdk.test.ts --exclude tests/connectors-abuse.test.ts --exclude tests/studio-worker.test.ts --exclude tests/studio-client.test.ts
+        run: npm run test:node -- --exclude tests/bridge.test.ts --exclude tests/file-size.test.ts --exclude tests/prompts.test.ts --exclude tests/status.test.ts --exclude tests/studio-demo.test.ts --exclude tests/tooling.test.ts --exclude tests/connectors-terminal.test.ts --exclude tests/connectors-ssh.test.ts --exclude tests/connectors-sdk.test.ts --exclude tests/connectors-abuse.test.ts --exclude tests/studio-worker.test.ts --exclude tests/studio-client.test.ts --exclude tests/studio-diff-captures.test.ts
       - if: env.RUN == 'true'
         run: npm run build:game
       - name: The production server answers
@@ -599,8 +611,15 @@ jobs:
   second-game:
     needs: [plan, check]
     runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).secondGame && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
     timeout-minutes: 40
     env:
+      HOME: /root
       RUN: ${{ fromJSON(needs.plan.outputs.plan).secondGame }}
     steps:
       - if: env.RUN != 'true'
@@ -608,22 +627,23 @@ jobs:
       - if: env.RUN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (python -m pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (npx playwright install --with-deps chromium) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: npm run new-game second "Second Game"
@@ -660,6 +680,12 @@ jobs:
   e2e:
     needs: [plan, check]
     runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).e2e && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
     timeout-minutes: 45
     continue-on-error: ${{ matrix.experimental }}
     strategy:
@@ -690,6 +716,7 @@ jobs:
             mode: canvas
             experimental: false
     env:
+      HOME: /root
       RUN: ${{ fromJSON(needs.plan.outputs.plan).e2e }}
     steps:
       - if: env.RUN != 'true'
@@ -697,15 +724,16 @@ jobs:
       - if: env.RUN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (npx playwright install --with-deps ${{ matrix.browser }}) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       # The two-entry build (game + Studio demo) `check` made from this very commit.
       - if: env.RUN == 'true'
@@ -780,8 +808,15 @@ jobs:
   pwa-firefox:
     needs: [plan, check]
     runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).pwaFirefox && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
     timeout-minutes: 20
     env:
+      HOME: /root
       RUN: ${{ fromJSON(needs.plan.outputs.plan).pwaFirefox }}
     steps:
       - if: env.RUN != 'true'
@@ -789,15 +824,16 @@ jobs:
       - if: env.RUN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (npx playwright install --with-deps firefox) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
@@ -815,16 +851,25 @@ jobs:
   cross-runtime:
     needs: [plan]
     runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's.
+    container:
+      image: 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea'
+      options: --init --ipc=host
     timeout-minutes: 30
+    env:
+      HOME: /root
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+      # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+      - run: git config --global --add safe.directory "$(pwd)"
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - run: for i in 1 2 3; do (npx playwright install --with-deps chromium webkit firefox) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - run: npm run e2e:canonical
       - run: npm run e2e:remix
@@ -836,8 +881,15 @@ jobs:
   fresh-install:
     needs: [plan, check]
     runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).freshInstall && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
     timeout-minutes: 30
     env:
+      HOME: /root
       RUN: ${{ fromJSON(needs.plan.outputs.plan).freshInstall }}
     steps:
       - if: env.RUN != 'true'
@@ -845,22 +897,23 @@ jobs:
       - if: env.RUN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (python -m pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (npx playwright install --with-deps chromium) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: npm run fresh-install
@@ -891,11 +944,11 @@ jobs:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 15
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
@@ -924,11 +977,11 @@ jobs:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
@@ -940,16 +993,24 @@ jobs:
   # chapter by chapter, played to the end at the keyboard in Chromium and WebKit, in French with no English default
   # visible; its rooms against their references, its staged market at 30 fps or more with the CPU slowed 4×, its first
   # visit inside the weight prediction. Its own build (GAME=reference). Gate: `reference` (its content, the painters,
-  # the music, the e2e scripts, the authoring tools).
+  # the music, the e2e scripts, the authoring tools). The French and generic runs are `reference-fr`'s, the hero choice
+  # example `heroes`'s (4.5.0, #265): three jobs side by side instead of one that ended every run.
   reference:
     needs: [plan, check]
     runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).reference && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
     timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
         browser: [chromium, webkit]
     env:
+      HOME: /root
       GAME: reference
       RUN: ${{ fromJSON(needs.plan.outputs.plan).reference }}
     steps:
@@ -958,22 +1019,23 @@ jobs:
       - if: env.RUN == 'true'
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
         uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
           cache: npm
       - if: env.RUN == 'true'
-        uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
       - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        run: for i in 1 2 3; do (python -m pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - if: env.RUN == 'true'
         run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - if: env.RUN == 'true'
-        run: for i in 1 2 3; do (npx playwright install --with-deps ${{ matrix.browser }}) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       # validate --release measures the stems with ffprobe (3.6).
       - if: env.RUN == 'true'
@@ -993,10 +1055,6 @@ jobs:
           E2E_BROWSER: ${{ matrix.browser }}
           E2E_OUT: /tmp/e2e-reference-${{ matrix.browser }}
       - if: env.RUN == 'true' && matrix.browser == 'chromium'
-        run: npm run e2e -- http://127.0.0.1:5175/ --game reference --prod --lang fr && npm run e2e -- http://127.0.0.1:5175/ --game reference --prod --generic --axe --save
-        env:
-          E2E_OUT: /tmp/e2e-reference-fr
-      - if: env.RUN == 'true' && matrix.browser == 'chromium'
         run: npm run e2e:visual -- http://127.0.0.1:5175/ && npm run e2e:perf -- http://127.0.0.1:5175/ && npm run e2e:weight -- http://127.0.0.1:5175/
       # Two scores and two bridges (3.7): a transition planned, restored, stopped, under transitionPeakMB; in WebKit
       # too since 3.8.
@@ -1010,11 +1068,131 @@ jobs:
         with:
           name: e2e-reference-${{ matrix.browser }}
           path: /tmp/e2e-reference-*
+  # The reference chapter in French with no English default visible, then the generic verbs with the accessibility
+  # audit and a save round trip (4.5.0, #265: moved out of `reference (chromium)`, the run's longest job, to run beside
+  # it). Its own build (GAME=reference), in Chromium. Gate: `reference`.
+  reference-fr:
+    needs: [plan, check]
+    runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).reference && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
+    timeout-minutes: 30
+    env:
+      HOME: /root
+      GAME: reference
+      RUN: ${{ fromJSON(needs.plan.outputs.plan).reference }}
+    steps:
+      - if: env.RUN != 'true'
+        run: echo "::notice::reference-fr not needed by the plan (nothing the reference chapter plays changed)"
+      - if: env.RUN == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - if: env.RUN == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - if: env.RUN == 'true'
+        run: for i in 1 2 3; do (python -m pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 20
+      - if: env.RUN == 'true'
+        run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 20
+      # validate --release measures the stems with ffprobe (3.6).
+      - if: env.RUN == 'true'
+        run: bash scripts/ci-ffmpeg.sh
+        timeout-minutes: 20
+      - if: env.RUN == 'true'
+        run: npm run build:game
+      - if: env.RUN == 'true'
+        run: npm run preview -- --port 5175 &
+      - if: env.RUN == 'true'
+        run: for i in $(seq 1 60); do curl -sf http://127.0.0.1:5175/ > /dev/null && break; sleep 1; done
+      - if: env.RUN == 'true'
+        run: npm run e2e -- http://127.0.0.1:5175/ --game reference --prod --lang fr && npm run e2e -- http://127.0.0.1:5175/ --game reference --prod --generic --axe --save
+        env:
+          E2E_OUT: /tmp/e2e-reference-fr
+      - if: failure() && env.RUN == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-reference-fr
+          path: /tmp/e2e-reference-fr
+  # The hero choice example (4.4.0, games/heroes): its own build, proved for every hero, then each hero picked on its
+  # portrait card, in English and in French, saved, continued and finished, in Chromium. In `reference (chromium)` until
+  # 4.5.0 (#265), now beside it. Gate: `reference` (games/heroes reads the sample game's cast, verbs and ui).
+  heroes:
+    needs: [plan, check]
+    runs-on: ubuntu-24.04
+    # Playwright's image (#261): the browsers and their system libraries are in it, so no apt mirror on the way
+    # (`--with-deps` fetched 52 MB of fonts and libraries, at 50 kB/s on a bad day). Its version is the lockfile's
+    # (tests/ci-plan.test.ts). Root in it: Firefox wants HOME to be root's. A spared job runs on the runner.
+    container:
+      image: ${{ fromJSON(needs.plan.outputs.plan).reference && 'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b510dd9230bf0b9bfc9b20102241e577ea7a99334ab4c3ca19f19770e9b8ea' || '' }}
+      options: --init --ipc=host
+    timeout-minutes: 30
+    env:
+      HOME: /root
+      GAME: heroes
+      RUN: ${{ fromJSON(needs.plan.outputs.plan).reference }}
+    steps:
+      - if: env.RUN != 'true'
+        run: echo "::notice::heroes not needed by the plan (nothing the hero choice example plays changed)"
+      - if: env.RUN == 'true'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - if: env.RUN == 'true'
+        # In the container the checkout belongs to the runner's user, not root: git is told it is safe. `$(pwd)`, the
+        # step's directory, is the workspace as the container mounts it (`/__w/…`); `github.workspace` is the host's path.
+        run: git config --global --add safe.directory "$(pwd)"
+      - if: env.RUN == 'true'
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - if: env.RUN == 'true'
+        uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
+        with:
+          python-version: '3.12'
+      - if: env.RUN == 'true'
+        run: for i in 1 2 3; do (python -m pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 20
+      - if: env.RUN == 'true'
+        run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 20
+      # validate --release measures the stems with ffprobe (3.6).
+      - if: env.RUN == 'true'
+        run: bash scripts/ci-ffmpeg.sh
+        timeout-minutes: 20
+      - if: env.RUN == 'true'
+        run: npm run build:game && npm run solve -- --prove
+      - if: env.RUN == 'true'
+        run: npm run preview -- --port 5177 &
+      - if: env.RUN == 'true'
+        run: for i in $(seq 1 60); do curl -sf http://127.0.0.1:5177/ > /dev/null && break; sleep 1; done
+      - if: env.RUN == 'true'
+        run: npm run e2e -- http://127.0.0.1:5177/ --game heroes --prod
+        env:
+          E2E_OUT: /tmp/e2e-heroes
+      - if: failure() && env.RUN == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: e2e-heroes
+          path: /tmp/e2e-heroes
   # Every job's result in one check (4.1.9): each must be `success` (a job the plan spares succeeds in a step), mutation
   # may be `skipped` where it does not run (an ordinary pull request). The candidate single required check: the
   # ruleset still requires the seventeen names until a few runs of this job have been green (the maintainer's move).
   pr-gate:
-    needs: [plan, check, coverage, mutation-plan, mutation, mutation-merge, reality-xcheck, connectors, bridge-postgres, studio-hosted, reality, node-24, windows, second-game, e2e, pwa-firefox, fresh-install, external-consumer, upgrade, reference, cross-runtime]
+    needs: [plan, check, coverage, mutation-plan, mutation, mutation-merge, reality-xcheck, connectors, bridge-postgres, studio-hosted, reality, node-24, windows, second-game, e2e, pwa-firefox, fresh-install, external-consumer, upgrade, reference, reference-fr, heroes, cross-runtime]
     if: always()
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -1035,20 +1213,3 @@ jobs:
             if [ "$result" = success ]; then echo "✔ $job"; else echo "::error::$job: $result"; bad=1; fi
           done
           exit $bad
-  pages:
-    # 4.1.16: Pages waits for the terminal gate, not a subset (no deployment with Firefox PWA, a proof or mutation red).
-    # `always()` and the gate's own result: the implicit success() also reads pr-gate's ancestors, some of which are
-    # skipped by design (mutation, jobs the plan spares), and would skip Pages forever.
-    needs: [pr-gate]
-    if: always() && github.ref == 'refs/heads/main' && needs.pr-gate.result == 'success'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    permissions:
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - id: deployment
-        uses: actions/deploy-pages@368f82528645a54fb793d4d04e342629a3f51346 # v5

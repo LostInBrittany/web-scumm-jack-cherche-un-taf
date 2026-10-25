@@ -1,4 +1,4 @@
-// Game-specific Playwright playthrough of "The Pantry Key" (see scripts/e2e.mjs, scripts/e2e/lib.mjs, docs/en/TOOLS.md).
+// Game-specific Playwright playthrough of "The Pantry Key" (see scripts/e2e.mjs, scripts/e2e/lib.mjs, wiki/en/reference.npm-scripts.md).
 // Unlike a generic `harness.walkthrough(solverPath)` replay, this script:
 //   - starts from the real title screen (New game button), not a `?dev&at=` checkpoint, and answers the opening
 //     "guess" choice itself (not part of the solver's action path, see games/demo/game.ts start.intro);

@@ -258,7 +258,7 @@ export async function dailyWorldOf(game: GameDef, token: string, now = Date.now(
  * A Mystery world from its Bridge's signed commitment and reveal (4.1.17), both verified offline with the game's
  * daily key: the reveal must be of that commitment, its seed the one the commitment hid. The tokens are kept beside
  * the world; a speedrun in it must start within the minute the reveal allows. Without a server witness the run is
- * `valid-unranked` (docs/en/SPEEDRUN.md).
+ * `valid-unranked` (wiki/en/create.speedrun.md).
  */
 export async function mysteryWorldOf(
   game: GameDef,

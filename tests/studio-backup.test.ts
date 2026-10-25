@@ -164,6 +164,11 @@ describe("the Studio Server's backup", () => {
     await expect.poll(() => segments.m.size, { timeout: 2_000 }).toBe(await a.j.revision());
     expect(await ship.rpoMs()).toBe(0);
     ship.close();
+    // Closed: its timer gone, nothing more is shipped (the server stopping).
+    const shipped = segments.m.size;
+    await a.write('notes.md', 'three');
+    await new Promise((ok) => setTimeout(ok, 100));
+    expect(segments.m.size).toBe(shipped);
     await a.j.close();
   });
 

@@ -6,7 +6,7 @@ import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import fc from 'fast-check';
-import { afterAll, describe, expect, it } from 'vitest';
+import { afterAll, describe, expect, it, vi } from 'vitest';
 import { Engine } from '@engine/core/engine';
 import { FakePresenter, MemoryStore } from '@engine/core/ports';
 import { manifestHash, realityManifest } from '@engine/reality/manifest';
@@ -27,6 +27,14 @@ import {
 import { signals, signalsLayouts } from './fixtures/signals';
 import { spawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
+import { signSignalSync } from '../bridge/src/sign';
+
+// The re-sign cache's hits are counted by the signatures made (4.4.0): the JWS of a hit and of a miss are the same
+// bytes (Ed25519 is deterministic), so only the calls tell a hit from a signature made again.
+vi.mock('../bridge/src/sign', async (orig) => {
+  const m = await orig<typeof import('../bridge/src/sign')>();
+  return { ...m, signSignalSync: vi.fn(m.signSignalSync) };
+});
 
 const temps: string[] = [];
 const servers: { close(): void }[] = [];
@@ -793,9 +801,14 @@ describe('bounded, validated, one per journal (4.1.8)', () => {
     await before.propose(link.playerId, 'mail.answer.correct', 'mail:3');
     await wide.bridge.signals(link.capability, 0); // s1, s2, s3 signed: s1 evicted when s3 arrives, s2 and s3 kept
     expect(wide.bridge.resignedCount()).toBe(2);
+    vi.mocked(signSignalSync).mockClear();
     await wide.bridge.signals(link.capability, 1); // s2 (hit, moved to the back), s3 (hit): nothing signed again
+    expect(signSignalSync).not.toHaveBeenCalled();
     const beforeAgain = wide.bridge.resignedCount();
-    await wide.bridge.signals(link.capability, 0); // s1 (miss: evicts the least recently used, s2), s2 (miss), s3 (hit)
+    // s1 (miss: evicts the least recently used, s2), s2 (miss: evicts s3), s3 (miss): a scan wider than the cache
+    // misses all along, as an LRU does.
+    await wide.bridge.signals(link.capability, 0);
+    expect(signSignalSync).toHaveBeenCalledTimes(3);
     expect(beforeAgain).toBe(2);
     expect(wide.bridge.resignedCount()).toBe(2);
   });
@@ -812,6 +825,64 @@ describe('bounded, validated, one per journal (4.1.8)', () => {
     );
     writeFileSync(file, `${JSON.stringify({ t: 'ack', playerId: 'p-1', through: 2 })}\n`);
     expect(new JsonlBridgeStore(file, { lock: false }).acked('p-1')).toBe(2);
+  });
+
+  it('refuses to start on a limit below its least, not an integer, or a name that is no limit (4.3.0)', async () => {
+    // config.json's limits were spread unchecked: `resignedCache: -1` made the re-sign cache's eviction loop run on an
+    // empty map, held off only by a guard; now the Bridge does not start, and says which limit and what it was given.
+    for (const [limits, said] of [
+      [{ resignedCache: -1 }, /^limits\.resignedCache must be an integer of at least 0, not -1$/],
+      [{ streamPage: 1.5 }, /^limits\.streamPage must be an integer of at least 1, not 1\.5$/],
+      [{ bodyBytes: '8192' }, /^limits\.bodyBytes must be an integer of at least 1, not "8192"$/],
+      [{ pairingMs: JSON.parse('1e400') }, /^limits\.pairingMs must be an integer of at least 0, not Infinity$/],
+      [{ pendingPairings: null }, /^limits\.pendingPairings must be an integer of at least 0, not null$/],
+      [{ resignCache: 10 }, /^limits\.resignCache is no limit of the Bridge \(bodyBytes, /],
+      // 0 would break these three: a fetch by cursor that never ends, no body, every stream closed at once.
+      [{ streamPage: 0 }, /^limits\.streamPage must be an integer of at least 1, not 0$/],
+      [{ bodyBytes: 0 }, /^limits\.bodyBytes must be an integer of at least 1, not 0$/],
+      [{ streamBufferBytes: 0 }, /^limits\.streamBufferBytes must be an integer of at least 1, not 0$/],
+    ] as const)
+      await expect(setup({ limits: limits as never }), JSON.stringify(limits)).rejects.toThrow(said);
+    const zero = await setup({ limits: { resignedCache: 0, streamPage: 7, pendingPairings: undefined } });
+    expect(zero.bridge.limits).toMatchObject({ resignedCache: 0, streamPage: 7, pendingPairings: 1000 });
+  });
+
+  it('the 4.3.0 upgrade notes say, in English and in French, that the limits are checked and which take at least 1', async () => {
+    // A host upgrading to 4.3.0 learns there (the wiki's `install.upgrade-notes-4-3#from-4-2-5-to-4-3-0`, UPGRADING
+    // §39 until 4.5.0) that a limit its Bridge took before may now stop it (every tenant of a shared one); the limits named there as taking at least 1 are exactly those checkLimits refuses at 0.
+    const { checkLimits, DEFAULT_LIMITS } = await import('../bridge/src/config');
+    const atLeastOne = Object.keys(DEFAULT_LIMITS).filter((k) => {
+      try {
+        checkLimits({ [k]: 0 });
+        return false;
+      } catch {
+        return true;
+      }
+    });
+    expect(atLeastOne.sort()).toEqual(['bodyBytes', 'streamBufferBytes', 'streamPage']);
+    for (const lang of ['en', 'fr']) {
+      const doc = readFileSync(`wiki/${lang}/install.upgrade-notes-4-3.md`, 'utf8');
+      const at = doc.indexOf('<a name="from-4-2-5-to-4-3-0">');
+      expect(at, lang).toBeGreaterThanOrEqual(0);
+      const next = doc.indexOf('<a name=', at + 1);
+      const s39 = doc.slice(at, next > 0 ? next : undefined);
+      const para = s39.split('\n\n').find((p) => p.includes('`limits`') && p.includes('config.json')) ?? '';
+      expect(para, lang).toMatch(/DEFAULT_LIMITS/);
+      for (const k of atLeastOne) expect(para, `${lang}: ${k}`).toContain(`\`${k}\``);
+    }
+  });
+
+  it('a journal line that is not JSON is refused with what the parser said of it', () => {
+    // 4.3.0 (the reread of the exemptions) kills store.ts parseLine `err instanceof Error` → false: the message the
+    // Bridge refuses to start with, and `doctor` prints, quotes JSON.parse's reason, never a bare "unreadable"
+    const dir = mkdtempSync(join(tmpdir(), 'bridge-notjson-'));
+    temps.push(dir);
+    const file = join(dir, 'journal.jsonl');
+    writeFileSync(file, 'not json\n');
+    expect(() => new JsonlBridgeStore(file, { lock: false })).toThrow(
+      /^journal line 1 is not an event \((?!unreadable\)).*JSON/,
+    );
+    expect(inspectJournal(file).corrupt).toMatch(/^journal line 1 is not an event \((?!unreadable\)).*JSON/);
   });
 
   it('one Bridge per journal: a live owner refuses the second, a dead one is taken over and said', () => {

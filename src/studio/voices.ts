@@ -1,24 +1,72 @@
 // The Voices tab (3.4): the voice production table of `npm run voices`, per language: every line with a stable id,
 // who says it, its text in that language, its clip, and where it stands (draft, record, recorded, approved), with the
 // actor and a note. A change is saved at once (games/<id>/voices.json, undoable); "Export CSV" hands the table to the
-// actors, `npm run voices -- import` brings theirs back. Dev server only.
+// actors, `npm run voices -- import` brings theirs back. Dev server only. Its second view (4.4.0), "Heroes ×
+// languages", is the hero matrix (hero-matrix.ts), on every backend.
 import { api, type VoicesData } from './api';
+import { HeroMatrixView } from './hero-matrix';
 import { download, h, select, toast } from './ui';
+
+type View = 'table' | 'matrix';
 
 export class VoicesTab {
   readonly el = h('section', { class: 'tab voices' });
+  private table = h('div');
+  private matrix = new HeroMatrixView();
+  /** The demo has no voice table: the matrix first. */
+  private view: View = api.voices ? 'table' : 'matrix';
+  private views = h('div', { class: 'bar' });
   private data: VoicesData | null = null;
   private filter = { status: '', text: '' };
 
+  constructor() {
+    this.el.append(this.views, this.table, this.matrix.el);
+    this.show(this.view);
+  }
+
+  private show(v: View) {
+    this.view = v;
+    this.table.hidden = v !== 'table';
+    this.matrix.el.hidden = v !== 'matrix';
+    this.views.replaceChildren(
+      ...(
+        [
+          ['table', 'Recording table'],
+          ['matrix', 'Heroes × languages'],
+        ] as [View, string][]
+      ).map(([id, label]) =>
+        h(
+          'button',
+          { class: `small${id === v ? ' on' : ''}`, 'aria-pressed': String(id === v), onclick: () => this.pick(id) },
+          label,
+        ),
+      ),
+    );
+  }
+
+  private pick(v: View) {
+    this.show(v);
+    void this.load();
+  }
+
+  /** A game file changed: the matrix reads the game, the table voices.json too (main.ts). */
+  onFileChanged(file: string) {
+    if (this.view === 'matrix' && !this.el.hidden && /\.(ts|json)$/.test(file) && file !== 'voices.json')
+      void this.matrix.load();
+  }
+
   async load(lang?: string) {
+    if (this.view === 'matrix') return this.matrix.load();
     if (!api.voices) {
-      this.el.replaceChildren(h('p', { class: 'muted pad' }, 'The voice table needs the dev server (npm run studio).'));
+      this.table.replaceChildren(
+        h('p', { class: 'muted pad' }, 'The voice table needs the dev server (npm run studio).'),
+      );
       return;
     }
     try {
       this.data = await api.voices(lang ?? this.data?.lang);
     } catch (e) {
-      this.el.replaceChildren(h('p', { class: 'error pad' }, (e as Error).message));
+      this.table.replaceChildren(h('p', { class: 'error pad' }, (e as Error).message));
       return;
     }
     this.render();
@@ -47,7 +95,7 @@ export class VoicesTab {
       this.filter.text = search.value;
       this.render();
     });
-    this.el.replaceChildren(
+    this.table.replaceChildren(
       h(
         'div',
         { class: 'bar' },

@@ -1,4 +1,4 @@
-// The SSH connector (4.1.9, docs/en/CONNECTORS.md "SSH", docs/dev/threat-models/ssh.md): an `ssh2` server with a
+// The SSH connector (4.1.9, wiki/en/bridge.connector-ssh.md, docs/dev/threat-models/ssh.md): an `ssh2` server with a
 // virtual terminal and a virtual disk. Authentication: a password that is a pairing code or a resume word (3 tries),
 // or a public key the operator declared for a player. Only `pty`, `window-change` and `shell` are accepted: no exec,
 // no sftp, no environment, no forwarding, no agent. `dedupeKey = sha256('ssh:' + sessionId + ':' + lineNo)`.

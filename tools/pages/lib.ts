@@ -48,9 +48,10 @@ export function cliArgs(argv = process.argv.slice(2)) {
   return { flags, out, rest };
 }
 
+/** An explicit `--out file.html` as given; else `name` in `--out <dir>` or dist-pages/, always ending with .html (4.5.0). */
 export function outPath(out: string | undefined, name: string): string {
   if (out?.endsWith('.html')) return resolve(out);
-  return resolve(out ?? join(ROOT, 'dist-pages'), name);
+  return resolve(out ?? join(ROOT, 'dist-pages'), name.endsWith('.html') ? name : `${name}.html`);
 }
 
 const LIMIT_BYTES = 16 * 1024 * 1024;

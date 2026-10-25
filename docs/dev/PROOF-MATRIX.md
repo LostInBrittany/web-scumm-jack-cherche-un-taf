@@ -110,7 +110,7 @@ was at 1.0–2.8 GB of 4 when the clock stopped them).
 ## 7. 4.1.13, measured (7 October 2026, the Mac)
 
 The same command, the same budget, the 4.1.13 sources (compact representation, no workers). Details per instance in
-`docs/en/BENCH.md` ("4.1.13"); the explosion profile of each instance in [PROOF-PROFILE.md](PROOF-PROFILE.md).
+`wiki/en/contribute.benchmarks.md` ("4.1.13"); the explosion profile of each instance in [PROOF-PROFILE.md](PROOF-PROFILE.md).
 
 | Id | Verdict | States | Time | States/s (4.1.8 → 4.1.13) | Peak heap (4.1.8 → 4.1.13) |
 |---|---|---|---|---|---|

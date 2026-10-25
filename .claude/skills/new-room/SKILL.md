@@ -6,7 +6,7 @@ description: Add a room to the current game, from its storyboard board to a vali
 
 Inputs: the board of `games/<id>/storyboard.json` for this room, and the decor id (`decor/<name>`).
 
-1. Read `docs/en/CONTENT_GUIDE.md` and `src/engine/core/types.ts` (RoomDef, Cmd, Cond).
+1. Read `wiki/en/create.rooms.md`, `wiki/en/create.dsl.md` and `src/engine/core/types.ts` (RoomDef, Cmd, Cond).
 2. Create `games/<id>/rooms/<room>.ts` with `defineRoom({...})`: `id`, `name`, `decor`, `music?`, `props`, `actors`,
    `hotspots`, `look` (one line or a list for every visible thing), `on` (rules: most specific first), `talk`, `hints`
    (in puzzle order, each with an `until` condition), `onEnter` (`once` for the arrival line), and when the room should

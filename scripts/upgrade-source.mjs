@@ -1,11 +1,13 @@
 // Where `npm run upgrade-check -- --from=…` takes the older engine (4.1.17): `previous`, a path to a tarball, or a
 // published version. A version may be written with or without its `v` (`--from=v4.1.15` built `vv4.1.15` and asked
 // for `web-scumm-v4.1.15.tgz` before 4.1.17), and a pre-release's tarball carries package.json's version without the
-// suffix (v4.1.16-rc.2 ships web-scumm-4.1.16.tgz).
+// suffix (v4.1.16-rc.2 ships web-scumm-4.1.16.tgz). From 4.2.5 (D47) a release's own files are named quest-n-click-…;
+// every earlier one keeps its web-scumm-… names (GitHub serves them under the repository's new name too).
+import { projectOf } from '../tools/release/artifacts.mjs';
 
 /** `{ kind: 'previous' }`, `{ kind: 'tgz', path }` or `{ kind: 'release', tag, asset, version }`; throws otherwise. */
 export function upgradeSource(from, exists) {
-  if (!from) throw new Error('--from=<version | previous | web-scumm-x.y.z.tgz> is required');
+  if (!from) throw new Error('--from=<version | previous | quest-n-click-x.y.z.tgz> is required');
   if (from === 'previous') return { kind: 'previous' };
   if (from.endsWith('.tgz') || exists(from)) {
     if (!exists(from)) throw new Error(`${from}: no such tarball`);
@@ -14,12 +16,13 @@ export function upgradeSource(from, exists) {
   const v = from.replace(/^v/, '');
   if (!/^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?$/.test(v))
     throw new Error(`--from=${from}: not a version, "previous" or a .tgz`);
-  return { kind: 'release', tag: `v${v}`, asset: `web-scumm-${v.replace(/-.*$/, '')}.tgz`, version: v };
+  const pkg = v.replace(/-.*$/, '');
+  return { kind: 'release', tag: `v${v}`, asset: `${projectOf(pkg)}-${pkg}.tgz`, version: v };
 }
 
 /**
  * The SHA-256 a release's sums file gives an asset (4.1.19: the older engine is checked against its release's own
- * `web-scumm-<tag>-SHA256SUMS`, never trusted because a URL answered). Throws when the file does not name it once.
+ * `<name>-<tag>-SHA256SUMS`, never trusted because a URL answered). Throws when the file does not name it once.
  */
 export function sumFor(sums, asset) {
   const found = String(sums)
@@ -32,7 +35,7 @@ export function sumFor(sums, asset) {
 }
 
 /** The sums file of a release tag (`v4.1.16`, `v4.1.18-rc.1`). */
-export const sumsAsset = (tag) => `web-scumm-${tag}-SHA256SUMS`;
+export const sumsAsset = (tag) => `${projectOf(tag.replace(/^v/, ''))}-${tag}-SHA256SUMS`;
 
 /**
  * The SHA-256 of the older engines the candidate creates games on (4.1.19, plan §7.4), written here once read from

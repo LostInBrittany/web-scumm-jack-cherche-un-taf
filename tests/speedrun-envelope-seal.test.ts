@@ -55,6 +55,14 @@ describe('the envelope', () => {
     expect(exportEnvelope(loaded.envelope)).toContain('"loads"');
   });
 
+  it('a run without a world proof has no worldEvidence key, in memory as in its file (4.5.0)', async () => {
+    // Kills envelope.ts sealEnvelope's `o.world.evidence ?` → `true`: the envelope a `sealed` listener and the
+    // speedrun UI hold would carry an own `worldEvidence: undefined` the file drops.
+    const { envelope } = await playRun();
+    expect(Object.keys(envelope)).not.toContain('worldEvidence');
+    expect(exportEnvelope(envelope)).not.toContain('"worldEvidence"');
+  });
+
   it('lists the inputs a run used, and a recorder without an engine needs its world given', async () => {
     const { Engine } = await import('@engine/core/engine');
     const { FakePresenter, MemoryStore } = await import('@engine/core/ports');

@@ -13,7 +13,7 @@ body:
     id: today
     attributes:
       label: What you do today instead
-      description: The rule, script, event or tool you tried (docs/en/CLASSICS.md lists what the DSL already does).
+      description: The rule, script, event or tool you tried (https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Create-Classic-Mechanics lists what the DSL already does).
   - type: textarea
     id: proposal
     attributes:
@@ -24,5 +24,5 @@ body:
     attributes:
       label: Before asking
       options:
-        - label: I read docs/en/CLASSICS.md and docs/en/CONTENT_GUIDE.md and this is not already a combination of what exists
-        - label: This is not a new primitive the 4.1.x line's frozen scope rules out (docs/en/ROADMAP.md), or I say why it is worth 4.2
+        - label: I read https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Create-Classic-Mechanics and https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Create-DSL-Reference and this is not already a combination of what exists
+        - label: This is not a new primitive the roadmap rules out (https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Start-Roadmap), or I say why it is worth it

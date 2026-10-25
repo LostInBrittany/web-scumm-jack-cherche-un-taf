@@ -1,4 +1,4 @@
-// The project's tsconfig brought to TypeScript 7 (4.1.8): what `web-scumm migrate` rewrites. A module of its own so a
+// The project's tsconfig brought to TypeScript 7 (4.1.8): what `quest-n-click migrate` rewrites. A module of its own so a
 // test can import the function without running the migration (tools/migrate.ts runs at import).
 import ts from '@typescript/typescript6';
 /**

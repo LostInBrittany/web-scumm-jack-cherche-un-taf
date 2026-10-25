@@ -26,7 +26,7 @@ same user and can read the parent's `/proc/<pid>/environ`, which still holds the
    - the snapshot's sha256;
    - the kind (`validate` or `load`; `preview` since 4.2.2, a revision's build) and its parameters;
    - its staging prefix `staging/<id>/`;
-   - the expiry, 5 min at most;
+   - the expiry, 5 min at most (the worker allows 30 s of clock skew, `CLOCK_SKEW_MS`, since 4.2.3);
    - the two presigned URLs: read the snapshot, write the result.
 4. **The worker's supervisor** (`studio-server/src/worker/main.ts`):
    - checks the job;
@@ -37,6 +37,12 @@ same user and can read the parent's `/proc/<pid>/environ`, which still holds the
      grandchild could hold, killed with the group at its deadline (60 s by default, 120 s at most);
    - reads the output from a file once the child has exited (16 MiB at most; the game's own logs never mix with it);
    - PUTs the result itself and removes the folder.
+
+   Since 4.4.0 it runs one job at a time **per lane** (`studio-server/src/worker/lanes.ts`): a preview (or a published
+   build) in its own, every other kind in the other, so that a preview never waits behind the health's solver; two
+   children at most at once, each with all of the above. Both are the one instance's jobs (one project, one trust
+   domain): a job's code was already assumed to see the next jobs' capabilities (residual risks, below); it may now
+   see the other lane's while both run, and nothing more.
 
    A process of the group still alive a second after a job marks the instance to recycle: `/readyz` answers 503, new
    jobs are refused, and the worker exits once idle so that the platform starts a fresh one. **Only the process group
@@ -85,7 +91,7 @@ same user and can read the parent's `/proc/<pid>/environ`, which still holds the
   secret of the platform. It shares the supervisor's user, so it can read the supervisor's environment
   (`/proc/<pid>/environ`): this is harmless only because the worker holds no secret, and it must stay so.
 - **Single use is per worker process.** The record of jobs seen lives in memory: a restart forgets it, and a job
-  replayed within its 5 min reruns the same snapshot into the same result key.
+  replayed before its expiry reruns the same snapshot into the same result key.
 - **What answers:**
   - one worker per Studio instance;
   - recycling on a detected survivor;

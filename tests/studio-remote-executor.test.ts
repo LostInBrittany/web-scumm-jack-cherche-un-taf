@@ -85,6 +85,23 @@ describe('a cut on the worker', () => {
       res.end('{}');
     };
     await expect(ex().cut(snap, 'demo', sheet)).rejects.toThrow(/refused the job \(503\)/);
+    // The worker's reason goes with it (4.2.3: a 403 said nothing of an expired job), bounded.
+    answer = (_job, _req, res) => {
+      res.statusCode = 403;
+      res.end(JSON.stringify({ error: `the job has expired${'!'.repeat(500)}` }));
+    };
+    const e = (await ex()
+      .cut(snap, 'demo', sheet)
+      .catch((x: Error) => x)) as Error;
+    expect(e.message).toMatch(/refused the job \(403: the job has expired!+\)/);
+    expect(e.message.length).toBeLessThan(300);
+    // A body far too long (the worker is not trusted) is not read past 4 KiB: the refusal without its reason.
+    answer = (_job, _req, res) => {
+      res.statusCode = 403;
+      res.write(`{"error":"${'x'.repeat(8_000)}`);
+      res.end('"}');
+    };
+    await expect(ex().cut(snap, 'demo', sheet)).rejects.toThrow(/refused the job \(403\)$/);
     answer = () => undefined;
     await expect(ex().cut(snap, 'demo', sheet)).rejects.toThrow(/no usable result/);
     expect([...store.keys()]).toEqual([]);
@@ -154,5 +171,131 @@ describe('a prepare on the worker', () => {
     };
     await expect(ex().prepare(snap, at, 'demo', ac.signal)).rejects.toThrow(/cancelled/);
     expect([...store.keys()]).toEqual([]);
+  });
+});
+
+describe("a job's phases (4.4.0)", () => {
+  it('are logged once per job: put, post, get and delete, each its own time', async () => {
+    const log: Record<string, unknown>[] = [];
+    const slow = (ms: number, f: () => unknown) => new Promise((ok) => setTimeout(() => ok(f()), ms));
+    const timed = {
+      put: (k: string, b: Buffer) => slow(40, () => void store.set(k, b)),
+      get: (k: string) => slow(60, () => store.get(k)),
+      delete: (k: string) => slow(80, () => void store.delete(k)),
+      presign: (_m: string, k: string) => `memory://${k}`,
+    } as unknown as S3;
+    const e = remoteExecutor({
+      s3: timed,
+      workerUrl: url,
+      privateKeyPem: keys.privatePem,
+      instance: 'studio-a',
+      at: () => ({ epoch: 'e1', rev: 3 }),
+      log: (l) => log.push(l),
+    });
+    answer = (job) => slow(300, () => result(job, { data: { files: {}, output: '' } }));
+    await e.cut(snap, 'demo', sheet);
+    await expect.poll(() => log.length).toBe(1);
+    const [line] = log as Record<string, number & string>[];
+    expect(line).toMatchObject({ event: 'worker-call', kind: 'cut', job: seen.at(-1)!.id, outcome: 'ok' });
+    expect(Object.keys(line!).sort()).toEqual(['delMs', 'event', 'getMs', 'job', 'kind', 'outcome', 'postMs', 'putMs']);
+    // Each phase its own (put 40 ms, the worker 300, get 60, delete 80): a lap is never the sum of those before it.
+    expect(line!.putMs).toBeGreaterThanOrEqual(35);
+    expect(line!.postMs).toBeGreaterThanOrEqual(295);
+    expect(line!.getMs).toBeGreaterThanOrEqual(55);
+    expect(line!.getMs).toBeLessThan(250);
+    expect(line!.delMs).toBeGreaterThanOrEqual(75);
+    expect(line!.delMs).toBeLessThan(250);
+    expect([...store.keys()]).toEqual([]);
+  });
+
+  it('leave out a phase not reached, and say the outcome', async () => {
+    const log: Record<string, unknown>[] = [];
+    const e = remoteExecutor({
+      s3,
+      workerUrl: url,
+      privateKeyPem: keys.privatePem,
+      instance: 'studio-a',
+      at: () => ({ epoch: 'e1', rev: 3 }),
+      log: (l) => log.push(l),
+    });
+    answer = (_job, _req, res) => {
+      res.statusCode = 503;
+      res.end('{}');
+    };
+    await expect(e.cut(snap, 'demo', sheet)).rejects.toThrow(/503/);
+    answer = (job) => result(job, { failed: 'late', timedOut: true });
+    await expect(e.cut(snap, 'demo', sheet)).rejects.toMatchObject({ status: 504 });
+    await expect.poll(() => log.length).toBe(2);
+    expect(log[0]).toMatchObject({ outcome: 'error', putMs: expect.any(Number), postMs: expect.any(Number) });
+    expect(log[0]).not.toHaveProperty('getMs');
+    expect(log[0]).toHaveProperty('delMs');
+    expect(log[1]).toMatchObject({ outcome: 'timeout', getMs: expect.any(Number) });
+  });
+});
+
+describe("a job's staging (4.4.0)", () => {
+  it('is deleted without the answer waiting for it; `settled` waits, and the line comes then', async () => {
+    const log: Record<string, unknown>[] = [];
+    const held: (() => void)[] = [];
+    const lazy = {
+      ...s3,
+      delete: (k: string) =>
+        new Promise<void>((ok) =>
+          held.push(() => {
+            store.delete(k);
+            ok();
+          }),
+        ),
+    } as unknown as S3;
+    const e = remoteExecutor({
+      s3: lazy,
+      workerUrl: url,
+      privateKeyPem: keys.privatePem,
+      instance: 'studio-a',
+      at: () => ({ epoch: 'e1', rev: 3 }),
+      log: (l) => log.push(l),
+    });
+    answer = (job) => result(job, { data: { files: {}, output: 'cut' } });
+    expect(await e.cut(snap, 'demo', sheet)).toEqual({ files: {}, output: 'cut' });
+    // Answered while both deletes are still under way.
+    expect(held).toHaveLength(2);
+    expect(store.size).toBe(2);
+    expect(log).toEqual([]);
+    let settled = false;
+    const s = e.settled().then(() => (settled = true));
+    await new Promise((ok) => setTimeout(ok, 10));
+    expect(settled).toBe(false);
+    for (const h of held.splice(0)) h();
+    await s;
+    expect(store.size).toBe(0);
+    expect(log).toMatchObject([{ event: 'worker-call', outcome: 'ok', delMs: expect.any(Number) }]);
+    // Nothing under way: settled at once.
+    await e.settled();
+  });
+
+  it('left when a delete fails: said, never thrown at the job', async () => {
+    const log: Record<string, unknown>[] = [];
+    const broken = {
+      ...s3,
+      delete: async () => {
+        throw new Error('S3 DELETE: 500');
+      },
+    } as unknown as S3;
+    const e = remoteExecutor({
+      s3: broken,
+      workerUrl: url,
+      privateKeyPem: keys.privatePem,
+      instance: 'studio-a',
+      at: () => ({ epoch: 'e1', rev: 3 }),
+      log: (l) => log.push(l),
+    });
+    answer = (job) => result(job, { data: { files: {}, output: 'cut' } });
+    const job = (await e.cut(snap, 'demo', sheet), seen.at(-1)!.id);
+    await e.settled();
+    expect(log).toEqual([
+      { event: 'worker-staging-left', job, message: 'S3 DELETE: 500' },
+      expect.objectContaining({ event: 'worker-call', job, outcome: 'ok' }),
+    ]);
+    store.clear();
   });
 });

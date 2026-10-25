@@ -7,6 +7,15 @@ import { z } from 'zod';
 import { profileText, type RealityPolicy } from '../../src/engine/tools/solve';
 import { dialogueText, dialogueTree } from '../../src/engine/tools/dialogue';
 import type { Layout } from '../../src/engine/core/types';
+import {
+  type DocsSet,
+  listDocs,
+  provenanceLine,
+  READ_MAX_CHARS,
+  readDocById,
+  searchDocs,
+  StaleCursor,
+} from '../wiki/docs';
 import type {
   AddEntity,
   CoverageData,
@@ -55,7 +64,16 @@ export interface ToolBackend {
   lint?(prove?: boolean): Promise<LintData>;
   /** Optional abilities: a tool whose ability is missing is left out of `toolsFor(backend)`. */
   screenshot?(room: string, checkpoint?: string): Promise<ToolResult>;
+  /**
+   * One of the eight historical pages (`read_doc {name}`): rebuilt from the wiki's sections in `wiki/legacy.json`'s
+   * order (the bundle's `legacy/<NAME>.md` in a package; tools/wiki/docs-load.ts `legacyDoc`).
+   */
   readDoc?(name: DocName): Promise<string>;
+  /**
+   * The documentation of `wiki/` (4.5.0, ADR 0030): a package's bundle, the repository's preview, the demo's embedded
+   * pages. `search_docs`, `list_docs` and `read_doc {id}` read it.
+   */
+  docs?(): Promise<DocsSet>;
   runTests?(): Promise<ToolResult>;
   assetPrompts?(
     missing?: boolean,
@@ -98,6 +116,7 @@ export interface ToolDef {
   needs?:
     | 'screenshot'
     | 'readDoc'
+    | 'docs'
     | 'runTests'
     | 'assetPrompts'
     | 'report'
@@ -131,6 +150,28 @@ export function errorMessage(e: unknown): string {
   const status = (e as { status?: unknown })?.status;
   const msg = e instanceof Error ? e.message : String(e);
   return typeof status === 'number' ? `${msg} (status ${status})` : msg;
+}
+
+/**
+ * A documentation tool's answer: a text block, and a structured content that holds that same text beside its fields
+ * (a client that shows only the structured content loses nothing). `{text, structured}`: that text and those fields;
+ * any other object: the provenance line and the object as JSON. A stale cursor or a missing page is a tool error,
+ * `stale_cursor` named in the structured content.
+ */
+async function docsResult(fn: () => Promise<object>): Promise<ToolResult> {
+  try {
+    const r = (await fn()) as { text?: string; structured?: Record<string, unknown> } & Record<string, unknown>;
+    if (typeof r.text === 'string' && r.structured)
+      return { content: [{ type: 'text', text: r.text }], structuredContent: { ...r.structured, text: r.text } };
+    const header = 'provenance' in r ? `${provenanceLine(r.provenance as never)}\n\n` : '';
+    const text = `${header}${JSON.stringify(r, null, 2)}`;
+    return { content: [{ type: 'text', text }], structuredContent: { ...r, text } };
+  } catch (e) {
+    const err = errorResult(e);
+    return e instanceof StaleCursor
+      ? { ...err, structuredContent: { error: e.code, text: err.content[0]!.text } }
+      : err;
+  }
 }
 
 /** Runs an operation: its result as JSON (a string as is), or a tool error with the message. */
@@ -486,16 +527,108 @@ export const TOOLS: ToolDef[] = [
     },
   }),
   tool({
+    name: 'search_docs',
+    title: 'Search the documentation',
+    description:
+      'Searches the documentation pages (the wiki written under wiki/, 4.5.0) by words, in French or English: page ' +
+      'titles and questions first, then aliases, keywords and identifiers (a DSL command, an npm script, an HTTP code ' +
+      'such as 423), then section headings, then section text. Accents and case do not matter; the glossary adds the ' +
+      "other language's words (verrou, lease). Each result is `id#section` with its title, type, context, versions, " +
+      'status, score, the reason of the match and an excerpt with the words found in bold: read it with ' +
+      'read_doc { id, section }. No confident match gives an empty list and the index pages to try. `version` leaves ' +
+      'out what does not apply to that version. Read-only.',
+    input: {
+      query: z.string().min(1).describe('Words or a question, in French or English.'),
+      lang: z.enum(['en', 'fr']).optional().describe('Only pages in this language (default: both).'),
+      audience: z.enum(['player', 'author', 'admin', 'contributor']).optional(),
+      context: z
+        .enum(['engine-repo', 'created-project', 'studio-local', 'studio-demo', 'studio-hosted', 'bridge', 'player'])
+        .optional(),
+      version: z.string().optional().describe('A product version (4.5.0): only what applies to it.'),
+      type: z.enum(['tutorial', 'howto', 'reference', 'explanation', 'troubleshooting', 'index']).optional(),
+      includeArchived: z
+        .boolean()
+        .optional()
+        .describe('Also deprecated and archived pages, and with `version` the pages that do not apply, marked so.'),
+      limit: z.number().int().min(1).max(20).optional().describe('Results per answer (default 5, at most 20).'),
+      cursor: z.string().optional().describe('The `cursor` of a previous answer to the same request, for more.'),
+    },
+    annotations: { readOnlyHint: true },
+    needs: 'docs',
+    run: async (a, b) => docsResult(async () => searchDocs(await b.docs!(), a)),
+  }),
+  tool({
+    name: 'list_docs',
+    title: 'List the documentation pages',
+    description:
+      'The documentation pages there are to read (wiki/, 4.5.0), filtered by audience, context, type, language or ' +
+      'state: id, title, type, audience, context, versions, state, languages and section ids. A page still to write ' +
+      'is not listed. Read-only.',
+    input: {
+      audience: z.enum(['player', 'author', 'admin', 'contributor']).optional(),
+      context: z
+        .enum(['engine-repo', 'created-project', 'studio-local', 'studio-demo', 'studio-hosted', 'bridge', 'player'])
+        .optional(),
+      type: z.enum(['tutorial', 'howto', 'reference', 'explanation', 'troubleshooting', 'index']).optional(),
+      lang: z.enum(['en', 'fr']).optional(),
+      state: z.enum(['draft', 'ready']).optional().describe('draft pages exist in the repository only.'),
+    },
+    annotations: { readOnlyHint: true },
+    needs: 'docs',
+    run: async (a, b) => docsResult(async () => listDocs(await b.docs!(), a)),
+  }),
+  tool({
     name: 'read_doc',
     title: 'Read a documentation page',
     description:
-      'Returns one page of docs/en/: CONTENT_GUIDE (the game format, the DSL of rooms, conditions and ' +
-      'commands: read it first), ENGINE, TOOLS, STUDIO, WORKFLOW, AUDIO (music and effects), UPGRADING (v2 to v3), ' +
-      'CLASSICS (the famous mechanics of the genre, each with its DSL: read it before asking for a new command). Read-only.',
-    input: { name: z.enum(DOCS) },
+      'Reads the documentation. Recommended: search_docs, then read_doc { id, section } for the section it found ' +
+      '(`lang` en or fr, default en; `maxChars` 20000 by default, at most 100000, and a `cursor` for the rest), with ' +
+      'where the text comes from (version, commit, doc revision) at its top. `name` instead returns a large historical ' +
+      'page in one block, rebuilt from the sections of the documentation and possibly shortened: a section too long for ' +
+      "the page's bound gives its heading, its first paragraph and the read_doc { id, section } that returns the rest. " +
+      'The names: CONTENT_GUIDE (the game format, the DSL of rooms, conditions and ' +
+      'commands), ENGINE, TOOLS, STUDIO, WORKFLOW, AUDIO (music and effects), UPGRADING (v2 to v3), CLASSICS (the ' +
+      'famous mechanics of the genre, each with its DSL: read it before asking for a new command); with `name`, ' +
+      'the other arguments are ignored. Give either `name` or `id`, not both. Read-only.',
+    input: {
+      name: z
+        .enum(DOCS)
+        .optional()
+        .describe(
+          'One of the eight historical pages, rebuilt and possibly shortened: a long section points to read_doc { id, section } for the rest (the other arguments are then ignored).',
+        ),
+      id: z.string().optional().describe('A page id from search_docs or list_docs, e.g. "create.rooms".'),
+      section: z.string().optional().describe('A section id of that page (its `<a name>`), e.g. "walkable-zones".'),
+      lang: z.enum(['en', 'fr']).optional().describe("The page's language (default en)."),
+      cursor: z.string().optional().describe('The `cursor` of the previous answer, for the rest of the text.'),
+      maxChars: z
+        .number()
+        .int()
+        .min(1)
+        .max(READ_MAX_CHARS)
+        .optional()
+        .describe('At most this many characters per answer (default 20000).'),
+    },
     annotations: { readOnlyHint: true },
     needs: 'readDoc',
-    run: ({ name }, b) => op(() => b.readDoc!(name)),
+    run: async ({ name, id, ...rest }, b) => {
+      if ((name === undefined) === (id === undefined))
+        return errorResult(new Error('give either name (one of the 8 legacy pages) or id, not both'));
+      if (name !== undefined) {
+        // Exactly the 4.4.0 answer: one text block, no structured content (a client that prefers structured content
+        // would otherwise lose the page), and the other arguments ignored, as 4.4.0's schema stripped unknown keys.
+        try {
+          return textResult(await b.readDoc!(name));
+        } catch (e) {
+          return errorResult(e);
+        }
+      }
+      if (!b.docs) return errorResult(new Error('reading by id needs the documentation of wiki/, not available here'));
+      return docsResult(async () => {
+        const r = readDocById(await b.docs!(), { id: id!, ...rest });
+        return { text: r.text, structured: r.structured };
+      });
+    },
   }),
   tool({
     name: 'run_tests',

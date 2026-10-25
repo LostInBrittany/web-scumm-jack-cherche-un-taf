@@ -1,8 +1,9 @@
 // What changed between two revisions, in the Check tab (4.2.3 PR 4, H3): file by file, by what the game names (the ids
 // a source added, removed, changed, with their fields; the values of a JSON), or "file changed". A build is a revision:
-// compare two builds by theirs.
+// compare two builds by theirs. The rooms it names, drawn at both revisions, on demand (4.4.0, diff-captures-view.ts).
 import type { FileDiff } from '../../tools/studio/semantic-diff';
 import { studioFetch } from './api-base';
+import { capturesButton } from './diff-captures-view';
 import { h } from './ui';
 
 const list = (label: string, xs: string[]) =>
@@ -44,6 +45,7 @@ export function diffPanel(): HTMLElement {
       out.replaceChildren(
         ...(d.files!.length ? d.files!.map(fileChange) : [h('p', { class: 'muted' }, 'Nothing changed between them.')]),
         ...(d.cut ? [h('p', { class: 'muted' }, '… and more files (cut at 500)')] : []),
+        ...(d.files!.length ? [capturesButton(a, b)] : []),
       );
     } catch (e) {
       out.replaceChildren(h('p', { class: 'error' }, (e as Error).message));
@@ -57,7 +59,8 @@ export function diffPanel(): HTMLElement {
     h(
       'p',
       { class: 'muted small' },
-      'By what the game names. A build is a revision: compare two builds by theirs. No before/after captures in 4.2.3.',
+      'By what the game names. A build is a revision: compare two builds by theirs. The rooms the changes name can be ' +
+        'drawn at both revisions (a local Studio only).',
     ),
     out,
   );

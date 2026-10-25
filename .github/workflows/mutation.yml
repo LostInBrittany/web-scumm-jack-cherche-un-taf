@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       set:
-        description: 'The set (gated: core, reality, runs, remix, speedrun, connectors-pure, reality-store, reality-store-postgres, connectors-edge, studio-ops, studio-auth, studio-workshop; measured: none)'
+        description: 'The set (gated: core, reality, runs, remix, speedrun, connectors-pure, reality-store, reality-store-postgres, connectors-edge, studio-ops, studio-auth, studio-workshop, voices; measured: none)'
         required: true
       ref:
         description: 'The branch or SHA to measure'

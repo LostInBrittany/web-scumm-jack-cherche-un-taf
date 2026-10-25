@@ -161,7 +161,7 @@ writeFileSync('public/icons/icon-512.png', makeIcon(512));
     const txt = clean(t);
     textPx(txt, Math.max(40, (W - txt.length * 6 * 9) / 2), 150 + i * 110, 9, W, H, (x, y) => set(x, y, colors[i]));
   });
-  const title = clean(site.title ?? 'WEB SCUMM');
+  const title = clean(site.title ?? 'QUEST N CLICK');
   textPx(title, Math.max(40, (W - title.length * 6 * 7) / 2), 420, 7, W, H, (x, y) => set(x, y, [242, 239, 230]));
   writeFileSync(
     'public/og.png',

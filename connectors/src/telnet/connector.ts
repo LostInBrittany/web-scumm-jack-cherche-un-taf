@@ -1,4 +1,4 @@
-// The Telnet connector (4.1.9, docs/en/CONNECTORS.md "Telnet", docs/dev/threat-models/telnet.md): a TCP server apart
+// The Telnet connector (4.1.9, wiki/en/bridge.connector-telnet.md, docs/dev/threat-models/telnet.md): a TCP server apart
 // from the Bridge, the least Telnet a client needs (every option refused once, subnegotiations skipped, IAC filtered),
 // lines assembled under limits, and the virtual shell. `dedupeKey = sha256('telnet:' + sessionId + ':' + lineNo)`.
 import { randomBytes } from 'node:crypto';

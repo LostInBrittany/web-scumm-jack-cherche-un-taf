@@ -19,7 +19,10 @@
     "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "paths": {
-      "web-scumm/*": [
+      "@quest-n-click/engine/*": [
+        "./src/engine/api/*"
+      ],
+      "quest-n-click/*": [
         "./src/engine/api/*"
       ],
       "@engine/*": [
@@ -52,6 +55,7 @@
   "exclude": [
     "legacy",
     "node_modules",
-    "dist"
+    "dist",
+    "tests/fixtures/game-4.1"
   ]
 }

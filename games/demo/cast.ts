@@ -42,7 +42,7 @@ export const characters: Record<string, CharacterDef> = {
     name: 'Biscuit', color: '#e8b07a', height: 36, kind: ['cat'],
     description: 'a big lazy tortoiseshell cat: dark brown fur with orange and caramel patches, a cream chest and cream paws, green eyes, a thick tail; sleepy, round, content, always half asleep', portrait: 'cat/r1c2', sprites: cat('cat'),
     refuse: 'Mrrp. (Biscuit only accepts food.)', hug: 'Mrrrrp. Purr. Zzz.',
-    // Palette swap (docs/en/CONTENT_GUIDE.md): the six most frequent dark-brown fur tones of cat/r3c3.png become a
+    // Palette swap (wiki/en/create.characters.md#palette-swap): the six most frequent dark-brown fur tones of cat/r3c3.png become a
     // ginger ramp, so Biscuit reads as a ginger tabby next to the cream hero. The sheet is painted (cel style) and
     // served as lossy WebP, so a small tolerance catches the neighbouring tones of every frame.
     palette: { '#2c1818': '#7a3416', '#2f1b22': '#80381a', '#362326': '#8c401c', '#492a25': '#b0592a', '#4e2718': '#b85f24', '#543329': '#c4703a' },

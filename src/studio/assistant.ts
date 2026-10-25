@@ -12,7 +12,7 @@ import type {
   Provider,
   ProviderKind,
 } from '../../tools/studio/assistant-loop';
-import type { DocName, ToolBackend } from '../../tools/studio/tools';
+import type { ToolBackend } from '../../tools/studio/tools';
 import { api, studioFetch, type GameInfo } from './api';
 import type { BrowserApi } from './api-browser';
 import { h, select, toast } from './ui';
@@ -322,7 +322,7 @@ export class AssistantPanel {
         h('code', null, 'task: true'),
         '). An AI agent connected to this game through MCP (',
         h('code', null, 'npm run -s mcp'),
-        ': Claude Code, Cursor, Codex, Gemini CLI… see docs/en/MCP.md) reads it with ',
+        ': Claude Code, Cursor, Codex, Gemini CLI… see https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Studio-MCP-Setup) reads it with ',
         h('code', null, 'get_notes'),
         ' and does it; you see its edits here live.',
       ),
@@ -780,14 +780,8 @@ export class AssistantPanel {
       validate: () => demo.validate(),
       solve: (from, prove, reality) => demo.solve(from, prove, undefined, reality),
       author: () => provider.model,
-      readDoc: async (name: DocName) => {
-        const d = demo.doc(name);
-        if (d === undefined)
-          throw new Error(
-            `${name} is not in the demo (only ${demo.docNames().join(', ') || 'no document'}); see docs/en/${name}.md in the repository`,
-          );
-        return d;
-      },
+      // read_doc from the snapshot's pages; search_docs, list_docs and read_doc by id from its wiki (4.5.0).
+      ...demo.docAbilities(),
     };
     const details = await contextDetails(context, backend).catch(() => '');
     await runAssistant({

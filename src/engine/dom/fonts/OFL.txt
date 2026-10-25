@@ -1,5 +1,9 @@
 Fonts shipped by the engine (src/engine/dom/fonts, public/fonts), each under the SIL Open Font License 1.1 below.
 
+Galmuri11
+Copyright (c) 2019–2025 Lee Minseo (quiple@quiple.dev) (https://github.com/quiple/galmuri)
+Shipped as a Latin subset (Galmuri11-latin), made by tools/subset-font.py.
+
 DotGothic16
 Copyright 2020 The DotGothic16 Project Authors (https://github.com/fontworks-fonts/DotGothic16)
 Shipped whole (fonts/DotGothic16.ttf) and as a Latin subset (DotGothic16-latin), made by tools/subset-font.py.

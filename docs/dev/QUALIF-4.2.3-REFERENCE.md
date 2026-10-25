@@ -48,7 +48,8 @@ Déploiements (`clever deploy -a <alias> --force`, phase B avec `-b` sur une bra
   game from the Studio ») avant de lire le chemin ; les métriques n'y sont jamais servies. Le 404 est la réponse de
   l'origine du Studio quand le jeton n'est pas configuré.
 - Alertes posées, et vers qui (une personne) : **non posées** (pas de collecteur ; `clever notify-email` non configuré).
-  Le runbook passe l'alerte `/readyz` à 5 min : un déploiement tient les écritures à l'écart ≈ 2 min 30 (§5).
+  Le runbook met l'alerte `/readyz` à 2 min : avec la passation du bail (#183), `/readyz` reste en 503 12 à 20 s par
+  déploiement ; le premier déploiement vers une version qui la porte, ≈ 2 min 30 (§5 et §5 bis).
 - Une alerte déclenchée exprès (laquelle, délai jusqu'à la personne) : **non mesuré** (aucune alerte posée).
 
 Valeurs lues sur l'instance de phase B (`c66fbf56`), de son démarrage à 19:55 UTC ; les quantiles des histogrammes sont
@@ -112,6 +113,41 @@ applications étaient gardés.
 | Révision inchangée, une écriture après bascule | Révision continue : 52 avant la bascule, 53 pour la première écriture après ; écritures suivantes en 164 à 600 ms |
 | SIGTERM reçu par l'ancienne instance (ligne `stopping`) | **Aucune ligne `stopping`**, comme au spike S et au redémarrage de la phase A (bail pris 2 min 37 s après l'écoute) |
 
+### 5 bis. La passation du bail (#183), mesurée
+
+Après #183 (sur un déploiement, l'instance qui attend demande le bail et le détenteur le rend à son renouvellement
+suivant, 10 s ; l'attente du verrou du journal devient un 503 ; seul le détenteur répare son dossier). Studio seul, depuis
+origin/main **`dd66b38d`** ; même sonde qu'au §5 (`/readyz` chaque seconde, une note toutes les 3 s retentée sur 503 avec
+le même `X-Studio-Op`, les instances toutes les 5 s), journaux gardés. Trois déploiements de suite, le 19 octobre
+entre 21:12 et 21:24 UTC.
+
+| Mesure | Déploiement 1 : `c66fbf56` → `dd66b38d` | Déploiement 2 : `clever restart` (`dd66b38d`) | Déploiement 3 : `clever restart` (`dd66b38d`) |
+|---|---|---|---|
+| Écoute de la nouvelle → `lease-taken` | 21:13:53 → 21:16:26 : **2 min 33 s** (l'ancienne, `c66fbf56`, ne sait pas rendre le bail : attendu) | 21:17:30,170 → 21:17:36,192 : **6,0 s** | 21:21:06,564 → 21:21:16,647 : **10,1 s** |
+| `lease-lost` de l'ancienne | non (ancienne version) | **oui**, 21:17:36,159, 33 ms avant `lease-taken` | **oui**, 21:21:16,302, 345 ms avant |
+| Fenêtre de 503 sur les écritures | 21:13:57 → 21:16:24 (**2 min 27 s**), `Retry-After: 2` | 21:17:38 → 21:17:54 (**16 s**) : Clever envoie encore les requêtes à l'ancienne, qui n'a plus le bail, jusqu'à la fin du déploiement (21:17:55) | 21:21:19 → 21:21:29 (**10 s**), même cause |
+| `/readyz` à 503 | 21:13:56 → 21:16:26 | 21:17:36 → 21:17:56 (20 s) | 21:21:19 → 21:21:31 (12 s) |
+| Pendant le démarrage de la nouvelle (avant l'écoute) | une écriture servie par l'ancienne : **409** deux fois après 10 s (« another process is writing this game », ancien code), puis **500** « too many connections » | une écriture : **503** (`Retry-After: 2`) après 10,2 s d'attente du verrou du journal, puis 200 au réessai après 27,0 s | une écriture : **503** après 19,4 s, puis 200 au réessai après 15,2 s |
+| 409 ou 500 sur les écritures | 2 × 409, 1 × 500 | **aucun** | **aucun** |
+| Écritures appliquées une fois | oui (aucun identifiant d'opération appliqué deux fois sur 116 écritures confirmées) | oui | oui |
+
+En somme, entre deux versions qui portent la passation : ≈ 1 min d'écritures lentes ou refusées par déploiement (une
+attente de 10 à 20 s du verrou du journal pendant le démarrage, puis 10 à 16 s de 503 après la passation), aucune perdue,
+aucun 409 ni 500 sur les écritures. Le premier déploiement depuis une version sans la passation cale comme avant
+(2 min 27 s). Pendant les deux redémarrages, le travail de fond des instances a encore heurté la limite du plan DEV
+(`leases-read-failed`, `reconcile-failed`, `ship-failed` : « too many connections ») et la vérification du journal
+(`health-failed`, `preview-failed` : « another process is writing this game »), repris ensuite.
+
+**Défaut trouvé au déploiement 3** : à partir de 21:21:18, le traitement refuse une partie des jobs du Studio en **403**
+(`health-failed` / `preview-failed` : « the processing worker refused the job (403) »), et cela continue avec une seule
+instance du studio (encore à 21:24). Mesure depuis la machine virtuelle du studio, avec sa propre clé : 20 jobs signés
+avec `exp = maintenant + MAX_JOB_MS` et un `dest` invalide exprès (aucun ne peut tourner) : **10 refusés « the job has
+expired »**, 10 passés au-delà de ce contrôle. Le Studio fixe `exp` à exactement `Date.now() + MAX_JOB_MS`
+(`remote-executor.ts`), et le traitement refuse `exp - now > MAX_JOB_MS` sans marge (`worker/job.ts`) : dès que
+l'horloge de la machine du studio avance sur celle du traitement de plus que la latence de la requête (quelques dizaines
+de millisecondes), le job est refusé. Les machines précédentes ne le montraient pas ; celle-ci, si. Le contrôle est le même
+à `c66fbf56` et à `dd66b38d` ; corrigé en 4.2.3 par #192 : 30 s de marge (`CLOCK_SKEW_MS`), refus consigné (`worker-job-refused`), raison dans l'erreur du Studio (§7).
+
 ## 6. Prévisualisation et recompilation
 
 | Mesure | Valeur |
@@ -119,6 +155,32 @@ applications étaient gardés.
 | **p95 de la prévisualisation** (`studio_preview_build_seconds`, sur combien de révisions) | Dix notes à 40 s d'intervalle (révisions 66 à 75), lignes `"event":"preview"` : p50 **34,1 s**, p95 (rang 10/10) **43,8 s**, de 15,9 à 43,8 s. Sur les 20 prévisualisations du jour : p50 32,6 s, p95 49,9 s, max 61,2 s. Le job `preview` du traitement n'en prend qu'une part (5,9 s en moyenne sur 5) |
 | Seuil de prévisualisation : la cadence de modifications au-delà de laquelle la file s'allonge (méthode, résultat) | Une prévisualisation à la fois, ≈ 35 s chacune. À une écriture toutes les 3 s, 13 opérations n'ont donné que 5 prévisualisations : les révisions intermédiaires sont sautées et `studio_worker_jobs_in_flight` est resté à 0. Le seuil où chaque révision a la sienne est donc ≈ **une modification toutes les 35 s** ; au-delà, la file ne s'allonge pas, elle saute des révisions. Pendant le chevauchement, les deux instances ont construit la révision 43 chacune |
 | **Coût d'une recompilation fraîche** (`POST /api/builds/<n>/rebuild` : durée, octets identiques ?) | Build `#1` publié (révision 75) en **30,7 s** ; recompilation fraîche en **44,3 s**, `same: true`, `differ: []` : octets identiques |
+
+> **Note 4.4.0.** Ces chiffres sont ceux de 4.2.3. `ms` (et `studio_preview_build_seconds`) commençait après
+> l'instantané, et comprenait l'attente du job derrière le validateur et le solveur de la santé sur l'application de
+> traitement (un job à la fois) ainsi que les fichiers stockés un par un. 4.4.0 découpe ce temps par phase (`queuedMs`,
+> `snapMs`, `jobMs`, `storeMs`, `sinceWriteMs` ; côté traitement `queueMs`, `fetchMs`, `unpackMs`, `childMs`, `putMs`)
+> puis donne à la prévisualisation sa propre file, stocke ses fichiers 8 à la fois et n'empaquette qu'un instantané
+> par révision : on attend un temps de l'écriture à la prévisualisation prête proche du job lui-même (≈ 6 s) plus
+> l'instantané et le stockage.
+>
+> **Mesures de 4.4.0** (22 octobre 2026, même déploiement de référence, même méthode : dix notes à 40 s d'intervalle,
+> lignes `"event":"preview"`) : d'abord la version instrumentée seule (`a3294282`, révisions 436 à 445), puis la
+> version optimisée (`b9336a4d`, révisions 446 à 455).
+>
+> | De l'écriture à la prévisualisation prête (`sinceWriteMs`) | Instrumentée | Optimisée |
+> |---|---|---|
+> | médiane | 17,8 s | **5,6 s** |
+> | max (rang 10/10) | 26,0 s | **11,7 s** |
+> | stockage des fichiers (`storeMs`) | 7,4 à 21,5 s | 0,3 à 7,4 s |
+> | job du traitement (`jobMs`) | 1,4 à 6,4 s | 2,7 à 7,6 s |
+> | instantané (`snapMs`) | ≈ 40 ms | ≈ 20 ms |
+> | attente (`queuedMs`) | 0 | 0 |
+>
+> Ce jour-là, la santé n'a pas retardé la prévisualisation (`queuedMs` à 0 dans les deux séries) : le gain vient des
+> fichiers stockés 8 à la fois. Le job lui-même reste la part principale ; il reconstruit le moteur à froid à chaque
+> révision (pistes : un enfant précompilé, des modules du moteur construits une fois). Dix révisions par série :
+> l'ordre de grandeur, pas une distribution.
 
 ## 7. Ce qui n'a pas pu être fait, et ce que l'exécution a trouvé
 
@@ -139,7 +201,20 @@ Constats de la phase B, pas des défauts du code mais des coûts à connaître (
    vérification du journal au démarrage fait attendre une écriture de l'ancienne 20 s puis la refuse en 409, sans
    `Retry-After`. Un client qui ne retente pas un 409 perd cette écriture.
 
-Écarts du runbook corrigés dans cette PR (`docs/en/STUDIO-SERVER.md`, `docs/fr/STUDIO-SERVER.md`) : la création du realm
+Trouvé à la mesure de la passation (§5 bis), corrigé par #192 :
+
+5. **Le traitement refuse des jobs pour un décalage d'horloge de quelques millisecondes** : `exp` vaut exactement
+   `Date.now() + MAX_JOB_MS` côté Studio et le traitement refusait `exp - now > MAX_JOB_MS` sans marge ; quand l'horloge
+   du Studio avance un peu sur celle du traitement, la moitié des jobs étaient refusés (403 « the job has expired »), la
+   santé et les prévisualisations échouaient par intermittence. Le traitement ne consignait pas la raison d'un 403, ni le
+   Studio le corps de la réponse : seule une sonde l'a montrée. Corrigé (#192) : 30 s de marge (`CLOCK_SKEW_MS`), le
+   traitement consigne `worker-job-refused` avec sa raison, et le Studio la reprend dans son erreur (200 caractères au
+   plus).
+6. Avec la passation, le constat 3 vaut pour le premier déploiement depuis une version qui ne la porte pas ; ensuite,
+   ≈ 1 min d'écritures lentes ou refusées, dont 10 à 16 s de 503 (Clever route encore vers l'ancienne). Le 409 du
+   constat 4 est devenu un 503 avec `Retry-After`.
+
+Écarts du runbook corrigés dans la PR 9b (`docs/en/STUDIO-SERVER.md`, `docs/fr/STUDIO-SERVER.md`) : la création du realm
 sur le Keycloak managé (mot de passe administrateur temporaire, `admin-cli` refusé, import du realm), les valeurs
 locales de `realm.json`, `APP_FOLDER`, `--` avant une clé PEM dans `clever env set`, `clever link` puis `deploy
 --alias`, `clever logs` qui suit sans fin, `/metrics` à 401 sur l'origine du jeu, `clever ssh --command` refusé tant que
@@ -162,6 +237,9 @@ depuis le dépôt en moins d'une minute et demie par application, se sauvegarde 
 sur une base neuve en 30 à 60 s, avec le rejeu du journal jusqu'à la tête de production : RPO observé nul sur deux
 écritures. La montée de version par redéploiement à chevauchement ne perd ni ne double aucune écriture, mais refuse les
 écritures ≈ 2 min 30 à chaque déploiement, et le plan DEV y produit un 500 et un 409 : un déploiement dont on se sert
-prend un plan PostgreSQL plus grand et prévient ses membres. Une prévisualisation prend ≈ 35 s (p95 ≈ 44 à 50 s) et
+prend un plan PostgreSQL plus grand et prévient ses membres. Avec la passation du bail (#183, `dd66b38d`), un
+redéploiement passe le bail en 6 à 10 s et ne refuse plus les écritures que 10 à 16 s, sans 409 ni 500, sauf le
+premier déploiement depuis une version qui ne la porte pas ; la même mesure a montré des jobs refusés par le traitement
+pour un décalage d'horloge sans marge (§5 bis), corrigé par #192 avant la release. Une prévisualisation prend ≈ 35 s (p95 ≈ 44 à 50 s) et
 saute les révisions au-delà d'une modification toutes les 35 s ; une recompilation fraîche rend les mêmes octets en
 44 s. Limite : organisation de test, un seul membre qui écrit, peu d'échantillons, pas de charge de production.

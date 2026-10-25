@@ -8,6 +8,7 @@ import type { Cmd, GameDef, ListLine, RoomDef } from '../core/types';
 import { listPathSeg } from '../core/list-lines';
 import type { Minigame } from '../minigames/types';
 import { subLists } from '../core/cmds';
+import { parseText } from '../core/text-switch';
 import { choicePathSeg, eventPathSeg, rulePathSeg, topicPathSeg, linePathSeg } from '../core/content-ids';
 
 type Fn = (path: string, text: string) => string | undefined;
@@ -193,6 +194,10 @@ function walkTexts(game: GameDef, fn: Fn, minigames: MinigameTexts = {}): void {
     one(`verb:${v.id}/join`, v.join, (x) => {
       v.join = x;
     });
+    // The shortcut follows the word: Close's C is Fermer's F (#203).
+    one(`verb:${v.id}/key`, v.key, (x) => {
+      v.key = x;
+    });
   });
   for (const [id, it] of Object.entries(game.items)) {
     one(`item:${id}/name`, it.name, (x) => {
@@ -214,6 +219,12 @@ function walkTexts(game: GameDef, fn: Fn, minigames: MinigameTexts = {}): void {
     one(`char:${id}/hug`, c.hug, (x) => {
       c.hug = x;
     });
+    // A variant's name (4.3.0): shown instead of the character's while the variant applies.
+    (c.variants ?? []).forEach((v, i) =>
+      one(`char:${id}/variants[${i}].name`, v.name, (x) => {
+        v.name = x;
+      }),
+    );
   }
   for (const [v, list] of Object.entries(game.rules.fallbacks)) if (list) lines(list, `rules/fallbacks.${v}`, fn);
   (game.rules.kinds ?? []).forEach((k, i) =>
@@ -381,7 +392,50 @@ export function mergeLocale(
   };
 }
 
-/** Coverage of a translation table against the game: what is missing, what no longer exists, what is long. */
+/**
+ * The switches of a text as a comparable signature (4.3.0): each `flag?values` (values sorted, `*` included), sorted;
+ * a malformed span counts as itself. Two texts with the same signature switch on the same flags and values.
+ */
+function switchSignature(text: string): string {
+  const p = parseText(text);
+  return [
+    ...p.switches.map(
+      (s) =>
+        `{${s.flag}?${s.alts
+          .map((a) => a.value)
+          .sort()
+          .join('|')}}`,
+    ),
+    ...p.malformed.map((m) => `malformed ${m.source}`),
+  ]
+    .sort()
+    .join(' ');
+}
+
+/**
+ * Whether a translation keeps every choice its source's switches make (4.3.0): each flag the source switches on is
+ * switched on in the translation too, and each value the source lists is listed there or covered by its `*=`; a
+ * source's `*=` needs one in the translation. A translation may add switches or values (French agreement on a line
+ * English writes alike: `Prêt{form?f=e|*=}`). A malformed span in the translation is never kept.
+ */
+export function switchesKept(source: string, translation: string): boolean {
+  const t = parseText(translation);
+  if (t.malformed.length) return false;
+  const values = (sw: typeof t.switches, flag: string) =>
+    new Set(sw.filter((x) => x.flag === flag).flatMap((x) => x.alts.map((a) => a.value)));
+  for (const s of parseText(source).switches) {
+    const have = values(t.switches, s.flag);
+    if (!have.size) return false;
+    for (const a of s.alts) if (!have.has(a.value) && !have.has('*')) return false;
+  }
+  return true;
+}
+
+/**
+ * Coverage of a translation table against the game: what is missing, what no longer exists, what is long, and
+ * (4.3.0) the translations that drop a choice their source's text switches make (`switches`: path, source's,
+ * translation's; see `switchesKept`).
+ */
 export function localeStatus(game: GameDef, table: Record<string, string>, maxText = 140) {
   const paths = textPaths(game);
   const keys = new Set(paths.map((p) => p.path));
@@ -390,11 +444,31 @@ export function localeStatus(game: GameDef, table: Record<string, string>, maxTe
     k.startsWith('_stale:') ? !keys.has(k.slice(7)) : !k.startsWith('_') && !keys.has(k),
   );
   const long = paths.filter((p) => (table[p.path] ?? '').length > maxText).map((p) => p.path);
-  // Present but identical to the source text: not translated yet (names and numbers can legitimately stay the same).
+  // Present but identical to the source text: not translated yet (names, numbers and a verb's key, Open's O being
+  // Ouvrir's, can legitimately stay the same).
   const same = paths
-    .filter((p) => p.text && table[p.path] === p.text && !/^[\d\s.,:%-]*$/.test(p.text))
+    .filter(
+      (p) => p.text && table[p.path] === p.text && !/^[\d\s.,:%-]*$/.test(p.text) && !/^verb:.+\/key$/.test(p.path),
+    )
     .map((p) => p.path);
   const allowed = new Set(game.i18n?.same ?? []);
   const untranslated = same.filter((p) => !allowed.has(p));
-  return { total: paths.length, translated: paths.length - missing.length, missing, stale, long, same, untranslated };
+  // A switch is the same choice in every language: its flag and values are kept, whatever the words inside.
+  const switches: { path: string; source: string; translation: string }[] = [];
+  for (const p of paths) {
+    const t = table[p.path];
+    if (typeof t !== 'string' || t === p.text || (!t.includes('{') && !p.text.includes('{'))) continue;
+    if (!switchesKept(p.text, t))
+      switches.push({ path: p.path, source: switchSignature(p.text), translation: switchSignature(t) });
+  }
+  return {
+    total: paths.length,
+    translated: paths.length - missing.length,
+    missing,
+    stale,
+    long,
+    same,
+    untranslated,
+    switches,
+  };
 }

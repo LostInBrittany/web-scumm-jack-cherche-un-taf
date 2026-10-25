@@ -2,7 +2,7 @@
 // Part of the player (4.1.0 "Clarity"): App's methods of the same name forward here.
 import { check } from '../core/cond';
 import { must } from '../core/must';
-import type { GameState, Id } from '../core/types';
+import type { GameState, Id, PlaceDef } from '../core/types';
 import { roving } from './a11y';
 import { el, esc, sleep } from './app-shared';
 import type { App } from './app';
@@ -110,17 +110,73 @@ export async function openMap(app: App, state: GameState): Promise<Id | null> {
       layer.append(svg);
       const size = parent ? 7.5 : 6;
       list.append(el('div', 'who', `<img src="${app.bank.img(icons.map)}" alt="">${esc(app.game.ui.mapTitle)}`));
+      // One pin per place, except the places that join another's pin (4.4.0): their faces sit on it, each face a way
+      // to its own place. Several faces (a portrait list, or joined places) sit side by side, overlapping a little: the
+      // pin widens, each face keeps its size.
+      const groups = new Map<Id, [Id, PlaceDef][]>();
       for (const [id, p] of places()) {
-        const b = el('button', 'pin' + (id === here ? ' here' : ''));
-        b.setAttribute('aria-label', p.name);
-        Object.assign(b.style, { left: `${p.pos[0]}%`, top: `${p.pos[1]}%`, width: `${size * 1.1}%` });
-        const face = p.portrait ?? pin;
-        b.innerHTML = `${face ? `<img class="face" src="${app.bank.img(face)}" alt="">` : ''}${pin ? `<img class="needle" src="${app.bank.img(pin)}" alt="">` : ''}`;
-        const news = p.news ? check(p.news, state) : false;
+        const host = p.joins ?? id;
+        groups.set(host, [...(groups.get(host) ?? []), [id, p]]);
+      }
+      for (const [host, members] of groups) {
+        const at = (map.places[host] ?? members[0]![1]).pos;
+        const faces = members.flatMap(([id, p]) =>
+          (p.portrait === undefined ? (pin ? [pin] : []) : ([] as Id[]).concat(p.portrait)).map((img) => ({
+            id,
+            p,
+            img,
+          })),
+        );
+        const n = Math.max(1, faces.length);
+        const fw = 100 / (1 + 0.6 * (n - 1));
+        const style = (i: number) =>
+          n > 1
+            ? ` style="width:${fw}%;${i ? `margin-left:${-0.4 * fw}%;` : ''}position:relative;z-index:${n - i}"`
+            : '';
+        const needle = pin
+          ? `<img class="needle" src="${app.bank.img(pin)}" alt=""${n > 1 ? ` style="width:${0.4 * fw}%"` : ''}>`
+          : '';
+        const isHere = members.some(([id]) => id === here);
+        const news = members.some(([, p]) => (p.news ? check(p.news, state) : false));
+        let b: HTMLElement;
+        if (members.length === 1) {
+          // One place: the pin is its button, as before.
+          const [id, p] = members[0]!;
+          b = el('button', 'pin' + (isHere ? ' here' : ''));
+          b.setAttribute('aria-label', p.name);
+          const faceHtml = faces
+            .map((f, i) => `<img class="face" src="${app.bank.img(f.img)}" alt=""${style(i)}>`)
+            .join('');
+          b.innerHTML = (n > 1 ? `<span class="faces" style="display:flex">${faceHtml}</span>` : faceHtml) + needle;
+          b.onclick = () => void go(id);
+        } else {
+          // Several places: one button per face, each named after its place.
+          b = el('div', 'pin' + (isHere ? ' here' : ''));
+          const row = el('span', 'faces');
+          row.style.display = 'flex';
+          faces.forEach((f, i) => {
+            const fb = el('button', 'facebtn' + (f.id === here ? ' here' : ''));
+            fb.setAttribute('aria-label', f.p.name);
+            fb.innerHTML = `<img class="face" src="${app.bank.img(f.img)}" alt="">`;
+            Object.assign(fb.style, {
+              width: `${fw}%`,
+              marginLeft: i ? `${-0.4 * fw}%` : '0',
+              position: 'relative',
+              zIndex: `${n - i}`,
+            });
+            fb.onclick = () => void go(f.id);
+            row.append(fb);
+          });
+          b.append(row);
+          b.insertAdjacentHTML('beforeend', needle);
+        }
+        Object.assign(b.style, { left: `${at[0]}%`, top: `${at[1]}%`, width: `${size * 1.1 * (1 + 0.6 * (n - 1))}%` });
         if (news && newsImg)
           b.insertAdjacentHTML('beforeend', `<img class="news" src="${app.bank.img(newsImg)}" alt="">`);
-        b.onclick = () => void go(id);
         layer.append(b);
+      }
+      for (const [id, p] of places()) {
+        const news = p.news ? check(p.news, state) : false;
         const li = el('button', 'choice', `• ${esc(p.name)}${news ? ' <span style="color:#ffd84d">!</span>' : ''}`);
         li.onclick = () => void go(id);
         list.append(li);
@@ -160,12 +216,20 @@ export async function openMap(app: App, state: GameState): Promise<Id | null> {
       }
       const p = must(map.places[id], `place ${id}`);
       const herePlace = here ? must(map.places[here], `place ${here}`) : undefined;
-      const from = herePlace && herePlace.region === region ? herePlace.pos : null;
+      // Two places of the same pin (4.4.0): no journey to draw.
+      if (here && (herePlace?.joins ?? here) === (p.joins ?? id)) {
+        cleanup();
+        resolve(id);
+        return;
+      }
+      const posOf = (q: PlaceDef) => (q.joins ? (map.places[q.joins]?.pos ?? q.pos) : q.pos);
+      const to = posOf(p);
+      const from = herePlace && herePlace.region === region ? posOf(herePlace) : null;
       const origin = from ?? [50, 50];
       const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      const mx = (origin[0] + p.pos[0]) / 2,
-        my = Math.min(origin[1], p.pos[1]) - 10;
-      path.setAttribute('d', `M${origin[0]} ${origin[1] - 2} Q${mx} ${my} ${p.pos[0]} ${p.pos[1] - 2}`);
+      const mx = (origin[0] + to[0]) / 2,
+        my = Math.min(origin[1], to[1]) - 10;
+      path.setAttribute('d', `M${origin[0]} ${origin[1] - 2} Q${mx} ${my} ${to[0]} ${to[1] - 2}`);
       Object.assign(path.style, {
         fill: 'none',
         stroke: '#e02828',

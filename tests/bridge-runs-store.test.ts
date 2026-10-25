@@ -9,6 +9,7 @@ import { randomBytes } from 'node:crypto';
 import { afterAll, describe, expect, it } from 'vitest';
 import { MemoryLimiter, SqlLimiter } from '../bridge/src/runs-limiter';
 import { MemoryRunStore, type RunRecord, type RunStore, SqlRunStore } from '../bridge/src/runs-store';
+import type { SqlDb, SqlQuery } from '../bridge/src/store-sql';
 import { SqliteRealityStore } from '../bridge/src/store-sqlite';
 
 const dir = mkdtempSync(join(tmpdir(), 'runs-store-'));
@@ -126,6 +127,17 @@ for (const [name, make] of [
       expect(await s.admit(run({ id: 'r2' }), 1)).toBe('full');
     });
 
+    it('reads no run for an id it does not hold, whole or summed up (4.3.0)', async () => {
+      // Kills runs-store.ts `return r ? toRun(r) : undefined;` → true in get and summary: no row is no run, never a
+      // TypeError of reading a row that is not there.
+      const s = await make();
+      await s.create(run({ id: 'a' }));
+      expect(await s.get('t', 'nope')).toBeUndefined();
+      expect(await s.get('u', 'a')).toBeUndefined();
+      expect(await s.summary('t', 'nope')).toBeUndefined();
+      expect(await s.summary('t', 'a')).toMatchObject({ id: 'a' });
+    });
+
     it('purges the runs submitted strictly before the date, and says how many', async () => {
       const s = await make();
       await s.create(run({ id: 'old', submittedAt: 99 }));
@@ -184,5 +196,58 @@ describe('the board statement', () => {
     expect(pg.boardSql({ ...q, seedKind: 'fixed' }).params).toEqual(['t', 'g', 'c', 'c', 'fixed']);
     expect(pg.boardSql({ ...q, seedKind: 'fixed' }).sql).toContain('seed_kind = $5');
     expect(pg.boardSql(q).sql).not.toContain('$5');
+  });
+});
+
+// Killed mutants (4.3.0 reread of the exemptions): two windows another process can open on a shared SQL database.
+// Each is staged over the SQLite store by a wrapper of its SqlDb that does, at the right statement, what the other
+// process would have done in between.
+describe('the SQL run store and quota, when another process acts between two statements', () => {
+  const wrap = (db: SqlDb, o: { run?: SqlQuery['run']; all?: SqlQuery['all']; q?: (q: SqlQuery) => SqlQuery }) =>
+    ({
+      dialect: db.dialect,
+      all: o.all ?? ((s, p) => db.all(s, p)),
+      run: o.run ?? ((s, p) => db.run(s, p)),
+      exec: (s) => db.exec(s),
+      tx: (k, fn, x) => db.tx(k, (q) => fn(o.q ? o.q(q) : q), x),
+      close: () => db.close(),
+    }) satisfies SqlDb;
+
+  it('a claim whose UPDATE changes no row (the run completed meanwhile by its old lease holder) claims nothing', async () => {
+    // Kills runs-store.ts `n !== 1` → false: `complete` is not under the claim's lock, so on Postgres it can commit
+    // between the claim's SELECT and its UPDATE; the run must not be handed to a second worker.
+    const db = await sqlite();
+    const s = new SqlRunStore(
+      wrap(db, {
+        q: (q) => ({
+          ...q,
+          all: (sql, p) => q.all(sql, p),
+          exec: (sql) => q.exec(sql),
+          run: async (sql, p) => {
+            if (/^UPDATE runs SET status = 'verifying'/.test(sql.trim()))
+              await q.run(`UPDATE runs SET status = 'done' WHERE tenant_id = $1 AND id = $2`, [p![0], p![1]]);
+            return q.run(sql, p);
+          },
+        }),
+      }),
+    );
+    await s.create(run({ id: 'a' }));
+    expect(await s.claimNext('w', 1000, 100)).toBeUndefined();
+  });
+
+  it("a purge whose edge row is gone (another instance's purge took it) deletes no more and says so", async () => {
+    // Kills runs-limiter.ts `if (edge)` → true: the COUNT and the edge's SELECT are two statements, not a transaction.
+    const db = await sqlite();
+    const l = new SqlLimiter(
+      wrap(db, { all: (sql, p) => (/LIMIT 1 OFFSET/.test(sql) ? Promise.resolve([]) : db.all(sql, p)) }),
+      { perMinute: 2, secret: 's', keyVersion: 'k', maxBuckets: 1 },
+    );
+    for (const [c, at] of [
+      ['a', 1],
+      ['b', 2],
+      ['c', 3],
+    ] as const)
+      await l.take('t', c, at);
+    expect(await l.purge(0, 't')).toBe(0);
   });
 });

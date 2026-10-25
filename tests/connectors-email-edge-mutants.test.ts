@@ -658,6 +658,22 @@ describe('the IMAP pass', () => {
     expect(scheduled()).toBe(after);
   });
 
+  it('started twice, polls no more once stopped: the first chain of passes stops too (4.3.0)', async () => {
+    // Kills connector.ts tick's `if (this.stopping) return;` → false. RealityConnector.start does not say it runs once:
+    // a second start begins a second chain of passes, both writing `this.timer`, and stop() clears the last one only.
+    // The first chain's timer still fires after stop; the guard is what keeps it from opening the mailbox again.
+    vi.useFakeTimers();
+    const { open } = mailbox({});
+    const e = imapConnector({ pollS: 7 });
+    await e.start(fakeCtx());
+    await e.start(fakeCtx());
+    await vi.advanceTimersByTimeAsync(0);
+    const n = open.mock.calls.length;
+    await e.stop();
+    await vi.advanceTimersByTimeAsync(21_000);
+    expect(open).toHaveBeenCalledTimes(n);
+  });
+
   it('schedules no next pass when it stops during one', async () => {
     vi.useFakeTimers();
     const scheduled = passes();

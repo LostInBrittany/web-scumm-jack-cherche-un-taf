@@ -111,9 +111,18 @@ const cachedNote = [];
 const MAX_REFUSED = 2; // Firefox cache oddities tolerated per run (see the end of the file)
 let closing = false; // the checks are over: what the teardown interrupts (a fetch the worker had in hand) is not a finding
 let checked = false; // every check of the scenario passed (set after the last one)
+// What the worker says when it fails an image (#257, `imageLastResort` in vite.config.ts): the page relays each
+// `qnc-sw-error` message to its console, a warning, so the run can print why and whether every cache had the file.
+const swReports = [];
+await context.addInitScript(() => {
+  navigator.serviceWorker?.addEventListener('message', (e) => {
+    if (e.data?.type === 'qnc-sw-error') console.warn(`qnc-sw-error ${JSON.stringify(e.data)}`);
+  });
+});
 page.on('pageerror', (e) => void (closing || errors.push(e.message)));
 page.on('console', (m) => {
-  if (m.type() === 'error' && !closing) errors.push(m.text());
+  if (m.type() === 'warning' && m.text().startsWith('qnc-sw-error ')) swReports.push(JSON.parse(m.text().slice(13)));
+  else if (m.type() === 'error' && !closing) errors.push(m.text());
 });
 // The interrupted update's own failure (4.1.19, Playwright 1.64): while `sw.js` is made to fail, WebKit now also
 // reports the server's deliberate 500 as a console error. That answer is the scenario, not a finding: each such
@@ -382,6 +391,15 @@ try {
 // error; the cause (the worker, or Firefox's cache storage) is not understood. Reported as such and not counted, up to
 // MAX_REFUSED files: more is a worker that fails, a failure. A person checks Firefox offline before a release
 // (docs/dev/passes/). Anything else the browser reported is a failure.
+// The worker's own account, failures included or recovered from (a file found in another cache): printed, not counted.
+for (const r of swReports)
+  console.log(
+    `pwa: ${name}: the worker failed ${r.url} (${r.reason}); ${r.recovered ? 'served it from the cache' : 'in no cache'}`,
+  );
+if (swReports.length && process.env.GITHUB_ACTIONS)
+  console.log(
+    `::warning::pwa ${name}: the worker failed ${swReports.length} image(s): ${[...new Set(swReports.map((r) => r.reason))].join(' | ')}`,
+  );
 const refusedCached = (e, i) =>
   name === 'firefox' && /ServiceWorker intercepted the request/.test(e) && cachedNote[i] === 'in the cache';
 const refused = errors.filter(refusedCached);

@@ -420,3 +420,28 @@ describe('a stored world of another algorithm', () => {
     expect(loadVariant(c, v).variant).toEqual(v);
   });
 });
+
+// 4.3.0 (the reread of the exemptions): a world canonical JSON refuses cannot be hashed; it is a world of the wrong
+// shape, said as a RemixSeedError like every other refusal of loadVariant, not a plain Error.
+describe('a stored world that cannot be hashed', () => {
+  it('is refused as world-shape', async () => {
+    const { game: demo } = await import('../games/demo/game');
+    const { compileGameManifest } = await import('@engine/core/remix/apply');
+    const { loadVariant } = await import('@engine/core/remix/compile');
+    const c = compileGameManifest(demo);
+    const v = compileVariant(c, demo.remix!, encodeSeedCode(5), 1, 'remix');
+    for (const assignments of [{ x: Number.POSITIVE_INFINITY }, { é: 1, é: 2 }]) {
+      let err: unknown;
+      try {
+        loadVariant(c, { ...v, assignments });
+      } catch (e) {
+        err = e;
+      }
+      expect(err).toBeInstanceOf(RemixSeedError);
+      expect(err).toMatchObject({
+        code: 'world-shape',
+        message: expect.stringMatching(/^the stored world cannot be hashed: canonicalJson: /),
+      });
+    }
+  });
+});

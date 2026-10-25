@@ -4,23 +4,29 @@
 // true), and the current release the READMEs give (their link and download URL name this version). Exit 1 on the first list of contradictions, with each
 // one named; the counters (tests, first-visit KB, states) stay `npm run quality:baseline`'s (README metric markers).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const read = (p: string) => readFileSync(resolve(ROOT, p), 'utf8');
 const pkg = JSON.parse(read('package.json')) as { version: string; scripts: Record<string, string> };
-/** The scripts of a game made with `web-scumm create` (cli/create.mjs): what the READMEs tell its author to run. */
-const created = new Set(
-  [...(/scripts: \{([^}]*)\}/.exec(read('cli/create.mjs'))?.[1] ?? '').matchAll(/(?:^|[\s,{])'?([\w:-]+)'?:\s*'/g)].map(
-    (m) => m[1]!,
-  ),
-);
+/**
+ * The scripts of a game made with `quest-n-click create` (cli/create.mjs): what the READMEs tell its author to run,
+ * the engine's own command (`[NAME]: NAME`) among them.
+ */
+const createdScripts = /scripts: \{([\s\S]*?)\n\s*\},/.exec(read('cli/create.mjs'))?.[1] ?? '';
+const created = new Set([
+  ...[...createdScripts.matchAll(/(?:^|[\s,{])'?([\w:-]+)'?:\s*['`]/g)].map((m) => m[1]!),
+  ...(/\[NAME\]:/.test(createdScripts) ? ['quest-n-click'] : []),
+]);
 
-/** The documents a reader is pointed to: the READMEs, docs/en, docs/fr (docs/dev is the project's own record). */
+/**
+ * The documents a reader is pointed to: the READMEs, CONTRIBUTING, SECURITY, and the wiki's pages, wiki/en and wiki/fr
+ * (since 4.5.0; docs/en and docs/fr are transition pages, docs/dev is the project's own record).
+ */
 export function documents(): string[] {
   const out = ['README.md', 'README.fr.md', 'CONTRIBUTING.md', 'SECURITY.md'];
-  for (const d of ['docs/en', 'docs/fr'])
-    for (const f of readdirSync(resolve(ROOT, d))) if (f.endsWith('.md')) out.push(join(d, f));
+  for (const d of ['wiki/en', 'wiki/fr'])
+    for (const f of readdirSync(resolve(ROOT, d)).sort()) if (f.endsWith('.md')) out.push(`${d}/${f}`);
   return out.filter((f) => existsSync(resolve(ROOT, f)));
 }
 
@@ -90,8 +96,10 @@ export function check(docs = documents()): Contradiction[] {
         if (Number(m[1]) !== f.saveSchema) at(`a save envelope is schema ${f.saveSchema}, the text says ${m[1]}`);
       for (const m of text.matchAll(/(?:Schema|Schéma) (\d+)(?: since| depuis) [\d.]+ \(`SpeedrunEnvelope/g))
         if (Number(m[1]) !== f.wsrunSchema) at(`a .wsrun is schema ${f.wsrunSchema}, the text says ${m[1]}`);
-      // Every script a reader is told to run.
-      for (const m of text.matchAll(/npm run (?:-s |--silent )?([\w:.-]+)/g)) {
+      // Every script a reader is told to run (a family, `npm run field:*`, and a placeholder, `npm run -s <script>`,
+      // name none).
+      for (const m of text.matchAll(/npm run (?:-s |--silent )?([\w:.-]+)(\*?)/g)) {
+        if (m[2] || m[1]!.startsWith('-')) continue;
         const name = m[1]!.replace(/[.:]+$/, '');
         if (!(name in pkg.scripts) && !created.has(name))
           at(`\`npm run ${name}\`: no such script in package.json nor in a created game's`);
@@ -120,8 +128,10 @@ export function releaseContradictions(doc: string, t: string, version: string): 
   // `v<version>-rc.N` (N from 1, no leading zero), its archive this version's.
   const downloads = [...t.matchAll(/releases\/download\/(v[^/\s)]+)\/([^\s)]*)/g)].map((m) => {
     const tag = /^v(\d+\.\d+\.\d+)(-rc\.[1-9]\d*)?$/.exec(m[1]!);
-    const file = /^web-scumm-(\d+\.\d+\.\d+)\.tgz$/.exec(m[2]!);
-    return { at: m.index ?? 0, raw: m[1]!, version: tag?.[1], rc: tag?.[2], file: file?.[1] ?? m[2]! };
+    // The engine's archive of that version: `quest-n-click-<v>.tgz` from 4.2.5 (D47), `web-scumm-<v>.tgz` before.
+    const file = /^(quest-n-click|web-scumm)-(\d+\.\d+\.\d+)\.tgz$/.exec(m[2]!);
+    const named = file && file[1] === archiveOf(file[2]!) ? file[2]! : m[2]!;
+    return { at: m.index ?? 0, raw: m[1]!, version: tag?.[1], rc: tag?.[2], file: named };
   });
   const candidate = downloads.length > 0 && downloads.every((d) => d.version === version && d.rc);
   for (const d of downloads)
@@ -134,7 +144,11 @@ export function releaseContradictions(doc: string, t: string, version: string): 
           : `names ${d.raw}, neither v${version} nor a v${version}-rc.N release`,
       });
     else if (d.file !== version)
-      out.push({ doc, line: lineOf(t, d.at), what: `downloads ${d.file} from ${d.raw}, not web-scumm-${version}.tgz` });
+      out.push({
+        doc,
+        line: lineOf(t, d.at),
+        what: `downloads ${d.file} from ${d.raw}, not ${archiveOf(version)}-${version}.tgz`,
+      });
   for (const m of t.matchAll(/(?:Current release|Release actuelle) ?: \[v(\d+\.\d+\.\d+)/g))
     if (m[1] !== version && !(candidate && newer(version, m[1]!)))
       out.push({
@@ -146,6 +160,8 @@ export function releaseContradictions(doc: string, t: string, version: string): 
 }
 
 const parts = (v: string) => v.split('.').map(Number);
+/** The name the engine's archive of a version starts with: quest-n-click from 4.2.5 (D47), web-scumm before. */
+const archiveOf = (v: string) => (newer('4.2.5', v) ? 'web-scumm' : 'quest-n-click');
 function newer(a: string, b: string): boolean {
   const [x, y] = [parts(a), parts(b)];
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return (x[i] ?? 0) > (y[i] ?? 0);

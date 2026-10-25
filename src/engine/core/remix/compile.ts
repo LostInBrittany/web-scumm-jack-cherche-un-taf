@@ -431,8 +431,15 @@ export function loadVariant(c: CompiledManifest, input: unknown): { variant: Wor
     throw new RemixSeedError(`unknown Remix algorithm "${stored.algorithm}"`, 'world-shape');
   // The hash proves the world was not altered after it was hashed, not who made it (integrity, not authenticity): a
   // forged world can carry its own correct hash, so every value is checked against this game whatever the hash says.
-  if (variantHash(body) !== hash)
-    throw new RemixSeedError('the stored world does not match its hash: refused', 'world-hash');
+  // A world canonical JSON refuses (a number JSON reads as Infinity, two keys equal once NFC-composed) has no hash: it
+  // is a world of the wrong shape, refused as such, never a crash of whoever reads it (4.3.0).
+  let computed: string;
+  try {
+    computed = variantHash(body);
+  } catch (err) {
+    throw new RemixSeedError(`the stored world cannot be hashed: ${(err as Error).message}`, 'world-shape');
+  }
+  if (computed !== hash) throw new RemixSeedError('the stored world does not match its hash: refused', 'world-hash');
   const stale = stored.manifestHash !== c.hash;
   if (stored.mode !== 'story' && !c.modes.has(stored.mode))
     throw new RemixSeedError(`this world's mode "${stored.mode}" does not exist in the game`, 'world-value');

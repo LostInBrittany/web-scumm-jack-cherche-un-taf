@@ -2,7 +2,7 @@
 // lost is sent again with the same key and the Bridge keeps one sequence; the local quota; a payload over its size;
 // a Biscuit without the signal; an input over the connector's limits; a clean stop; a log without content. Then the
 // SDK alone (shapes, the duplicate, pairing), two connectors sending one key three times each (one logical effect),
-// and the `web-scumm-connector` process (help, health, metrics, SIGTERM → exit 0).
+// and the `quest-n-click-connector` process (help, health, metrics, SIGTERM → exit 0).
 import { type ChildProcess, spawn } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { connect } from 'node:net';
@@ -225,7 +225,7 @@ describe('the SDK alone', () => {
   }, 30_000);
 });
 
-describe('the web-scumm-connector process', () => {
+describe('the quest-n-click-connector process', () => {
   const run = (args: string[]) =>
     spawn(process.execPath, ['connectors/bin.mjs', ...args], { stdio: ['ignore', 'pipe', 'pipe'] });
   const exit = (p: ChildProcess) => new Promise<number | null>((ok) => p.on('exit', (code) => ok(code)));
@@ -237,7 +237,7 @@ describe('the web-scumm-connector process', () => {
       out += d;
     });
     expect(await exit(p)).toBe(0);
-    expect(out).toMatch(/usage: web-scumm-connector <email\|telnet\|ssh\|open-badge> --config <file\.json>/);
+    expect(out).toMatch(/usage: quest-n-click-connector <email\|telnet\|ssh\|open-badge> --config <file\.json>/);
     expect(await exit(run(['nope']))).toBe(2);
   }, 30_000);
 

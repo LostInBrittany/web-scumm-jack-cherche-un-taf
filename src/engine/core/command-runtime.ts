@@ -11,7 +11,8 @@ import { roomKey } from './keys';
 
 export async function say(eng: Engine, who: Id, text: string, ctx: Ctx, shout = false, voice?: Id) {
   eng.runClock.line(ctx.fast);
-  await eng.ui.say(eng.who(who), text, { shout, fast: ctx.fast, voice });
+  // The switches and `{hero}` of the line (4.3.0), filled now: a flag set by the previous command is already read.
+  await eng.ui.say(eng.who(who), eng.text(text), { shout, fast: ctx.fast, voice });
 }
 
 export function point(eng: Engine, t: Id | Point, room: RoomDef): Point {

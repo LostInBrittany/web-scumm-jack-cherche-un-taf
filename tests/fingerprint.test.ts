@@ -104,6 +104,15 @@ describe('the fingerprint', () => {
     expect(text).not.toContain(demo.rooms[0]!.on![0]!.id!);
     expect(text).not.toContain('"invariants"');
   });
+
+  it('presentation carries actorGap when a game sets it, and is unchanged when it does not (#198)', () => {
+    const plain = canonicalJson(presentationOf(compileGame(structuredClone(demo)), manifest));
+    const set = presentationOf(compileGame({ ...structuredClone(demo), actorGap: 0.8 }), manifest) as {
+      game: Record<string, unknown>;
+    };
+    expect(set.game.actorGap).toBe(0.8);
+    expect(plain).not.toContain('actorGap');
+  });
 });
 
 describe('the build writes trustedExtensions (tools/vite/plugins.ts sealBuild)', () => {

@@ -42,8 +42,8 @@ export interface Presenter {
    * transcript too when it can prove it (4.1.17: `{ result, transcript }`).
    */
   minigame(id: Id, params: Record<string, unknown>): Promise<void | MinigameResult | MinigameOutcome>;
-  /** Choice of responses (dialogue tree or topic menu). Returns the chosen index. */
-  choose(options: { text: string; seen?: boolean; global?: boolean }[], who?: Id): Promise<number>;
+  /** Choice of responses (dialogue tree or topic menu). Returns the chosen index. `img`: the option shows as a card. */
+  choose(options: { text: string; seen?: boolean; global?: boolean; img?: Id }[], who?: Id): Promise<number>;
   /** Call: `who` is a caller or a list (shown side by side). ringing=true: rings then Pick up; false: end of call. */
   phone(who: Id | Id[], ringing: boolean): Promise<void>;
   guide(g: { verb: VerbId; target: Id } | null): void;

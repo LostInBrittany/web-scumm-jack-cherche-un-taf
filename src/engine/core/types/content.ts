@@ -196,6 +196,12 @@ export interface Choice {
   if?: Cond;
   /** Disappears once chosen. */
   once?: boolean;
+  /**
+   * An image (manifest id, a portrait for instance): the option shows as a card, the image with its `text` under it
+   * as the label (the screen reader's name too). Cards come first, then the options without an image. Presentation
+   * only: picking a card is picking the option.
+   */
+  img?: Id;
   do: Cmd[];
 }
 
@@ -222,6 +228,13 @@ export interface VerbDef {
   color: string;
   /** For Use / Give: joining word shown in the sentence ("with", "to"). */
   join?: string;
+  /**
+   * The keyboard shortcut that picks the verb, one character (4.3.0, #203): `'o'` for Open. Any case, without Ctrl,
+   * Alt or Meta; ignored while the engine is busy or something covers the scene (a conversation, the map, a menu).
+   * The button underlines its first occurrence in the label. Translated like the label (`verb:<id>/key`), since the
+   * letter follows the word. Omitted: no shortcut. Presentation only: no rule nor save sees it.
+   */
+  key?: string;
 }
 
 /**
@@ -286,7 +299,7 @@ export interface MouthSet {
 export interface CharacterDef {
   name: string;
   /**
-   * What the character looks like, in words, for the art prompts (`npm run prompts`, docs/en/PROMPTS.md): age, hair,
+   * What the character looks like, in words, for the art prompts (`npm run prompts`, wiki/en/create.images.md): age, hair,
    * glasses, build, outfit, signature accessory, personality. Not shown in the game. The more specific, the more
    * consistent the character stays across sheets generated in different conversations.
    */
@@ -337,6 +350,8 @@ export interface CharacterDef {
    */
   variants?: {
     if: Cond;
+    /** Display name while this variant applies (e.g. the hero the player chose, a character renamed after a reveal). */
+    name?: string;
     sprites?: SpriteSet;
     mouths?: Record<string, MouthSet>;
     portrait?: Id;
@@ -405,6 +420,12 @@ export interface HotspotDef {
   visible?: Cond;
   /** Generated from `RoomDef.exits` (core/define.ts): not written by the author. */
   exit?: boolean;
+  /**
+   * What a single tap on it does with no verb picked (4.4.0): `go` walks there and acts on arrival with the double
+   * tap's verb (`defaultVerb`), like an exit with `input.exitOnTap`; `walk` (the default) only walks there. E.g. an
+   * endless aisle that says why one does not walk down it. Input only: the rules, the solver and saves do not see it.
+   */
+  onTap?: 'go' | 'walk';
 }
 
 /** A conversation topic offered when talking to an actor: its line, when it is offered, what it runs. @public */
@@ -443,7 +464,7 @@ export interface ExitDef {
   /** The player cannot come back this way: the tools stop reporting it as a missing way back. */
   oneWay?: boolean;
   /**
-   * What a single tap on it does with no verb picked (4.1.x): `go` walks there and goes through on arrival (the
+   * What a single tap on it does with no verb picked (4.2.4): `go` walks there and goes through on arrival (the
    * double tap's verb, `defaultVerb`), `walk` only walks there. Default: `go` when the game sets
    * `input.exitOnTap`, else `walk`. Input only: the rules, the solver and saves do not see it.
    */

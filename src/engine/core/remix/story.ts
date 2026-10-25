@@ -8,7 +8,7 @@ import { canonicalJson } from '../canonical';
 import type { VariationManifest } from './manifest';
 import { sha256HexSync } from './sha256';
 
-/** The algorithm's name. */
+/** The algorithm's name: an identifier from web-scumm, kept so existing remixes and runs still load (D47). */
 export const REMIX_ALGORITHM = 'web-scumm-remix-1';
 /** The generator's version: bumped when a single assignment of a given seed would change (ADR 0018). @public */
 export const REMIX_ALGORITHM_VERSION = 1;

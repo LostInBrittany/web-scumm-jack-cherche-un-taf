@@ -1,10 +1,11 @@
 // npx tsx tools/dsl-doc.ts [--check] (4.1.12): the DSL's reference, generated from its schemas and their sentences, as
-// the "Reference" section of docs/en/DSL.md and docs/fr/DSL.md (between `<!-- dsl-doc:begin -->` and
-// `<!-- dsl-doc:end -->`, each in its language): every condition (core/ir-schema.ts, tools/dsl-meta.ts), every
+// the generated part of the wiki's `create.dsl` (wiki/en/create.dsl.md and wiki/fr/create.dsl.md, each in its language,
+// and that page's identifiers in wiki/manifest.json; 4.5.0, docs/en|fr/DSL.md being transition pages): every condition (core/ir-schema.ts, tools/dsl-meta.ts), every
 // command with its shape (src/studio/schema.ts `CMD_SPECS`, the Studio's forms) and its sentence, the objectives'
 // fields (`objectiveSchema` and its metadata), and how each field of the game and of a room counts for the IR and the
-// fingerprint (core/ir-fields.ts). `--check` exits 1 when a page is behind; tests/dsl-doc.test.ts runs it.
-import { readFileSync, writeFileSync } from 'node:fs';
+// fingerprint (core/ir-fields.ts), and the placeholders a text may hold (4.3.0: text switches, core/text-switch.ts).
+// `--check` exits 1 when the page is behind; tests/dsl-doc.test.ts and `npm run wiki -- check` say the same, and
+// `npm run wiki -- generate create.dsl` writes the same.
 import { resolve } from 'node:path';
 import type * as z from 'zod';
 import { CMD_KEYS } from '../src/engine/core/cmds';
@@ -12,10 +13,9 @@ import { FIELD_CLASSES, type FieldClass } from '../src/engine/core/ir-fields';
 import { type FieldMeta, objectiveSchema } from '../src/engine/core/ir-schema';
 import { CMD_SPECS, COND_KINDS, type Field } from '../src/studio/schema';
 import { CMD_DOCS, COND_DOCS } from './dsl-meta';
+import { sortedUnique, updateGeneratedPage } from './wiki/generated';
 
 const ROOT = resolve(import.meta.dirname, '..');
-const BEGIN = '<!-- dsl-doc:begin -->';
-const END = '<!-- dsl-doc:end -->';
 type Lang = 'en' | 'fr';
 
 /** A field of the Studio's schema, as it is written. */
@@ -74,6 +74,26 @@ const T = {
     game: 'The game (`GameDef`)',
     room: 'A room (`RoomDef`)',
     counts: { logic: 'logic', presentation: 'presentation', both: 'both', meta: 'meta' } as Record<FieldClass, string>,
+    placeholders: 'Placeholders in texts',
+    placeholderIntro:
+      'Written inside any text; anything else between braces stays as written. A switch compares `String(value)` of the flag exactly; no value matching (or the flag unset) takes `*=`, else the first text. No nesting, no escaping: an alternative holds no `{`, `}` or `|`. The validator reports a malformed switch, a flag no command sets, a value listed that no `set` writes, and a value written that the switch neither lists nor covers with `*=`.',
+    placeholder: 'Placeholder',
+    filled: 'Filled',
+    placeholderRows: [
+      [
+        '{hero}',
+        'when shown: the active hero’s name (its variant’s); lines, choices, looks, hints, toasts, captions, item and object names, objective titles',
+      ],
+      [
+        '{<flag>?<value>=<text>|…|*=<text>}',
+        'when shown, after the translation: the text listed for the flag’s current value (`{form?m=him|f=her}`, `content{form?f=e|*=}`)',
+      ],
+      [
+        '{item} {target} {name}',
+        'in a fallback, kind or give line: the thing acted on, what it is used on, the target',
+      ],
+      ['{code:<id>} {hint:<id>}', 'at boot, by Remix: a coupled dimension’s code and its clue'],
+    ] as [string, string][],
   },
   fr: {
     conditions: 'Conditions',
@@ -96,6 +116,26 @@ const T = {
     game: 'Le jeu (`GameDef`)',
     room: 'Une salle (`RoomDef`)',
     counts: { logic: 'logic', presentation: 'presentation', both: 'both', meta: 'meta' } as Record<FieldClass, string>,
+    placeholders: 'Marqueurs dans les textes',
+    placeholderIntro:
+      'Écrits dans n’importe quel texte ; le reste entre accolades reste tel quel. Un aiguillage compare exactement `String(valeur)` du drapeau ; sans valeur qui corresponde (ou drapeau absent), il prend `*=`, sinon le premier texte. Pas d’imbrication, pas d’échappement : une alternative ne contient ni `{`, ni `}`, ni `|`. Le validateur signale un aiguillage mal formé, un drapeau qu’aucune commande ne pose, une valeur listée qu’aucun `set` n’écrit, et une valeur écrite que l’aiguillage ne liste pas sans `*=`.',
+    placeholder: 'Marqueur',
+    filled: 'Rempli',
+    placeholderRows: [
+      [
+        '{hero}',
+        'à l’affichage : le nom du héros actif (celui de sa variante) ; répliques, choix, regards, indices, toasts, sous-titres, noms d’objets, titres d’objectifs',
+      ],
+      [
+        '{<flag>?<value>=<text>|…|*=<text>}',
+        'à l’affichage, après la traduction : le texte listé pour la valeur courante du drapeau (`{form?m=him|f=her}`, `content{form?f=e|*=}`)',
+      ],
+      [
+        '{item} {target} {name}',
+        'dans une réplique par défaut, de genre ou de don : la chose visée, ce sur quoi on l’utilise, la cible',
+      ],
+      ['{code:<id>} {hint:<id>}', 'au démarrage, par Remix : le code d’une dimension couplée et son indice'],
+    ] as [string, string][],
   },
 };
 
@@ -131,6 +171,9 @@ export function dslBlock(lang: Lang): string {
     const m = metaOf(s);
     out.push(`| \`${k}\` | ${typeOf(s, lang)} | ${cell(m ? (lang === 'en' ? m.description : m.fr) : '')} |`);
   }
+  out.push('', `### ${t.placeholders}`, '', t.placeholderIntro, '', `| ${t.placeholder} | ${t.filled} |`, '|---|---|');
+  for (const [k, v] of t.placeholderRows)
+    out.push(`| \`${k.replace(/\|/g, '\\|')}\` | ${cell(v.replace(/\|/g, '\\|'))} |`);
   out.push('', `### ${t.classes}`, '', t.classIntro, '');
   for (const [title, table] of [
     [t.game, FIELD_CLASSES.game],
@@ -147,30 +190,36 @@ export function dslBlock(lang: Lang): string {
   return out.join('\n').trimEnd();
 }
 
-/** The page with its generated block replaced (added at the end when the page has none). */
-export function withDslBlock(page: string, block: string): string {
-  const body = `${BEGIN}\n${block}\n${END}`;
-  const i = page.indexOf(BEGIN);
-  const j = page.indexOf(END);
-  if (i >= 0 && j > i) return page.slice(0, i) + body + page.slice(j + END.length);
-  return `${page.trimEnd()}\n\n${body}\n`;
+/** The section ids of the wiki's `create.dsl`, one per `###` heading of the block, in its order (4.5.0, lot B11). */
+const WIKI_SECTIONS = ['conditions', 'commands', 'objectives', 'placeholders', 'field-counts'] as const;
+
+/**
+ * The block as the wiki's `create.dsl` holds it (`npm run wiki -- generate create.dsl`, tools/wiki/generators.ts):
+ * the same text, each `###` heading after its `<a name>` section id, the same in both languages.
+ */
+export function dslWikiBlock(lang: Lang): string {
+  let i = 0;
+  const out = dslBlock(lang)
+    .split('\n')
+    .flatMap((l) => (l.startsWith('### ') ? [`<a name="${WIKI_SECTIONS[i++] ?? 'unknown'}"></a>`, '', l] : [l]));
+  if (i !== WIKI_SECTIONS.length) throw new Error(`dsl-doc: ${i} sections, the wiki names ${WIKI_SECTIONS.length}`);
+  return out.join('\n');
 }
 
+/** The identifiers the wiki's `create.dsl` names: every command key and condition kind. */
+export const dslIdentifiers = (): string[] => sortedUnique([...CMD_KEYS, ...COND_KINDS]);
+
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()!)) {
-  let behind = 0;
-  for (const lang of ['en', 'fr'] as const) {
-    const p = `docs/${lang}/DSL.md`;
-    const file = resolve(ROOT, p);
-    const page = readFileSync(file, 'utf8');
-    const next = withDslBlock(page, dslBlock(lang));
-    if (next === page) continue;
-    if (process.argv.includes('--check')) {
-      console.error(`✖  ${p} is behind the schemas: npx tsx tools/dsl-doc.ts`);
-      behind++;
-    } else {
-      writeFileSync(file, next);
-      console.log(`✔  ${p}: the reference written`);
-    }
-  }
-  process.exit(behind ? 1 : 0);
+  const check = process.argv.includes('--check');
+  const problems = updateGeneratedPage(
+    resolve(ROOT, 'wiki'),
+    'create.dsl',
+    { en: dslWikiBlock('en'), fr: dslWikiBlock('fr') },
+    dslIdentifiers(),
+    check,
+  );
+  for (const p of problems) console.error(`✖  ${p}: npx tsx tools/dsl-doc.ts`);
+  if (!problems.length)
+    console.log(`✔  wiki/en|fr/create.dsl.md: the reference ${check ? 'is up to date' : 'written'}`);
+  process.exit(problems.length ? 1 : 0);
 }

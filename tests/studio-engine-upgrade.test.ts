@@ -3,7 +3,9 @@
 // health stays green; a game the migration would break is refused before anything is written, the head intact; the
 // migration is taken back by the owner's personal undo, or by restoring a backup taken before, to the head and the
 // health of before. The migration and the judge run in the worker's child (localMigrate, localValidate, localDiagnose)
-// as on the processing worker; the refusals the solver alone would give are tested with an injected judge.
+// as on the processing worker; the refusals the solver alone would give are tested with an injected judge. The fixture
+// imports `web-scumm/…`, as a 4.1.x game does: the projects below have them renamed first (what 4.2.5's UPGRADING
+// asked), except the one that shows the upgrade renaming them itself (4.3.0, D47: the alias is gone).
 import { EventEmitter } from 'node:events';
 import { createServer } from 'node:http';
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -16,13 +18,13 @@ import { backupOf, checkBackup, restoreInto } from '../studio-server/src/ops/bac
 import { type BlobStore, fsBlobStore } from '../studio-server/src/ops/blobs';
 import { createStudio, importInChild, operationContext } from '../studio-server/src/ops/core';
 import { HOSTED_SOLVE_MS } from '../studio-server/src/ops/diagnose';
-import { StudioError } from '../studio-server/src/ops/errors';
+import { isGameDoesNotLoad, StudioError } from '../studio-server/src/ops/errors';
 import { Journal } from '../studio-server/src/ops/journal';
 import { finishRestore } from '../studio-server/src/ops/ship';
 import { spansOf } from '../studio-server/src/ops/spans';
 import { PersonalUndo } from '../studio-server/src/ops/undo';
 import { Gate } from '../studio-server/src/server/auth/gate';
-import { EngineUpgrade } from '../studio-server/src/server/engine-upgrade';
+import { EngineUpgrade, RENAMED_WHAT } from '../studio-server/src/server/engine-upgrade';
 import { judgeBy, type Verdict } from '../studio-server/src/server/health';
 import { studioServer } from '../studio-server/src/server/http';
 import { exclusiveRunner, Leases } from '../studio-server/src/server/leases';
@@ -32,6 +34,7 @@ import { ServiceLease } from '../studio-server/src/server/service-lease';
 import { localDiagnose, localMigrate, localValidate } from '../studio-server/src/worker/local';
 import { migratedShape } from '../studio-server/src/worker/migrate';
 import { addSchema3ToGameSource } from '../tools/ids/codemod';
+import { renameImports, sourcesIn } from '../tools/migrate-name';
 import { overlaySnapshot, packSnapshot, snapshotTexts } from '../studio-server/src/worker/snapshot';
 import type { SolveData } from '../tools/studio/types';
 
@@ -64,9 +67,27 @@ const judge = judgeBy({
 });
 
 /** A hosted project made of a copy of the fixture, the owner's personal undo, the leases, an upgrade. */
-async function project(name: string, o: { judge?: typeof judge; edit?: (dir: string) => void } = {}) {
+async function project(
+  name: string,
+  o: {
+    judge?: typeof judge;
+    edit?: (dir: string) => void;
+    former?: boolean;
+    from?: string;
+    executor?: Parameters<typeof createStudio>[0] extends infer O
+      ? O extends { executor?: infer E }
+        ? E
+        : never
+      : never;
+  } = {},
+) {
   const game = join(tmp, name);
-  cpSync(FIXTURE, game, { recursive: true });
+  cpSync(o.from ?? FIXTURE, game, { recursive: true });
+  if (!o.former)
+    for (const f of sourcesIn(game)) {
+      const next = renameImports(readFileSync(join(game, f), 'utf8'));
+      if (next !== null) writeFileSync(join(game, f), next);
+    }
   o.edit?.(game);
   const db = await openSqliteDb(join(tmp, `${name}.sqlite`));
   await migrateDb(db, { dir: MIGRATIONS });
@@ -89,14 +110,22 @@ async function project(name: string, o: { judge?: typeof judge; edit?: (dir: str
   });
   opened.push(db, journal);
   const personalUndo = new PersonalUndo(db, () => journal.epoch());
-  const studio = createStudio({ gameDir: game, root: tmp, journal, importFresh: importInChild, personalUndo });
+  const studio = createStudio({
+    gameDir: game,
+    root: tmp,
+    journal,
+    importFresh: importInChild,
+    personalUndo,
+    ...(o.executor ? { executor: o.executor } : {}),
+  });
   const log: string[] = [];
   const up = new EngineUpgrade({
     snapshot: async () => ({ epoch: await journal.epoch(), rev: await journal.revision(), bytes: packSnapshot(game) }),
     migrate: (bytes) => localMigrate(bytes),
     judge: o.judge ?? judge,
-    write: async (what, files) => {
-      await studio.writeFiles(what, files);
+    validate: (bytes) => localValidate(bytes),
+    write: async (what, files, w) => {
+      await studio.writeFiles(what, files, w);
       return journal.revision();
     },
     exclusive: async (fn) => {
@@ -253,9 +282,130 @@ describe("the engine's upgrade of a game in the format of a 4.1.x", () => {
         (r) => `${r.path}=${r.blob}`,
       ),
     ).toEqual(before);
-    expect(readFileSync(join(game, 'game.ts'), 'utf8')).toBe(readFileSync(join(FIXTURE, 'game.ts'), 'utf8'));
+    expect(readFileSync(join(game, 'game.ts'), 'utf8')).toBe(
+      renameImports(readFileSync(join(FIXTURE, 'game.ts'), 'utf8')),
+    );
     expect(await judge(packSnapshot(game), { epoch: '', rev: 0 })).toEqual({ ...health, ms: expect.any(Number) });
   }, 120_000);
+});
+
+describe("the engine's upgrade of a game still under the former name (4.3.0, D47)", () => {
+  it('renames its `web-scumm/…` imports as a revision of their own, then migrates its ids; the rename is not undone', async () => {
+    const p = await project('former', { former: true });
+    // The alias is gone: the head does not load, so its health is not green, until the upgrade.
+    await expect(judge(packSnapshot(p.game), { epoch: '', rev: 0 })).rejects.toThrow(/does not load/);
+    const rev = await p.journal.revision();
+    const r = await p.as('owner', () => p.up.migrate('owner'));
+    expect(r).toEqual({
+      changed: 4,
+      revision: rev + 2,
+      paths: ['game.ts', 'ids.migration.json', 'ids.paths.json', 'rooms/start.ts'],
+      schema: { from: 2, to: 3 },
+      renamed: {
+        revision: rev + 1,
+        paths: ['cast.ts', 'game.ts', 'index.ts', 'items.ts', 'rooms/start.ts', 'rules.ts'],
+      },
+    });
+    expect((await p.journal.opAt(rev + 1))?.what).toBe(RENAMED_WHAT);
+    for (const f of sourcesIn(p.game)) expect(readFileSync(join(p.game, f), 'utf8'), f).not.toMatch(/['"]web-scumm\//);
+    expect(await judge(packSnapshot(p.game), { epoch: '', rev: rev + 2 })).toMatchObject({ ok: true, errors: [] });
+    expect(await p.as('owner', () => p.up.migrate('owner'))).toEqual({ changed: 0, schema: { from: 3, to: 3 } });
+    // The schema's migration is undone; the rename is not recorded for undo (it would put back imports that no longer
+    // resolve), so the owner's history before it stays reachable and the head keeps loading.
+    expect(await p.as('owner', () => p.studio.undo())).toMatchObject({
+      ok: true,
+      what: expect.stringMatching(/schema 2 → 3/),
+    });
+    expect(await p.as('owner', () => p.studio.undo())).toEqual({ ok: false, reason: 'nothing to undo' });
+    expect(readFileSync(join(p.game, 'game.ts'), 'utf8')).toContain("from '@quest-n-click/engine/content'");
+    expect(await judge(packSnapshot(p.game), { epoch: '', rev: rev + 3 })).toMatchObject({ ok: true });
+  }, 120_000);
+
+  it('renames the imports of a game the solver cannot finish yet: never stuck on a head that does not load', async () => {
+    const unfinished = async () => ({ ok: false, errors: ['the game cannot be finished'], warnings: [], ms: 1 });
+    // Schema 3, the template with its imports under the former name: the rename alone, judged by loading.
+    const three = await project('former-unfinished-3', {
+      former: true,
+      from: join(ROOT, 'games', '_template'),
+      judge: unfinished,
+      edit: (dir) => {
+        for (const f of sourcesIn(dir))
+          writeFileSync(
+            join(dir, f),
+            readFileSync(join(dir, f), 'utf8').replaceAll("'@quest-n-click/engine/", "'web-scumm/"),
+          );
+      },
+    });
+    const rev3 = await three.journal.revision();
+    const r3 = await three.as('owner', () => three.up.migrate('owner'));
+    expect(r3).toMatchObject({ revision: rev3 + 1, schema: { from: 3, to: 3 }, renamed: { revision: rev3 + 1 } });
+    expect((r3 as { paths: string[] }).paths).toContain('index.ts');
+    // Schema 2: the rename is written, the schema's migration is refused by the solver, the game loads and is edited.
+    const two = await project('former-unfinished-2', { former: true, judge: unfinished });
+    const rev2 = await two.journal.revision();
+    const e = await two.as('owner', () => two.up.migrate('owner')).catch((x: unknown) => x);
+    expect(e).toMatchObject({ status: 422, message: expect.stringMatching(/cannot be finished/) });
+    expect((e as { body: { renamed: { revision: number } } }).body.renamed.revision).toBe(rev2 + 1);
+    expect(await two.journal.revision()).toBe(rev2 + 1);
+    const items = readFileSync(join(two.game, 'items.ts'), 'utf8');
+    await two.as('owner', () =>
+      two.studio.writeFiles('an edit after the rename', [{ path: 'items.ts', after: `${items}// edited\n` }]),
+    );
+    expect(await two.journal.revision()).toBe(rev2 + 2);
+  }, 120_000);
+
+  it('refuses an edit after which the game would no longer load, with a 422 that says so', async () => {
+    const p = await project('breaks');
+    const gameTs = readFileSync(join(p.game, 'game.ts'), 'utf8');
+    const rev = await p.journal.revision();
+    await expect(
+      p.as('owner', () =>
+        p.studio.writeFiles('back to the old name', [
+          { path: 'game.ts', after: gameTs.replaceAll("'@quest-n-click/engine/", "'web-scumm/") },
+        ]),
+      ),
+    ).rejects.toMatchObject({ status: 422, message: expect.stringMatching(/would no longer load/) });
+    expect(await p.journal.revision()).toBe(rev);
+  }, 120_000);
+
+  it("never keeps a worker's failure as the guard's baseline: it propagates, and the next write asks again", async () => {
+    let failNext = 0;
+    const p = await project('flaky', {
+      executor: {
+        validate: async (dir: string) => {
+          if (failNext-- > 0) throw new Error('the processing worker refused the job (503)');
+          return localValidate(packSnapshot(dir));
+        },
+        load: (dir: string) => importInChild(join(dir, 'index.ts')),
+      },
+    });
+    const items = readFileSync(join(p.game, 'items.ts'), 'utf8');
+    const rev = await p.journal.revision();
+    failNext = 1;
+    await expect(
+      p.as('owner', () => p.studio.writeFiles('one', [{ path: 'items.ts', after: `${items}// one\n` }])),
+    ).rejects.toMatchObject({ status: 503 });
+    expect(await p.journal.revision()).toBe(rev);
+    await p.as('owner', () => p.studio.writeFiles('two', [{ path: 'items.ts', after: `${items}// two\n` }]));
+    expect(await p.journal.revision()).toBe(rev + 1);
+  }, 120_000);
+
+  it('says a game whose code does not load apart from a failing job, on the worker', async () => {
+    const dir = join(tmp, 'unloadable');
+    cpSync(FIXTURE, dir, { recursive: true });
+    await expect(localValidate(packSnapshot(dir))).rejects.toSatisfy(
+      (e: unknown) => isGameDoesNotLoad(e) && /web-scumm/.test((e as Error).message),
+    );
+  }, 60_000);
+
+  it('renames the imports alone of a game already at schema 3', async () => {
+    const dir = join(tmp, 'former-3');
+    cpSync(join(ROOT, 'games', '_template'), dir, { recursive: true });
+    const index = readFileSync(join(dir, 'index.ts'), 'utf8').replaceAll("'@quest-n-click/engine/", "'web-scumm/");
+    writeFileSync(join(dir, 'index.ts'), index);
+    const m = await localMigrate(packSnapshot(dir));
+    expect(m).toEqual({ schema: { from: 3, to: 3 }, files: { 'index.ts': renameImports(index) }, skipped: [] });
+  }, 60_000);
 });
 
 describe("the worker's migrate", () => {
@@ -273,7 +423,12 @@ describe("the worker's migrate", () => {
   }, 60_000);
 
   it("bounds an answer to the migration's files, those the game has (the game's code shapes it)", () => {
-    const has = new Set(['rooms/a.ts', 'game.ts', 'rules.ts', 'items.ts', 'locales/fr.json', 'cast.ts', 'index.ts']);
+    const imp = "import { x } from 'web-scumm/content';\n";
+    const has = new Map(
+      ['rooms/a.ts', 'game.ts', 'rules.ts', 'items.ts', 'locales/fr.json', 'cast.ts', 'index.ts', 'rooms/sub/a.ts'].map(
+        (f) => [f, imp] as const,
+      ),
+    );
     const files = {
       'rooms/a.ts': 'x',
       'game.ts': 'g',
@@ -285,6 +440,13 @@ describe("the worker's migrate", () => {
     };
     const ok = { schema: { from: 2, to: 3 }, files };
     expect(migratedShape(ok, has)).toEqual({ ...ok, skipped: [] });
+    // 4.3.0: any other source of the game, as the former name's imports renamed and nothing else.
+    const renamed = { 'cast.ts': renameImports(imp)!, 'rooms/sub/a.ts': renameImports(imp)! };
+    expect(migratedShape({ schema: { from: 3, to: 3 }, files: renamed }, has)).toEqual({
+      schema: { from: 3, to: 3 },
+      files: renamed,
+      skipped: [],
+    });
     const at = (f: Record<string, unknown>) => ({ schema: { from: 2, to: 3 }, files: f });
     for (const bad of [
       null,
@@ -295,10 +457,12 @@ describe("the worker's migrate", () => {
       at({ '.env.json': '' }),
       at({ 'tests/a.ts': '' }),
       at({ 'art/a.png': '' }),
-      // Files of the game the migration never writes, even though the game has them.
+      // Files of the game the migration never writes, even though the game has them, but for a rename of the imports.
       at({ 'cast.ts': '' }),
       at({ 'index.ts': '' }),
       at({ 'rooms/sub/a.ts': '' }),
+      at({ 'cast.ts': `${renameImports(imp)}export const evil = 1;\n` }),
+      at({ 'tests/a.ts': renameImports(imp) }),
       at({ 'package.json': '' }),
       // A file the migration would write, but that the game does not have.
       at({ 'rooms/b.ts': '' }),

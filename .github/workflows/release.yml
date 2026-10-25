@@ -1,181 +1,74 @@
 name: release
-# A SemVer tag (vMAJOR.MINOR.PATCH[-pre], any major) publishes the GitHub release only once the `ci` workflow of that tag is
-# green (check, the browser e2e rows): this workflow runs on ci's completion, not on the tag push. It builds the very
-# commit ci tested (`head_sha`), and refuses a tag that no longer points there (moved since). It then re-runs the
-# release checks (doctor --release, build, coverage and its strict ratchet, proof, strict playtests, the mutation sets, the
-# packages' publish dry run, dependency audits, the dist inventory) and creates the
-# release with the matching CHANGELOG section and the manual passes of docs/dev/passes/; the two mutation sets run as jobs
-# beside it (4.1.10). Attached: the built game
-# (dist, its licences inside), its assets manifest, the engine's npm packages (web-scumm, create-web-scumm, 3.9;
-# web-scumm-bridge, 4.1.1), a complete speedrun of the reference chapter verified by `speedrun:verify` (4.1.14),
-# SHA-256 sums, an SBOM of the shipped dependencies (CycloneDX) and
-# a build provenance attestation (`gh attestation verify <file> -R wanoo/web-scumm`), and reads it all back once published
-# (`ship verify`, 4.1.8). A release that already has
-# files is never overwritten (3.7.1): a new version is a new tag.
+# A SemVer tag (vMAJOR.MINOR.PATCH[-pre], any major) publishes the GitHub release from the candidate it names. Since
+# 4.5.3 (#291, D55) this workflow starts on the tag's push and the candidate is the release's only test pass: the tag
+# runs no `ci` of its own, and nothing is tested again here. The release job asks instead that the commit is on main's
+# first-parent line, that main's `ci` succeeded on a push at this very SHA, that the previous stable tag is an ancestor,
+# and that the candidate the tag names is green, of this SHA, with every file its manifest lists. Nothing is built here
+# either (4.1.20): the files are the candidate's, checked against its manifest and copied under the names
+# tools/release/artifacts.mjs gives them; the release is created with the matching CHANGELOG section and the manual
+# passes of docs/dev/passes/. Attached: the built game (dist, its licences inside), its assets manifest, the engine's npm
+# packages, the Remix catalogues the candidate proved (4.1.15; proved by the candidate since 4.5.3), a complete speedrun
+# of the reference chapter verified by `speedrun:verify` (4.1.14), SHA-256 sums, the SBOMs (CycloneDX) and a build
+# provenance attestation (`gh attestation verify <file> -R Quest-n-Click/quest-n-click`), and reads it all back once
+# published (`ship verify`, 4.1.8). A release that already has files is never overwritten (3.7.1): a new version is a
+# new tag. From 4.5.2 (#283, D34) the `npm-stage` job then stages the release's npm packages by trusted publishing, for
+# an owner of the organisation to approve with 2FA; nothing is published on npm by this workflow.
+# A push trigger runs this file from the tag's own commit, which the gate requires to be one of main's.
 on:
-  workflow_run:
-    workflows: [ci]
-    types: [completed]
-# One release run per tag at a time (second reading of #122): a rerun of the tag's `ci` fires this workflow again, and
-# two runs that both saw no release would both make a draft (GitHub lets two drafts share a tag). Queued, never
-# cancelled: the second run then finds the first's release and stops.
+  push:
+    tags: ['v*']
+# One release run per tag at a time (second reading of #122): a re-run, or a tag deleted and pushed again, starts this
+# workflow again, and two runs that both saw no release would both make a draft (GitHub lets two drafts share a tag).
+# Queued, never cancelled: the second run then finds the first's release and stops.
 concurrency:
-  group: release-${{ github.event.workflow_run.head_branch }}
+  group: release-${{ github.ref_name }}
   cancel-in-progress: false
 permissions:
   contents: write
   id-token: write
   attestations: write
-  # 4.1.17: the files of the candidate run the tag names are downloaded from that run.
+  # 4.1.17: the files of the candidate run the tag names are downloaded from that run; 4.5.3: main's ci runs are read.
   actions: read
 jobs:
-  # The mutation matrix (4.1.20 PR 2a, plan §7.3): every shard of every gated set, from
-  # tools/mutation-shards.ts — no workflow writes its list of sets by hand (tests/mutate-shards.test.ts).
-  mutation-plan:
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && startsWith(github.event.workflow_run.head_branch, 'v') && contains(github.event.workflow_run.head_branch, '.')
-    runs-on: ubuntu-24.04
-    timeout-minutes: 15
-    outputs:
-      matrix: ${{ steps.m.outputs.matrix }}
-    steps:
-      - name: A SemVer tag
-        env:
-          TAG: ${{ github.event.workflow_run.head_branch }}
-        run: |
-          echo "$TAG" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$' || { echo "::notice::$TAG is not a release tag"; exit 1; }
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - id: m
-        shell: bash
-        run: |
-          # The tag's own commit says what it gates (4.1.20): a commit that generates no matrix is not released by this
-          # workflow, rather than released on a matrix of another commit's sets.
-          if [ ! -f tools/mutation-shards.ts ]; then
-            echo "::error::this tag's commit has no tools/mutation-shards.ts (4.1.20): release.yml judges a tag on the matrix its own commit generates"
-            exit 1
-          fi
-          echo "matrix=$(npx tsx tools/mutation-shards.ts --matrix=gated)" >> "$GITHUB_OUTPUT"
-  # One job per shard (4.1.17: a set's length never cuts another's result short; 4.1.20: a long set in shards). Each
-  # job has a Postgres service; only the set that needs one is given its URL (the others' tests would run their
-  # Postgres cases too and judge mutants otherwise than the gate).
-  mutation:
-    needs: [mutation-plan]
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && startsWith(github.event.workflow_run.head_branch, 'v') && contains(github.event.workflow_run.head_branch, '.')
-    name: mutation (${{ matrix.name }})
-    runs-on: ubuntu-24.04
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.mutation-plan.outputs.matrix) }}
-    services:
-      postgres:
-        image: mirror.gcr.io/library/postgres:16@sha256:65b16a8b326e0cfbdf33fa7e783f2a0cb352a61448616ccccfd616ef42aa0f65
-        env:
-          POSTGRES_USER: bridge
-          POSTGRES_PASSWORD: bridge
-          POSTGRES_DB: bridge
-        ports: ['5432:5432']
-        options: --health-cmd "pg_isready -U bridge" --health-interval 2s --health-retries 30
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - id: inputs
-        run: echo "hash=$(npx tsx tools/mutate.ts --set=${{ matrix.set }} --hash)" >> "$GITHUB_OUTPUT"
-      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .cache/mutation
-          key: mutation-${{ matrix.name }}-${{ steps.inputs.outputs.hash }}
-      - run: npm run test:mutation:core -- --set=${{ matrix.set }} --shard=${{ matrix.shard }}/${{ matrix.shards }} | tee mutation-${{ matrix.name }}.txt
-        shell: bash
-        env:
-          BRIDGE_PG_URL: ${{ matrix.pg && 'postgres://bridge:bridge@127.0.0.1:5432/bridge' || '' }}
-      - if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: mutation-shard-${{ matrix.name }}
-          path: |
-            mutation-${{ matrix.name }}.txt
-            .cache/mutation/report-${{ matrix.set }}.shard-${{ matrix.shard }}of${{ matrix.shards }}.json
-          include-hidden-files: true
-          if-no-files-found: ignore
-  # Each set's shards merged into its report (`mutation-<set>`, the artifact the gate, the baseline and the summaries
-  # read): a shard missing, doubled, cancelled or of other inputs fails it, so no gate passes on part of a set.
-  mutation-merge:
-    needs: [mutation-plan, mutation]
-    if: always() && needs.mutation-plan.result == 'success' && github.event.workflow_run.conclusion == 'success'
-    runs-on: ubuntu-24.04
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.event.workflow_run.head_sha }}
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 22
-          cache: npm
-      - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: mutation-shard-*
-          path: shards
-      - shell: bash
-        run: |
-          code=0
-          for set in $(echo '${{ needs.mutation-plan.outputs.matrix }}' | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>console.log([...new Set(JSON.parse(s).include.filter(e=>e.gated).map(e=>e.set))].join(' ')))"); do
-            npx tsx tools/mutate.ts --set="$set" --merge --from=shards || code=1
-            mkdir -p merged/.cache/mutation && { cp ".cache/mutation/report-$set.json" merged/.cache/mutation/ 2>/dev/null || true; }
-          done
-
-          exit $code
-      - if: always()
-        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
-        with:
-          name: mutation-merged
-          path: merged
-          include-hidden-files: true
-          if-no-files-found: ignore
   release:
-    needs: [mutation-plan, mutation, mutation-merge]
-    if: github.event.workflow_run.conclusion == 'success' && github.event.workflow_run.event == 'push' && startsWith(github.event.workflow_run.head_branch, 'v') && contains(github.event.workflow_run.head_branch, '.')
+    # What docs-publish needs (4.5.0): read only when this job succeeded, that is after `ship verify` passed.
+    outputs:
+      version: ${{ steps.docs.outputs.version }}
+      candidate: ${{ steps.docs.outputs.candidate }}
+      docs-sha256: ${{ steps.docs.outputs.sha256 }}
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v') && contains(github.ref_name, '.')
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    # Downloads, checks and uploads (#291): no test suite runs here any more.
+    timeout-minutes: 45
     env:
-      TAG: ${{ github.event.workflow_run.head_branch }}
-      SHA: ${{ github.event.workflow_run.head_sha }}
-      # The future npm publishing step's exact Node and npm (4.1.20 PR 3b, plan §11.2): npm 11.15.0 at least for
-      # `npm stage`, Node 22.14.0 at least; never a range (tests/release-stable.test.ts, ship preflight-stable). Nothing
-      # is published to npm in 4.1.x.
-      NPM_PUBLISH_NODE: '22.23.3'
-      NPM_PUBLISH_NPM: '11.21.0'
+      TAG: ${{ github.ref_name }}
+      SHA: ${{ github.sha }}
     steps:
       - name: A SemVer tag
         run: |
           echo "$TAG" | grep -Eq '^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(-[0-9A-Za-z.-]+)?$' || { echo "::notice::$TAG is not a release tag"; exit 1; }
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.workflow_run.head_sha }}
+          ref: ${{ github.sha }}
           fetch-depth: 0
-      - name: The tag is the commit ci tested
+      # The tag may have moved between its push and this run (queued behind another): the commit judged is the one this
+      # run was started for, and the tag must still point there.
+      - name: The tag is the commit this run was started for
         run: |
           git fetch --force origin "refs/tags/$TAG:refs/tags/$TAG"
-          test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$SHA" || { echo "::error::$TAG points to $(git rev-parse "refs/tags/$TAG^{commit}"), ci tested $SHA"; exit 1; }
+          test "$(git rev-parse "refs/tags/$TAG^{commit}")" = "$SHA" || { echo "::error::$TAG points to $(git rev-parse "refs/tags/$TAG^{commit}"), this run was started for $SHA"; exit 1; }
+      # 4.5.3 (#291, tools/release/main-ci.mjs): the tag's own `ci` run is gone, main's stands in its place. The commit
+      # must be on main's first-parent line (a merge into main, never a topic branch's commit tagged directly), and the
+      # `ci` workflow must have succeeded on a push of main at this very SHA. A run still going is not a success: wait
+      # for it (`ship tag` does), then re-run this job.
+      - name: Main's ci passed on this commit
+        run: |
+          git fetch --force --no-tags origin +refs/heads/main:refs/remotes/origin/main
+          node tools/release/main-ci.mjs "$SHA" --main=refs/remotes/origin/main --repo="$GITHUB_REPOSITORY"
+        env:
+          GH_TOKEN: ${{ github.token }}
       - name: The previous stable tag is an ancestor
-        # 4.1.16: guarded on the file, as every step a tag's commit may predate (release.yml runs from main).
+        # 4.1.16: guarded on the file, as every step a tag's commit may predate (up to 4.5.2 release.yml ran from main).
         run: |
           if [ -f tools/release/ancestry.mjs ]; then node tools/release/ancestry.mjs "$TAG" "$SHA"; else echo "::notice::$TAG predates the ancestry check"; fi
       # 4.1.17 (plan §4.2, tools/release/candidate.mjs): from 4.1.17 on a tag names the `candidate` run that tested
@@ -211,6 +104,11 @@ jobs:
           gh run download "$run" -n candidate-site -D .candidate/site 2>/dev/null || echo "::notice::run $run kept no site"
           gh run download "$run" -n candidate-surfaces -D .candidate/surfaces 2>/dev/null || echo "::notice::run $run wrote no surfaces"
           gh run download "$run" -n candidate-signing -D .candidate/signing 2>/dev/null || echo "::notice::run $run rehearsed no signing"
+          # 4.5.0 (docs/dev/PLAN-4.5-WIKI.md §4.5.4): the documentation archive; an older candidate built none.
+          gh run download "$run" -n candidate-docs -D .candidate/docs 2>/dev/null || echo "::notice::run $run built no documentation archive"
+          # 4.5.3 (#291): the Remix catalogues the candidate proved, once release.yml stopped proving them itself; an older
+          # candidate proved none (its manifest names none, and the release below refuses it: start a new candidate).
+          gh run download "$run" -n candidate-remix -D .candidate/remix 2>/dev/null || echo "::notice::run $run proved no Remix catalogue"
           node tools/release/candidate.mjs check .candidate-manifest/candidate-manifest.json --sha="$SHA" --run="$run" --dir=.candidate
           echo "CANDIDATE=$run" >> "$GITHUB_ENV"
         env:
@@ -250,109 +148,89 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
-        with:
-          python-version: '3.12'
-      - run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      # `npm run doctor -- --release` (first step of release-check) requires ffmpeg and Chromium (4.1.8); release-check
-      # opens no browser, so the other two are not installed here.
-      # ffmpeg (4.1.15): this workflow runs from main while it checks out the tag's commit, which may predate
-      # scripts/ci-ffmpeg.sh, so the same logic is inline here: apt bounded, then a static build from GitHub's CDN.
-      - run: |
-          command -v ffmpeg >/dev/null 2>&1 && exit 0
-          for i in 1 2; do
-            if timeout 240 sudo apt-get update -qq && timeout 240 sudo apt-get install -y -qq ffmpeg; then exit 0; fi
-            echo "apt attempt $i failed or hung; retrying" >&2; sleep 10
-          done
-          echo "apt gave up: a static build from GitHub (BtbN/FFmpeg-Builds)" >&2
-          tmp=$(mktemp -d)
-          curl -fsSL --retry 3 --max-time 600 https://github.com/BtbN/FFmpeg-Builds/releases/download/latest/ffmpeg-master-latest-linux64-gpl.tar.xz -o "$tmp/ffmpeg.tar.xz"
-          tar -xJf "$tmp/ffmpeg.tar.xz" -C "$tmp"
-          sudo install -m 0755 "$tmp"/ffmpeg-master-latest-linux64-gpl/bin/ffmpeg "$tmp"/ffmpeg-master-latest-linux64-gpl/bin/ffprobe /usr/local/bin/
-          ffmpeg -version | head -1
-        timeout-minutes: 20
+      # Node and the repository's dependencies only, for what still runs here: the release notes, speedrun:verify (tsx),
+      # the manifest's checks and `ship verify`. No python, ffmpeg or browser (#291): release-check and the mutation
+      # sets ran in the candidate this tag names, on this very SHA, and are not run again.
       - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
-      - run: for i in 1 2 3; do (npx playwright install --with-deps chromium) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
-        timeout-minutes: 20
-      # The mutation sets ran in the `mutation` jobs this one waits for (4.1.10): release-check without them.
-      - run: npm run release-check:ci
       - run: node scripts/release-notes.mjs "$TAG" > notes.md
-      # The Remix worlds of the bundled games (4.1.15, D25): each catalogue's every logical world proved (no softlock),
-      # the report published with the release (a generator mode would publish its sample, never "all seeds"). A tag
-      # older than 4.1.15 has no catalogue: the step says so and the release goes on.
-      - name: Remix catalogues, proved
+      # The name this tag's files start with (4.2.5, D47): quest-n-click from v4.2.5, web-scumm before; a tag that
+      # predates the command is a web-scumm one.
+      - name: The release's name
         run: |
-          if [ -f tools/verify-variants.ts ]; then
-            GAME=demo npx tsx tools/verify-variants.ts --prove --max=200000 --out="web-scumm-$TAG-remix-demo.json"
-            GAME=reference npx tsx tools/verify-variants.ts --prove --max=200000 --out="web-scumm-$TAG-remix-reference.json"
-            echo "REMIX_ASSETS=web-scumm-$TAG-remix-demo.json web-scumm-$TAG-remix-reference.json" >> "$GITHUB_ENV"
-          else
-            echo "::notice::$TAG predates Remix: no catalogue to prove"
-          fi
+          P=$(node tools/release/artifacts.mjs project --tag="$TAG" 2>/dev/null) || { P=web-scumm; echo "::notice::no release name for $TAG: web-scumm"; }
+          echo "P=$P" >> "$GITHUB_ENV"
       - name: Build archive, checksum and SBOM
         run: |
-          # The site the candidate built and qualified (4.1.20): published as it is, never built again for the release
-          # (release-check above builds one to check, not to publish). Its file digests and the surfaces beside it.
-          for d in site surfaces signing; do test -d ".candidate/$d" || { echo "::error::run $CANDIDATE has no candidate-$d: nothing is made again here"; exit 1; }; done
-          cp .candidate/site/dist.tar.gz "web-scumm-$TAG-dist.tar.gz"
-          cp .candidate/site/assets-manifest.json "web-scumm-$TAG-assets-manifest.json"
-          cp .candidate/site/site-files.json "web-scumm-$TAG-site-files.json"
-          cp .candidate/surfaces/qualification-surfaces.json "web-scumm-$TAG-surfaces.json"
+          # The site the candidate built and qualified (4.1.20): published as it is, never built again for the release.
+          # Its file digests and the surfaces beside it.
+          # The Remix worlds of the bundled games (4.1.15, D25): each catalogue's every logical world proved (no
+          # softlock), the report published with the release (a generator mode would publish its sample, never "all
+          # seeds"). Proved by the candidate since 4.5.3 (#291, its job remix-proof): a candidate without them is refused
+          # here, as one without its site is, never proved again in this job.
+          for d in site surfaces signing remix; do test -d ".candidate/$d" || { echo "::error::run $CANDIDATE has no candidate-$d: nothing is made again here (start a new candidate)"; exit 1; }; done
+          cp .candidate/site/dist.tar.gz "$P-$TAG-dist.tar.gz"
+          cp .candidate/site/assets-manifest.json "$P-$TAG-assets-manifest.json"
+          cp .candidate/site/site-files.json "$P-$TAG-site-files.json"
+          # The website's demo (4.5.2, D52), from the candidates that made it; check-release below says whether the tag
+          # must have it (tools/release/artifacts.mjs `game:web`, since 4.5.2).
+          if [ -f .candidate/site/web.tar.gz ]; then cp .candidate/site/web.tar.gz "$P-$TAG-web.tar.gz"; WEB="$P-$TAG-web.tar.gz"; else WEB=""; fi
+          cp .candidate/surfaces/qualification-surfaces.json "$P-$TAG-surfaces.json"
           # The signing rehearsal's report (4.1.20 PR 3b), as the candidate's manifest lists it.
-          cp .candidate/signing/signing-rehearsal.json "web-scumm-$TAG-signing-rehearsal.json"
-          # Since 4.1.20 (plan §8.4) this job makes nothing the candidate made: the four archives (packed once, installed
+          cp .candidate/signing/signing-rehearsal.json "$P-$TAG-signing-rehearsal.json"
+          extra="$P-$TAG-site-files.json $P-$TAG-surfaces.json $P-$TAG-signing-rehearsal.json${WEB:+ $WEB}"
+          # The two Remix reports the candidate wrote (remix/remix-<game>.json), under the tag's names.
+          for g in demo reference; do cp ".candidate/remix/remix-$g.json" "$P-$TAG-remix-$g.json"; extra="$extra $P-$TAG-remix-$g.json"; done
+          # Since 4.1.20 (plan §8.4) this job makes nothing the candidate made: the archives (packed once, installed
           # outside the repository on three systems), their SBOMs, the Bridge's image (its archive, identities and SBOM)
           # are the candidate's, checked against its manifest above, copied under the names tools/release/artifacts.mjs
           # gives them. A candidate without one of them stops the release here (every tag that still publishes has them).
+          # Every archive as it was packed: the packages, and through 4.2.x their old names' aliases (4.2.5, D47); each
+          # SBOM under its package's name and the tag (sbom/<name>.cdx.json → <name>-<tag>-sbom.cdx.json).
           for d in pack sbom image; do test -d ".candidate/$d" || { echo "::error::run $CANDIDATE has no candidate-$d: nothing is made again here"; exit 1; }; done
-          cp .candidate/sbom/web-scumm.cdx.json "web-scumm-$TAG-sbom.cdx.json"
-          cp .candidate/pack/web-scumm-[0-9]*.tgz .candidate/pack/create-web-scumm-*.tgz .candidate/pack/web-scumm-bridge-*.tgz .
-          cp .candidate/pack/web-scumm-connectors-*.tgz .
-          extra="$(ls web-scumm-connectors-*.tgz) web-scumm-$TAG-site-files.json web-scumm-$TAG-surfaces.json web-scumm-$TAG-signing-rehearsal.json"
-          cp .candidate/sbom/web-scumm-bridge.cdx.json "web-scumm-bridge-$TAG-sbom.cdx.json"
-          cp .candidate/sbom/web-scumm-connectors.cdx.json "web-scumm-connectors-$TAG-sbom.cdx.json"
-          cp .candidate/sbom/create-web-scumm.cdx.json "create-web-scumm-$TAG-sbom.cdx.json"
-          extra="$extra web-scumm-connectors-$TAG-sbom.cdx.json create-web-scumm-$TAG-sbom.cdx.json"
-          # The Studio Server (4.2.1) and its SBOM; a tag older than 4.2.1 has none.
-          if ls .candidate/pack/web-scumm-studio-server-*.tgz >/dev/null 2>&1; then
-            cp .candidate/pack/web-scumm-studio-server-*.tgz .
-            cp .candidate/sbom/web-scumm-studio-server.cdx.json "web-scumm-studio-server-$TAG-sbom.cdx.json"
-            extra="$extra $(ls web-scumm-studio-server-*.tgz) web-scumm-studio-server-$TAG-sbom.cdx.json"
-          fi
-          cp .candidate/image/web-scumm-bridge-image.tar "web-scumm-bridge-image-$TAG.tar"
-          cp .candidate/image/web-scumm-bridge-image.json "web-scumm-bridge-image-$TAG.json"
-          cp .candidate/image/web-scumm-bridge-image.cdx.json "web-scumm-bridge-image-$TAG-sbom.cdx.json"
-          extra="$extra web-scumm-bridge-image-$TAG.tar web-scumm-bridge-image-$TAG.json web-scumm-bridge-image-$TAG-sbom.cdx.json"
+          for f in .candidate/pack/*.tgz; do cp "$f" .; extra="$extra $(basename "$f")"; done
+          for f in .candidate/sbom/*.cdx.json; do n="$(basename "$f" .cdx.json)-$TAG-sbom.cdx.json"; cp "$f" "$n"; extra="$extra $n"; done
+          cp .candidate/image/$P-bridge-image.tar "$P-bridge-image-$TAG.tar"
+          cp .candidate/image/$P-bridge-image.json "$P-bridge-image-$TAG.json"
+          cp .candidate/image/$P-bridge-image.cdx.json "$P-bridge-image-$TAG-sbom.cdx.json"
+          extra="$extra $P-bridge-image-$TAG.tar $P-bridge-image-$TAG.json $P-bridge-image-$TAG-sbom.cdx.json"
+          # The documentation archive (4.5.0, §4.5.4): the candidate's, named by the tag's version (an rc's suffix
+          # added), from v4.5.0 on; docs-publish promotes this very file once `ship verify` has read it back.
+          for f in .candidate/docs/quest-n-click-docs-*.tar.gz; do
+            [ -f "$f" ] || continue
+            n="$P-docs-${TAG#v}.tar.gz"
+            cp "$f" "$n"
+            extra="$extra $n"
+            echo "DOCS_ARCHIVE=$n" >> "$GITHUB_ENV"
+          done
           # The candidate's baseline (4.1.19): its measures of this very SHA, checked against the manifest above.
           for f in .candidate/baseline/baseline-*.json .candidate/baseline/baseline-*.md; do
             [ -f "$f" ] || continue
-            cp "$f" "web-scumm-$TAG-baseline.${f##*.}"
-            extra="$extra web-scumm-$TAG-baseline.${f##*.}"
+            cp "$f" "$P-$TAG-baseline.${f##*.}"
+            extra="$extra $P-$TAG-baseline.${f##*.}"
           done
           # A complete speedrun of the reference chapter (4.1.14, its ninth asset): verified by the very tool a
           # leaderboard runs before it is attached; a run the engine of this tag refuses stops the release.
-          # This workflow runs from main's copy while it checks out the tag's commit: a tag older than 4.1.14 has no
-          # speedrun to verify or attach, and its list of files says so (4.1.15).
+          # Guarded on the file since 4.1.15, when this workflow ran from main's copy for older tags; since 4.5.3 it runs
+          # from the tag's own commit, which has it.
           if [ -f tests/fixtures/speedrun/reference-any.wsrun ]; then
             GAME=reference npm run -s speedrun:verify -- tests/fixtures/speedrun/reference-any.wsrun
-            cp tests/fixtures/speedrun/reference-any.wsrun "web-scumm-$TAG-reference-any.wsrun"
-            extra="$extra web-scumm-$TAG-reference-any.wsrun"
+            cp tests/fixtures/speedrun/reference-any.wsrun "$P-$TAG-reference-any.wsrun"
+            extra="$extra $P-$TAG-reference-any.wsrun"
           fi
           # The candidate's runs (4.1.17): the five worlds and 4.1.15's schema 1 file, their manifest, the report of the
           # check that made them, and the candidate's manifest itself; checked against their sums above, copied as they are.
           if [ -n "${CANDIDATE:-}" ]; then
-            for f in .candidate/wsrun/*.wsrun; do cp "$f" "web-scumm-$TAG-$(basename "$f")"; extra="$extra web-scumm-$TAG-$(basename "$f")"; done
-            cp .candidate/wsrun/wsrun-manifest.json "web-scumm-$TAG-wsrun-manifest.json"
-            cp .candidate/e2e-remix-speedrun.txt "web-scumm-$TAG-e2e-remix-speedrun.txt"
-            cp .candidate-manifest/candidate-manifest.json "web-scumm-$TAG-candidate.json"
-            extra="$extra web-scumm-$TAG-wsrun-manifest.json web-scumm-$TAG-e2e-remix-speedrun.txt web-scumm-$TAG-candidate.json"
+            for f in .candidate/wsrun/*.wsrun; do cp "$f" "$P-$TAG-$(basename "$f")"; extra="$extra $P-$TAG-$(basename "$f")"; done
+            cp .candidate/wsrun/wsrun-manifest.json "$P-$TAG-wsrun-manifest.json"
+            cp .candidate/e2e-remix-speedrun.txt "$P-$TAG-e2e-remix-speedrun.txt"
+            cp .candidate-manifest/candidate-manifest.json "$P-$TAG-candidate.json"
+            extra="$extra $P-$TAG-wsrun-manifest.json $P-$TAG-e2e-remix-speedrun.txt $P-$TAG-candidate.json"
           fi
-          sha256sum "web-scumm-$TAG-dist.tar.gz" "web-scumm-$TAG-assets-manifest.json" "web-scumm-$TAG-sbom.cdx.json" "web-scumm-bridge-$TAG-sbom.cdx.json" $extra ${REMIX_ASSETS:-} web-scumm-[0-9]*.tgz create-web-scumm-*.tgz web-scumm-bridge-*.tgz > "web-scumm-$TAG-SHA256SUMS"
+          sha256sum "$P-$TAG-dist.tar.gz" "$P-$TAG-assets-manifest.json" $extra > "$P-$TAG-SHA256SUMS"
           echo "EXTRA_ASSETS=$extra" >> "$GITHUB_ENV"
           # Every file of the release, and none other, as the one manifest lists them (4.1.20, plan §8.4).
-          # Guarded on the file, as every step a tag's commit may predate (this workflow runs from main).
+          # Guarded on the file, as every step a tag's commit may predate (from 4.1.20 to 4.5.2 this workflow ran from main).
           if [ -f tools/release/artifacts.mjs ]; then
             node tools/release/artifacts.mjs check-release --tag="$TAG" --candidate=.candidate-manifest/candidate-manifest.json --dir=.
           else
@@ -360,37 +238,20 @@ jobs:
           fi
       - uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4.2.2
         with:
-          # Every file the release carries (4.1.2): the archives and packages, the manifests, both SBOMs, the sums.
+          # Every file the release carries (4.1.2): the archives and packages (and, through 4.2.x, their old names'
+          # aliases), the manifests, the SBOMs, the sums.
           subject-path: |
-            web-scumm-${{ env.TAG }}-dist.tar.gz
-            web-scumm-${{ env.TAG }}-assets-manifest.json
-            web-scumm-${{ env.TAG }}-sbom.cdx.json
-            web-scumm-bridge-${{ env.TAG }}-sbom.cdx.json
-            web-scumm-*-reference-any.wsrun
-            web-scumm-*-remix-*.json
-            web-scumm-*-run-*.wsrun
-            web-scumm-*-wsrun-manifest.json
-            web-scumm-*-e2e-remix-speedrun.txt
-            web-scumm-*-candidate.json
-            web-scumm-*-baseline.*
-            web-scumm-*-site-files.json
-            web-scumm-*-surfaces.json
-            web-scumm-*-signing-rehearsal.json
-            web-scumm-${{ env.TAG }}-SHA256SUMS
-            web-scumm-[0-9]*.tgz
-            create-web-scumm-*.tgz
-            web-scumm-bridge-*.tgz
-            web-scumm-connectors-*.tgz
-            web-scumm-connectors-*-sbom.cdx.json
-            create-web-scumm-*-sbom.cdx.json
-            web-scumm-studio-server-*
-            web-scumm-bridge-image-*
+            ${{ env.P }}-${{ env.TAG }}-*
+            ${{ env.P }}-bridge-image-*
+            ${{ env.P }}-docs-*.tar.gz
+            *.tgz
+            *-${{ env.TAG }}-sbom.cdx.json
       - run: |
           # A pre-release tag (`v4.1.8-rc.1`, 4.1.8) is published as a GitHub pre-release: same files, same checks.
           pre=""; case "$TAG" in *-*) pre="--prerelease";; esac
           # Draft, every file, then published (4.1.20 PR 3b): an immutable release takes its files while it is a draft.
           gh release create "$TAG" --draft --verify-tag --title "$TAG" --notes-file notes.md $pre
-          gh release upload "$TAG" "web-scumm-$TAG-dist.tar.gz" "web-scumm-$TAG-assets-manifest.json" "web-scumm-$TAG-sbom.cdx.json" "web-scumm-bridge-$TAG-sbom.cdx.json" $EXTRA_ASSETS ${REMIX_ASSETS:-} web-scumm-[0-9]*.tgz create-web-scumm-*.tgz web-scumm-bridge-*.tgz "web-scumm-$TAG-SHA256SUMS"
+          gh release upload "$TAG" "$P-$TAG-dist.tar.gz" "$P-$TAG-assets-manifest.json" $EXTRA_ASSETS "$P-$TAG-SHA256SUMS"
           gh release edit "$TAG" --draft=false
         env:
           GH_TOKEN: ${{ github.token }}
@@ -398,3 +259,143 @@ jobs:
       - run: node tools/release/ship.mjs verify "$TAG"
         env:
           GH_TOKEN: ${{ github.token }}
+      # The last step: what docs-publish is handed, once everything above (`ship verify` included) passed. A tag
+      # before 4.5.0 has no archive: docs-publish is skipped.
+      - id: docs
+        run: |
+          echo "version=${TAG#v}" >> "$GITHUB_OUTPUT"
+          echo "candidate=${CANDIDATE:-}" >> "$GITHUB_OUTPUT"
+          if [ -n "${DOCS_ARCHIVE:-}" ]; then echo "sha256=$(sha256sum "$DOCS_ARCHIVE" | cut -d' ' -f1)" >> "$GITHUB_OUTPUT"; fi
+  # The npm packages, staged (4.5.2, #283, D34): after the release job succeeded (`ship verify` its last check), the
+  # very archives the release carries, read back from it and checked against its SHA256SUMS, are staged on npm by
+  # trusted publishing (OIDC: no token, a provenance), engine first, for an owner of the organisation to promote with
+  # 2FA (`npm stage approve <id>`, the commands in the run summary). Never `npm publish`. Its own job, beside
+  # docs-publish rather than before it: npm being down or a trusted publisher missing must not hold the documentation of
+  # a release already published, and this job alone can be re-run (a version already published or staged is skipped).
+  # A pre-release tag stages nothing (its archives carry the stable version) and rehearses the OIDC exchange instead.
+  npm-stage:
+    needs: [release]
+    if: needs.release.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Only what staging needs: read the repository and the release, ask GitHub for an OIDC token.
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TAG: ${{ github.ref_name }}
+      SHA: ${{ github.sha }}
+      # The exact Node and npm that stage (4.1.20 PR 3b, plan §11.2): npm 11.15.0 at least for `npm stage`, Node
+      # 22.14.0 at least; never a range (tests/release-stable.test.ts, ship preflight-stable).
+      NPM_PUBLISH_NODE: '22.23.3'
+      NPM_PUBLISH_NPM: '11.21.0'
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+      # No registry-url: setup-node would write an .npmrc reading NODE_AUTH_TOKEN, and no token is used here.
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NPM_PUBLISH_NODE }}
+      - name: The pinned npm
+        run: |
+          for i in 1 2 3; do npm install -g "npm@$NPM_PUBLISH_NPM" && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+          test "$(node --version)" = "v$NPM_PUBLISH_NODE" || { echo "::error::node $(node --version), not v$NPM_PUBLISH_NODE"; exit 1; }
+          test "$(npm --version)" = "$NPM_PUBLISH_NPM" || { echo "::error::npm $(npm --version), not $NPM_PUBLISH_NPM"; exit 1; }
+        timeout-minutes: 10
+      - name: The release's archives, as published
+        # The files the release carries, the bytes `ship verify` read back, each against the release's SHA256SUMS.
+        run: |
+          if [ ! -f tools/release/npm-stage.mjs ]; then echo "::notice::$TAG predates npm staging (4.5.2)"; exit 0; fi
+          mkdir -p .npm-stage
+          gh release download "$TAG" -D .npm-stage -p '*.tgz' -p '*-SHA256SUMS'
+          cd .npm-stage
+          ls ./*.tgz >/dev/null
+          grep -E '  [^ /]+\.tgz$' ./*-SHA256SUMS > tgz.sums
+          sha256sum --check --strict tgz.sums
+          for f in ./*.tgz; do grep -q "  ${f#./}\$" tgz.sums || { echo "::error::$f is not in the release's SHA256SUMS"; exit 1; }; done
+        env:
+          GH_TOKEN: ${{ github.token }}
+      - name: Staged on npm, for an owner's approval
+        run: |
+          if [ ! -f tools/release/npm-stage.mjs ]; then echo "::notice::$TAG predates npm staging (4.5.2)"; exit 0; fi
+          node tools/release/npm-stage.mjs --tag="$TAG" --sha="$SHA" --dir=.npm-stage --repo="$GITHUB_REPOSITORY"
+  # The documentation's publication (4.5.0, docs/dev/PLAN-4.5-WIKI.md §4.5.2, ADR 0030): started by `needs`, so only
+  # after the release job succeeded, `ship verify` its last check; never by `release: published`, which a release
+  # published with GITHUB_TOKEN does not fire. It promotes the archive the release carries (the candidate's, checked
+  # again), records it in publication.json and pushes the wiki; an rc publishes `/docs/<v-rc>/` only.
+  docs-publish:
+    needs: [release]
+    if: needs.release.outputs.docs-sha256 != ''
+    uses: ./.github/workflows/docs-publish.yml
+    permissions:
+      contents: write
+      actions: read
+      id-token: write
+      attestations: write
+    # Only the wiki's deploy key, never every secret of the repository; it may also live in the `docs-publish`
+    # environment the called job runs in.
+    secrets:
+      WIKI_DEPLOY_KEY: ${{ secrets.WIKI_DEPLOY_KEY }}
+    with:
+      version: ${{ needs.release.outputs.version }}
+      tag: v${{ needs.release.outputs.version }}
+      sha: ${{ github.sha }}
+      candidate: ${{ needs.release.outputs.candidate }}
+      archive-sha256: ${{ needs.release.outputs.docs-sha256 }}
+      revision: r1
+  # The project's website takes the release (4.5.2, D52): its `POST /api/revalidate` (Bearer SITE_REVALIDATE_SECRET)
+  # reloads the latest release's docs archive and demo (web.tar.gz) and answers `{ok, changed, source, demo}`. After
+  # `ship verify` (the release job) and after docs-publish, whatever docs-publish did (a release without an archive
+  # skips it). Never a failure of the release: the website revalidates by itself hourly otherwise. SITE_URL (a
+  # repository variable) points a fork elsewhere.
+  site-revalidate:
+    needs: [release, docs-publish]
+    if: always() && needs.release.result == 'success'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    continue-on-error: true
+    permissions: {}
+    env:
+      SITE_URL: ${{ vars.SITE_URL || 'https://quest-n-click.cleverapps.io' }}
+      SITE_REVALIDATE_SECRET: ${{ secrets.SITE_REVALIDATE_SECRET }}
+    steps:
+      - name: The website, revalidated
+        # The website's answer is not trusted as runner output: it is printed between a fresh ::stop-commands:: token
+        # and its end (a body holding `::add-mask::` or `::error::` is shown, never acted on), and the warning carries
+        # only `.ok` and `.changed`, stripped of newlines and `::`. The token is sent to an https:// address only.
+        # Only a network failure or a 5xx is tried again; a 401, 403 or 404 will not change by retrying.
+        run: |
+          if [ -z "$SITE_REVALIDATE_SECRET" ]; then
+            echo "::notice::no SITE_REVALIDATE_SECRET: the website takes the release at its next hourly revalidation"
+            exit 0
+          fi
+          case "$SITE_URL" in
+            https://*) ;;
+            *) echo "::warning::SITE_URL is not an https:// address: the revalidation token is not sent"; exit 0 ;;
+          esac
+          url="${SITE_URL%/}/api/revalidate"
+          out="$RUNNER_TEMP/revalidate.json"
+          field() { { jq -r ".$1" "$out" 2>/dev/null || true; } | tr -d '\r\n:' | head -c 40 || true; }
+          for i in 1 2 3; do
+            code=$(curl -sS -o "$out" -w '%{http_code}' --max-time 60 -X POST -H "Authorization: Bearer $SITE_REVALIDATE_SECRET" "$url") || code=000
+            if [ "$code" = 000 ] || [ "$code" -ge 500 ]; then
+              echo "try $i: HTTP $code"
+              if [ "$i" = 3 ]; then
+                echo "::warning::the website's revalidation failed after 3 tries (HTTP $code): it takes the release at its next hourly revalidation"
+                exit 0
+              fi
+              sleep 20
+              continue
+            fi
+            token=$(openssl rand -hex 16)
+            echo "::stop-commands::$token"
+            jq -c . "$out" 2>/dev/null || cat "$out"
+            echo
+            echo "::$token::"
+            ok=$(field ok)
+            if [ "$code" = 200 ] && [ "$ok" = true ]; then exit 0; fi
+            changed=$(field changed)
+            echo "::warning::the website's revalidation answered HTTP $code, ok=${ok:-none}, changed=${changed:-none}"
+            exit 0
+          done

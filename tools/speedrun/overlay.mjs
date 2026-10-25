@@ -6,7 +6,7 @@
 // and names and times, nothing else (local.mjs). Node only: never on the Bridge, never in the PWA.
 import { arg, cleanEvent, DEFAULT_ORIGINS, localServer, originsOf } from './local.mjs';
 
-const PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>web-scumm speedrun</title><style>
+const PAGE = `<!doctype html><html><head><meta charset="utf-8"><title>quest'n'click speedrun</title><style>
 :root{--bg:rgba(10,10,20,.82);--fg:#f4f1e8;--ahead:#5bd96b;--behind:#f06a5f;--dim:#9a98a8}
 body{margin:0;font:600 22px/1.25 system-ui,sans-serif;color:var(--fg);background:transparent}
 .box{display:inline-block;min-width:260px;padding:.4em .7em;background:var(--bg);border-radius:8px}
@@ -67,7 +67,7 @@ export async function startOverlay(port = 7777, origins = DEFAULT_ORIGINS) {
           'cache-control': 'no-store',
           connection: 'keep-alive',
         });
-        res.write(': web-scumm speedrun overlay\n\n');
+        res.write(": quest'n'click speedrun overlay\n\n");
         // A viewer that connects mid-run gets the split list and the last event.
         if (state.splits || state.category)
           res.write(

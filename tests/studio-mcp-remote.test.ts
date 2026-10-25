@@ -169,7 +169,7 @@ describe('the remote MCP', () => {
         resource: `${base}/mcp`,
         authorization_servers: [op.issuer],
         bearer_methods_supported: ['header'],
-        resource_name: 'web-scumm Studio (tpl)',
+        resource_name: "quest'n'click Studio (tpl)",
       });
     }
   });
@@ -225,6 +225,8 @@ describe('the remote MCP', () => {
     // What only a local Studio can do is not offered here.
     expect(tools).not.toContain('screenshot');
     expect(tools).not.toContain('run_tests');
+    // Nor the documentation (4.5.0): the API has no route for it, and a tool here is a request to that API (ADR 0029).
+    for (const t of ['read_doc', 'search_docs', 'list_docs']) expect(tools).not.toContain(t);
     const rooms = JSON.parse(text(await c.callTool({ name: 'list_rooms', arguments: {} }))) as {
       rooms: { id: string }[];
     };

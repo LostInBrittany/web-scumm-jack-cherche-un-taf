@@ -1,5 +1,7 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { collectChecks, doctorReport } from '../tools/doctor-checks';
+import { collectChecks, doctorReport, playwrightBrowsers } from '../tools/doctor-checks';
 import { serveArgs } from '../tools/serve-args';
 import { manualPasses, releaseNotes } from '../scripts/release-notes.mjs';
 import { runTool } from './run-tool';
@@ -39,6 +41,26 @@ describe('doctor', () => {
     expect(good.every((c) => c.ok)).toBe(true);
     expect(doctorReport(good)).toMatchObject({ failed: 0, optional: 0 });
     expect(good.find((c) => c.name === 'ffmpeg')?.detail).toBe('ffmpeg version 8.0');
+  });
+  it('says how to get Playwright when the package is absent, instead of crashing (4.5.0)', async () => {
+    const missing = Object.assign(new Error("Cannot find package 'playwright'"), { code: 'ERR_MODULE_NOT_FOUND' });
+    const browsers = await playwrightBrowsers(() => Promise.reject(missing));
+    expect(browsers).toBeNull();
+    const checks = collectChecks({ ...probes(true), browsers });
+    expect(checks.find((c) => c.name === 'Playwright')).toMatchObject({ ok: false, optional: true });
+    const { text, failed, optional } = doctorReport(checks);
+    expect({ failed, optional }).toEqual({ failed: 0, optional: 1 });
+    expect(text).toContain('npm install --save-dev playwright, then npx playwright install chromium');
+    // Present, it gives every browser's path; another failure than a missing package is not hidden.
+    const path = (p: string) => ({ executablePath: () => p });
+    await expect(
+      playwrightBrowsers(async () => ({ chromium: path('/c'), firefox: path('/f'), webkit: path('/w') })),
+    ).resolves.toEqual({ Chromium: '/c', Firefox: '/f', WebKit: '/w' });
+    await expect(playwrightBrowsers(() => Promise.reject(new Error('broken')))).rejects.toThrow('broken');
+    // The real doctor imports it lazily: a top-level import would crash before any report.
+    expect(readFileSync(join(import.meta.dirname, '..', 'tools', 'doctor.ts'), 'utf8')).not.toMatch(
+      /^import[^\n]*'playwright'/m,
+    );
   });
 });
 

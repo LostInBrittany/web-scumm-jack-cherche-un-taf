@@ -1,16 +1,19 @@
-// docs/en/API.md and docs/fr/API.md carry the public API's signatures, generated from the sources (4.1.7,
-// tools/api-doc.ts): a page behind the code fails here, and `npx tsx tools/api-doc.ts` brings it up to date. Since
+// The wiki's `engine.api` (wiki/en/engine.api.md and wiki/fr/engine.api.md; docs/en|fr/API.md until 4.5.0) carries the
+// public API's signatures, generated from the sources (4.1.7, tools/api-doc.ts): a page behind the code fails here, and
+// `npx tsx tools/api-doc.ts` brings it up to date. Since
 // 4.1.8 every export also declares its stability (`@public` or `@extension`) and says what it is: a bare export fails.
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { apiRows, signatures, withBlock } from '../tools/api-doc';
+import { apiIdentifiers, apiRows, signaturesWiki } from '../tools/api-doc';
+import { withGenerated } from '../tools/wiki/generated';
+import { readManifest } from '../tools/wiki/manifest';
 
 describe('the API pages carry the signatures of the code', () => {
   const rows = apiRows();
-  const block = signatures(rows);
+  const block = signaturesWiki(rows, 'en');
   it('names every entry and more than a hundred exports', () => {
     for (const e of ['content', 'player', 'minigames', 'testing', 'reality'])
-      expect(block).toContain(`### web-scumm/${e}`);
+      expect(block).toContain(`### @quest-n-click/engine/${e}`);
     expect(rows.length).toBeGreaterThan(100);
     expect(block.split('\n').filter((l) => l.startsWith('| `')).length).toBe(rows.length);
   });
@@ -28,7 +31,8 @@ describe('the API pages carry the signatures of the code', () => {
     expect(rows.filter((r) => r.bothTags).map((r) => r.name)).toEqual([]);
     // A deprecated name says so beside its stability (the old name of EndingDef).
     expect(rows.find((r) => r.name === 'RevealDef')).toMatchObject({ stability: 'public', deprecated: true });
-    expect(signatures(rows)).toContain('| public (deprecated) |');
+    expect(block).toContain('| public (deprecated) |');
+    expect(signaturesWiki(rows, 'fr')).toContain('| public (dépréciée) |');
   });
   it('a type alias is printed as what it stands for, not as the members of a string or an array', () => {
     const sig = (name: string) => rows.find((r) => r.name === name)?.signature;
@@ -45,9 +49,13 @@ describe('the API pages carry the signatures of the code', () => {
     // A constant's literal is its kind, not its value.
     expect(sig('MINIGAME_CSS')).toBe('string');
   });
-  for (const p of ['docs/en/API.md', 'docs/fr/API.md'])
-    it(`${p} is up to date (npx tsx tools/api-doc.ts)`, () => {
-      const page = readFileSync(p, 'utf8');
-      expect(withBlock(page, block)).toBe(page);
+  for (const lang of ['en', 'fr'] as const)
+    it(`wiki/${lang}/engine.api.md is up to date (npx tsx tools/api-doc.ts)`, () => {
+      const page = readFileSync(`wiki/${lang}/engine.api.md`, 'utf8');
+      expect(withGenerated(page, signaturesWiki(rows, lang)).text).toBe(page);
     });
+  it("the manifest names engine.api's identifiers: every entry and every export", () => {
+    const page = readManifest('wiki').manifest!.pages.find((p) => p.id === 'engine.api')!;
+    expect([...page.identifiers].sort()).toEqual(apiIdentifiers(rows));
+  });
 });

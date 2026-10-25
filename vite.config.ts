@@ -33,6 +33,26 @@ const isToolModule = (id: string) => {
   );
 };
 
+/**
+ * The image route's last resort (#257): Firefox's worker now and then fails a cached image offline ("A ServiceWorker
+ * intercepted the request and encountered an unexpected error"), the file in the cache. When the strategy throws, the
+ * worker looks the request up in every cache before giving up, and tells the open pages why it failed (a
+ * `qnc-sw-error` message: the e2e test prints it, the game ignores it). Copied into the worker as text by workbox:
+ * nothing from this file's scope.
+ */
+const imageLastResort = {
+  handlerDidError: async ({ request, error }: { request: Request; error?: unknown }) => {
+    const reason = error instanceof Error ? `${error.name}: ${error.message}` : String(error);
+    const hit = await caches.match(request).catch(() => undefined);
+    const sw = self as unknown as {
+      clients: { matchAll(o: object): Promise<{ postMessage(m: unknown): void }[]> };
+    };
+    const pages = await sw.clients.matchAll({ includeUncontrolled: true }).catch(() => []);
+    for (const p of pages) p.postMessage({ type: 'qnc-sw-error', url: request.url, reason, recovered: !!hit });
+    return hit;
+  },
+};
+
 /** The Reality Bridge's player code (4.1.1): its own chunk, under assets/reality/. */
 const isRealityModule = (id: string) =>
   /[\\/]src[\\/]engine[\\/](reality[\\/]|dom[\\/]reality-ui\.ts|core[\\/]reality-runtime\.ts)/.test(id);
@@ -101,6 +121,9 @@ export default defineConfig({
               ...(gameUsesReality ? [] : ['assets/reality/**']),
             ],
             navigateFallback: 'index.html',
+            // The documentation Pages serves beside the game (/docs/, 4.5.0): a reader who played keeps the worker,
+            // which must not answer a page of the documentation with the game.
+            navigateFallbackDenylist: [/\/docs\//],
             cleanupOutdatedCaches: true,
             // The worker claims the page at its first activation (the warm-up's fetches must pass through it to be cached);
             // an update never activates on its own: the banner asks, after a durable save (dom/update.ts).
@@ -114,6 +137,7 @@ export default defineConfig({
                   cacheName: 'jeu-images',
                   expiration: { maxEntries: 2000, maxAgeSeconds: 90 * 86400 },
                   cacheableResponse: { statuses: [0, 200] },
+                  plugins: [imageLastResort],
                 },
               },
               {
@@ -161,8 +185,14 @@ export default defineConfig({
   // The current game (GAME, otherwise package.json → config.game, otherwise demo): `@game` → games/<GAME>/index.ts.
   resolve: {
     alias: [
-      // The public API (4.0, src/engine/api): `web-scumm/content`, `/player`, `/minigames`, `/testing`.
-      { find: /^web-scumm\/(content|player|minigames|testing)$/, replacement: r('./src/engine/api/$1.ts') },
+      // The public API (4.0, src/engine/api): `@quest-n-click/engine/content`, `/player`, `/minigames`, `/testing`.
+      // The unscoped `quest-n-click/…` of 4.5.1 and before still resolves through 4.5.x (D53; tsconfig.json's paths
+      // too, for a game loaded by tsx, a hosted one among them, until its upgrade renames it); the former name's
+      // `web-scumm/…` went in 4.3.0 (D47). `quest-n-click migrate` rewrites a game's imports.
+      {
+        find: /^(?:@quest-n-click\/engine|quest-n-click)\/(content|player|minigames|testing)$/,
+        replacement: r('./src/engine/api/$1.ts'),
+      },
       { find: '@engine', replacement: r('./src/engine') },
       { find: /^@game$/, replacement: resolve(GAME_DIR, 'index.ts') },
       { find: /^@game\//, replacement: GAME_DIR + '/' },
@@ -223,10 +253,10 @@ export default defineConfig({
       thresholds: {
         // The floor measured at 4.1.0 (the browser-only parts of src/, the player's UI and the Studio's, are covered
         // by the e2e, not here).
-        lines: 74,
-        statements: 73,
+        lines: 75,
+        statements: 74,
         functions: 71,
-        branches: 69,
+        branches: 70,
         // What a save, a session, a condition and a migration rest on: every branch.
         'src/engine/core/cond.ts': { branches: 100 },
         'src/engine/core/diff.ts': { branches: 100 },
@@ -242,14 +272,14 @@ export default defineConfig({
         // What a signal from the world outside rests on (4.1.2; ratcheted in 4.1.3 by tools/coverage-ratchet.ts), may only rise. The player's menu
         // (dom/reality-ui.ts), the Studio's simulator and panel are covered by e2e:reality, not here.
         'src/engine/core/reality-runtime.ts': { lines: 100, branches: 100 },
-        'src/engine/reality/protocol.ts': { lines: 95, branches: 96 },
+        'src/engine/reality/protocol.ts': { lines: 96, branches: 98 },
         'src/engine/reality/client.ts': { lines: 98, branches: 90 },
         'src/engine/reality/http-port.ts': { lines: 98, branches: 95 },
         // The Studio Server's trust boundaries (4.2.1): the journal, the gate and its provider, the leases, the game's
         // origin, the worker's jobs. Two points under what was measured when they arrived; they may only rise.
-        'studio-server/src/ops/backup.ts': { lines: 95, branches: 80 },
-        'studio-server/src/ops/gc.ts': { lines: 98, branches: 83 },
-        'studio-server/src/ops/ship.ts': { lines: 98, branches: 78 },
+        'studio-server/src/ops/backup.ts': { lines: 98, branches: 91 },
+        'studio-server/src/ops/gc.ts': { lines: 98, branches: 98 },
+        'studio-server/src/ops/ship.ts': { lines: 98, branches: 89 },
         'studio-server/src/ops/journal.ts': { lines: 96, branches: 95 },
         'studio-server/src/ops/spans.ts': { lines: 100, branches: 100 },
         'studio-server/src/ops/undo.ts': { lines: 98, branches: 98 },
@@ -258,16 +288,16 @@ export default defineConfig({
         'studio-server/src/server/auth/oidc.ts': { lines: 98, branches: 95 },
         'studio-server/src/server/auth/routes.ts': { lines: 98, branches: 94 },
         'studio-server/src/server/auth/store.ts': { lines: 93, branches: 97 },
-        'studio-server/src/server/config.ts': { lines: 83, branches: 83 },
-        'studio-server/src/server/http.ts': { lines: 90, branches: 81 },
+        'studio-server/src/server/config.ts': { lines: 84, branches: 83 },
+        'studio-server/src/server/http.ts': { lines: 91, branches: 81 },
         'studio-server/src/server/leases.ts': { lines: 98, branches: 98 },
-        'studio-server/src/server/live.ts': { lines: 86, branches: 59 },
+        'studio-server/src/server/live.ts': { lines: 87, branches: 62 },
         'studio-server/src/server/play.ts': { lines: 100, branches: 94 },
-        'studio-server/src/server/builds.ts': { lines: 97, branches: 94 },
-        'studio-server/src/server/health.ts': { lines: 97, branches: 89 },
-        'studio-server/src/server/prepared.ts': { lines: 98, branches: 76 },
-        'studio-server/src/server/previews.ts': { lines: 94, branches: 87 },
-        'studio-server/src/server/remote-executor.ts': { lines: 95, branches: 85 },
+        'studio-server/src/server/builds.ts': { lines: 98, branches: 98 },
+        'studio-server/src/server/health.ts': { lines: 98, branches: 95 },
+        'studio-server/src/server/prepared.ts': { lines: 98, branches: 92 },
+        'studio-server/src/server/previews.ts': { lines: 97, branches: 96 },
+        'studio-server/src/server/remote-executor.ts': { lines: 96, branches: 88 },
         'studio-server/src/worker/job.ts': { lines: 100, branches: 100 },
         'studio-server/src/worker/snapshot.ts': { lines: 95, branches: 88 },
         'bridge/src/bridge.ts': { lines: 97, branches: 96 },

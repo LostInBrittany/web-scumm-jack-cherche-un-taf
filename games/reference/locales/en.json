@@ -369,6 +369,7 @@
  "ui/reduceMotion": "Reduce motion",
  "ui/readableFont": "Readable font",
  "ui/captions": "Sound captions",
+ "ui/verbKeys": "Verb keys",
  "ui/volumeMusic": "Music volume",
  "ui/volumeSfx": "Sound volume",
  "ui/volumeVoice": "Voice volume",
@@ -384,11 +385,11 @@
  "ui/abandonRun": "Abandon run",
  "credits[0]": "THE NIGHT MARKET",
  "credits[1]": "",
- "credits[2]": "The reference chapter of web-scumm (3.4)",
+ "credits[2]": "The reference chapter of quest'n'click (3.4)",
  "credits[3]": "",
  "credits[4]": "Art and sound: the sample game's (CC BY 4.0)",
  "credits[5]": "Music: Swan Lake theme, arranged (CC BY 4.0)",
  "credits[6]": "",
  "credits[7]": "Thanks for playing!",
- "titleScreen/footer": "The reference chapter of web-scumm. Turn your phone sideways."
+ "titleScreen/footer": "The reference chapter of quest'n'click. Turn your phone sideways."
 }

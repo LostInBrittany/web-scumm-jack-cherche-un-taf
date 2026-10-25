@@ -30,7 +30,7 @@ export function gameId(): string {
 }
 
 /**
- * A game project outside this repository (3.9, the `web-scumm` command, WEB_SCUMM_PROJECT): its folder holds game/
+ * A game project outside this repository (3.9, the `quest-n-click` command, WEB_SCUMM_PROJECT): its folder holds game/
  * (the game's sources), public/, dist/ and .cache/; the engine (ROOT) is the installed package and is never written.
  */
 export const PROJECT = process.env.WEB_SCUMM_PROJECT?.trim() ? resolve(process.env.WEB_SCUMM_PROJECT.trim()) : null;

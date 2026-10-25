@@ -1,4 +1,4 @@
-import { defineRoom } from 'web-scumm/content';
+import { defineRoom } from '@quest-n-click/engine/content';
 
 // One room to start from. Logic lives here; geometry lives in layout/start.json (placement editor: ?edit=start).
 export default defineRoom({

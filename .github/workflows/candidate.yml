@@ -4,10 +4,12 @@ name: candidate
 # `candidate-manifest.json` (the SHA tested, this run's id, the SHA-256 of each file the release publishes). A stable
 # or pre-release tag names one green run of this workflow (`ship tag <v> <sha> --candidate=<run id>`); release.yml
 # publishes that run's files after checking every sum. 4.1.16 was tagged before its first heavy run, which went red.
+# Since 4.5.3 (#291, D55) this is the release's only test pass: release.yml, started by the tag's push, runs no test of
+# its own and checks only that main's `ci` is green on the SHA and that this run is.
 #
 # Started by hand on main for a SHA (`gh workflow run candidate --ref main -f sha=<full sha>`): the only run a tag may
 # name (ship.mjs and release.yml check `workflow_dispatch` from main, so the workflow file judged is main's). A pull
-# request labelled `full-ci` runs it too, as information only. Never on a tag: a tag stands on a candidate already run.
+# request runs it too, as information only, when the label `full-ci` is added to it (not on its later pushes). Never on a tag: a tag stands on a candidate already run.
 # "Cold": a new runner, a fresh checkout; the solver keeps nothing between runs and no cache but npm's is restored.
 on:
   workflow_dispatch:
@@ -16,8 +18,10 @@ on:
         description: 'The full SHA to test (empty: the head of the branch it is started on)'
         required: false
         default: ''
+  # Only when the `full-ci` label is added (the pull request's head at that moment): a push to the pull request starts
+  # no run, which every push did until 4.5.3 (an empty run, every job skipped). Remove and add the label again to rerun.
   pull_request:
-    types: [labeled, synchronize]
+    types: [labeled]
 permissions:
   contents: read
 concurrency:
@@ -26,7 +30,7 @@ concurrency:
 jobs:
   # The SHA every job checks out: the input, the pull request's head, or the branch's head; always written in full.
   target:
-    if: github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'full-ci')
+    if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'full-ci'
     runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
@@ -42,8 +46,9 @@ jobs:
           # A SHA given by hand is a full one: a short or wrong value is refused here, not by a later checkout.
           if [ -n "$WANT" ] && ! echo "$WANT" | grep -Eq '^[0-9a-f]{40}$'; then echo "::error::not a full SHA: $WANT"; exit 1; fi
           echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-  # release-check as release.yml runs it (doctor --release, quality, build, coverage and its strict ratchet, the
-  # release gates, the proofs, the Rust cross-check, the packages' dry run, the audits), without the mutation sets.
+  # release-check (doctor --release, quality, build, coverage and its strict ratchet, the release gates, the proofs, the
+  # Rust cross-check, the packages' dry run, the audits), without the mutation sets, which run as jobs below. Run here
+  # only: release.yml ran it again up to 4.5.2, and since 4.5.3 (#291) trusts this run.
   release-core:
     needs: target
     runs-on: ubuntu-24.04
@@ -56,10 +61,10 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
-      - run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+      - run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - run: bash scripts/ci-ffmpeg.sh
         timeout-minutes: 20
@@ -68,6 +73,21 @@ jobs:
       - run: for i in 1 2 3; do (npx playwright install --with-deps chromium) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 20
       - run: npm run release-check:ci
+      # The node suite's report (4.5.0, docs/dev/PLAN-4.5-WIKI.md §4.4.3): release-check:ci writes Vitest's JSON report,
+      # and this step writes beside it the commit the suite ran on, the checkout's root and this run's id; `wiki -- check
+      # --test-report --candidate <this run>` reads both to call a documented guarantee "executed on <sha>". A report of
+      # another commit or another run executes nothing; A5b's publication downloads this artifact from this run.
+      - name: The test report of this candidate
+        run: |
+          test -f .cache/test-report/vitest.json || { echo "::error::no Vitest JSON report from release-check:ci"; exit 1; }
+          node -e 'require("fs").writeFileSync(".cache/test-report/commit.json", JSON.stringify({ format: "quest-n-click-test-report", version: 1, commit: process.argv[1], root: process.cwd(), run: process.argv[2] }) + "\n")' "$(git rev-parse HEAD)" "${{ github.run_id }}"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: candidate-test-report
+          path: .cache/test-report
+          include-hidden-files: true
+          if-no-files-found: error
+          overwrite: true
       # The site as the release publishes it (4.1.20 PR 4, plan §9.2): the very build release-check made, its archive,
       # its assets manifest and the SHA-256 of each file it serves (the surfaces of the people's passes read them).
       # release.yml publishes these files and builds no site of its own to publish.
@@ -77,6 +97,23 @@ jobs:
           tar -czf candidate-site/dist.tar.gz -C dist .
           cp dist/licenses/assets-manifest.json candidate-site/assets-manifest.json
           node tools/release/site-files.mjs --dir=dist --out=candidate-site/site-files.json
+      # The game and the Studio's demo for the project's website (4.5.2, D52): built again under /demo/, the shape the
+      # engine's Pages job built up to 4.5.1; the website downloads it from the latest release and serves it at /demo/.
+      # From 4.5.2 only (tools/release/artifacts.mjs `game:web`); after the site above, which it rebuilds dist over.
+      - name: The website's demo of this candidate
+        run: |
+          # 0: from 4.5.2, built; 10: before 4.5.2, skipped; anything else (the probe itself broke): the step fails, never
+          # a green candidate without the build it should have made.
+          probe=0
+          node -e 'import("./tools/release/candidate.mjs").then((m) => process.exit(m.atLeast(require("./package.json").version, "4.5.2") ? 0 : 10))' || probe=$?
+          case "$probe" in
+            0)
+              BASE_PATH=/demo/ STUDIO=1 VITE_STUDIO_DEMO=1 npm run build:web
+              tar -czf candidate-site/web.tar.gz -C dist .
+              ;;
+            10) echo "::notice::no web.tar.gz before 4.5.2" ;;
+            *) echo "::error::the version probe failed (exit $probe): no way to tell whether web.tar.gz is due"; exit 1 ;;
+          esac
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: candidate-site
@@ -243,6 +280,34 @@ jobs:
           path: candidate-release
           if-no-files-found: error
           overwrite: true
+  # The Remix worlds of the bundled games (4.1.15, D25): each catalogue's every logical world proved (no softlock), the
+  # two reports published with the release (a generator mode would publish its sample, never "all seeds"). release.yml
+  # proved them itself up to 4.5.2; since 4.5.3 (#291, D55) the candidate does, once, and the release copies its files.
+  remix-proof:
+    needs: target
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.target.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 15
+      - name: Remix catalogues, proved
+        run: |
+          mkdir -p candidate-remix
+          GAME=demo npx tsx tools/verify-variants.ts --prove --max=200000 --out=candidate-remix/remix-demo.json
+          GAME=reference npx tsx tools/verify-variants.ts --prove --max=200000 --out=candidate-remix/remix-reference.json
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: candidate-remix
+          path: candidate-remix
+          if-no-files-found: error
+          overwrite: true
   # The speedrun worker in its container profile (4.1.17, plan §10.3): the reference run verified inside, a hostile
   # script refused the network and the host's files and secrets and killed by its own timeout, then a run again.
   worker-container:
@@ -388,7 +453,7 @@ jobs:
       - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 15
       - run: |
-          node scripts/pack.mjs --out=pack --publish-dry-run
+          node scripts/pack.mjs --out=pack --publish-dry-run --build-id=${{ github.run_id }}
           mkdir -p candidate-pack && cp pack/*.tgz candidate-pack/ && ls -l candidate-pack
       # Their SBOMs (4.1.19, plan §6.3), from what the archives hold: the Bridge's and the connectors' own locks, the
       # engine's dependencies as the root lock resolves them, the creator's one dependency by its archive's SHA-256.
@@ -408,6 +473,44 @@ jobs:
   # The Bridge's qualification image, built once from the candidate's archive and the image's versioned lock (4.1.19,
   # plan §6.2): saved with its three identities (config digest, OCI manifest digest, the archive's SHA-256) and its SBOM.
   # deployment-smoke loads it and checks them; the release publishes these very files.
+  # The documentation archive (4.5.0, docs/dev/PLAN-4.5-WIKI.md §4.5.4): the bundle, the rendered site and the wiki
+  # of this commit, revision r1, built twice and compared byte for byte; the release attaches this very file and
+  # docs-publish promotes it without building anything again. Named by package.json's version (an rc's tag adds its
+  # suffix when release.yml publishes it). Built after release-core, from its test report (§4.4.3): a guarantee whose
+  # test passed in this run is rendered "executed on <sha>". The report is an input of the archive, not a clock: the
+  # two builds read the same files and give the same bytes.
+  docs-archive:
+    needs: [target, release-core]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.target.outputs.sha }}
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - run: for i in 1 2 3; do (npm ci) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+        timeout-minutes: 15
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: candidate-test-report
+          path: .cache/candidate-test-report
+      - name: The documentation archive, built twice
+        shell: bash
+        run: |
+          v=$(node -p "require('./package.json').version")
+          mkdir -p candidate-docs .cache/docs-again
+          npm run -s wiki -- archive --out "candidate-docs/quest-n-click-docs-$v.tar.gz" --build-id ${{ github.run_id }} --revision r1 --candidate ${{ github.run_id }} --test-report .cache/candidate-test-report/vitest.json
+          npm run -s wiki -- archive --out ".cache/docs-again/quest-n-click-docs-$v.tar.gz" --build-id ${{ github.run_id }} --revision r1 --candidate ${{ github.run_id }} --test-report .cache/candidate-test-report/vitest.json
+          cmp "candidate-docs/quest-n-click-docs-$v.tar.gz" ".cache/docs-again/quest-n-click-docs-$v.tar.gz" || { echo "::error::the documentation archive is not reproducible: two builds differ"; exit 1; }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: candidate-docs
+          path: candidate-docs
+          if-no-files-found: error
+          overwrite: true
   image:
     needs: [target, pack]
     runs-on: ubuntu-24.04
@@ -458,10 +561,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ matrix.node }}
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
-      - run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+      - run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 15
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -493,7 +596,7 @@ jobs:
           name: candidate-pack
           path: candidate-pack
       - run: node scripts/connector-archive-e2e.mjs --tarballs=candidate-pack
-  # The Bridge's qualification profile (4.1.18, plan §8) built from this candidate's own `web-scumm-bridge` archive:
+  # The Bridge's qualification profile (4.1.18, plan §8) built from this candidate's own `quest-n-click-bridge` archive:
   # three instances behind HTTPS on Postgres, an instance killed with proposals in flight, the tenants apart, backup,
   # the topology destroyed and restored (scripts/ops-qualify.mjs; its report kept with the run).
   deployment-smoke:
@@ -576,7 +679,7 @@ jobs:
       - name: The candidate's Bridge, from its archive and its lock
         shell: bash
         run: |
-          mkdir -p .cache/bridge && tar -xzf candidate-pack/web-scumm-bridge-*.tgz -C .cache/bridge --strip-components=1
+          mkdir -p .cache/bridge && tar -xzf candidate-pack/quest-n-click-bridge-[0-9]*.tgz -C .cache/bridge --strip-components=1
           (cd .cache/bridge && npm ci --omit=dev --ignore-scripts --no-audit --no-fund)
       - shell: bash
         env:
@@ -625,10 +728,10 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 22
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.12'
-      - run: for i in 1 2 3; do (pip install -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
+      - run: for i in 1 2 3; do (pip install --require-hashes -r requirements.txt) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 10
       - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
@@ -654,15 +757,15 @@ jobs:
         with:
           name: candidate-pack
           path: candidate-pack
-      # CPython 3.13, the worker's Python lock's (4.2.3 PR 0): the smoke installs it as the worker's hook does.
-      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+      # CPython 3.13, Clever Cloud's (4.2.3 PR 0): the smoke installs requirements.txt as the worker's hook does.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7
         with:
           python-version: '3.13'
       - run: for i in 1 2 3; do (node scripts/studio-install-smoke.mjs --tarballs=candidate-pack --python) && break; [ "$i" = 3 ] && exit 1; echo "retry $i"; sleep 15; done
         timeout-minutes: 15
   # The terminal gate: every job above `success` (a skipped or cancelled job is red), then the manifest of this run.
   candidate-gate:
-    needs: [target, release-core, heavy, bridge-load-sqlite, bridge-load-postgres, cross-runtime, worker-container, mutation-plan, mutation, mutation-merge, pack, image, external-consumer, connector-archive-e2e, deployment-smoke, backup-memory, signing-rehearsal, readme-quickstart, studio-install-smoke]
+    needs: [target, release-core, heavy, bridge-load-sqlite, bridge-load-postgres, cross-runtime, remix-proof, worker-container, mutation-plan, mutation, mutation-merge, pack, docs-archive, image, external-consumer, connector-archive-e2e, deployment-smoke, backup-memory, signing-rehearsal, readme-quickstart, studio-install-smoke]
     # A pull request without `full-ci` skips `target`: then there is no candidate to judge, and no red check either.
     if: always() && needs.target.result != 'skipped'
     # The manifest's provenance attestation (4.1.19, plan §6.5): only this job may sign, and only the manifest.
@@ -716,8 +819,12 @@ jobs:
           if [ -d artifacts/candidate-sbom ]; then mkdir -p artifacts/candidate-release/sbom && cp artifacts/candidate-sbom/* artifacts/candidate-release/sbom/; fi
           # The site (4.1.20): its archive, assets manifest and file digests, made once by release-core.
           if [ -d artifacts/candidate-site ]; then mkdir -p artifacts/candidate-release/site && cp artifacts/candidate-site/* artifacts/candidate-release/site/; fi
+          # The documentation archive (4.5.0): in the manifest, so the release's sums and attestations cover it.
+          if [ -d artifacts/candidate-docs ]; then mkdir -p artifacts/candidate-release/docs && cp artifacts/candidate-docs/* artifacts/candidate-release/docs/; fi
           # The signing rehearsal's report (4.1.20 PR 3b).
           if [ -d artifacts/candidate-signing ]; then mkdir -p artifacts/candidate-release/signing && cp artifacts/candidate-signing/* artifacts/candidate-release/signing/; fi
+          # The Remix catalogues proved (4.5.3, #291): the release publishes these two reports, proved nowhere else.
+          if [ -d artifacts/candidate-remix ]; then mkdir -p artifacts/candidate-release/remix && cp artifacts/candidate-remix/* artifacts/candidate-release/remix/; fi
           # The surfaces of the people's passes (4.1.20 PR 4, ADR 0024), from the files above and the checkout's
           # docs/dev/surfaces.json, before the manifest: attested with it. A file in no surface fails here.
           # No site, no surfaces: refused here, before anything is attested (second reading of PR 4).
@@ -766,7 +873,7 @@ jobs:
             for f in artifacts/bridge-load-*/load-median-*.json; do
               [ -f "$f" ] && node -e "const r=require('./$f'); for (const k of ['proposals','leaderboard']) console.log('- ' + r.store + ' ' + k + ', three loads: median p95 ' + r[k].medianMs + ' ms (' + r[k].minMs + '–' + r[k].maxMs + ')' + (r[k].baseline && r[k].baseline.ratio ? ', ×' + r[k].baseline.ratio + ' the baseline' : '') + (r[k].alert ? ' ⚠' : ''))"
             done
-            for a in candidate-release candidate-pack candidate-sbom candidate-image heavy-1 heavy-2 heavy-3 bridge-load-sqlite bridge-load-postgres backup-memory-sqlite backup-memory-postgres deployment-smoke; do [ -d "artifacts/$a" ] || echo "- $a"; done
+            for a in candidate-release candidate-pack candidate-sbom candidate-image candidate-remix heavy-1 heavy-2 heavy-3 bridge-load-sqlite bridge-load-postgres backup-memory-sqlite backup-memory-postgres deployment-smoke; do [ -d "artifacts/$a" ] || echo "- $a"; done
           } >> "$GITHUB_STEP_SUMMARY"
       # Who wrote the manifest (4.1.19, plan §6.5): signed by this run, after every job succeeded. A Field Kit bundle
       # carries the attestation, so anyone can check it offline (npm run field:verify-bundle).

@@ -18,6 +18,7 @@
     "studio-server/src/ops/*.ts",
     "studio-server/src/server/main.ts",
     "tools/speedrun/*.ts",
+    "tools/wiki/html-search.ts",
     "tests/**/*.test.ts",
     "tests/fixtures/connectors/no-eval-run.ts",
     "tests/fixtures/admit-child.ts",
@@ -43,7 +44,8 @@
   "ignore": [
     "games/*/ending.config.example.ts",
     "games/signals/cast.ts",
-    "src/studio/rooms.ts"
+    "src/studio/rooms.ts",
+    "tests/fixtures/game-4.1/**"
   ],
   "ignoreDependencies": [
     "@tweakpane/core",

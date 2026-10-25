@@ -5,8 +5,12 @@ import { rendererOf, stageOf } from '../core/stage';
 import { stageLayoutChecks } from './validate-stage';
 import { migrationChecks } from './validate/migrations';
 import { objectiveChecks } from './validate/objectives';
+import { mapChecks } from './validate/map';
+import { playerChecks } from './validate/player';
 import { remixChecks } from './validate/remix';
 import { speedrunChecks } from './validate/speedrun';
+import { textSwitchChecks } from './validate/text-switches';
+import { type VoiceCheckOptions, voiceValueChecks } from './validate/voices';
 import { listId, listText } from '../core/list-lines';
 import { condFlags } from '../core/cond';
 import { subLists } from '../core/cmds';
@@ -32,7 +36,7 @@ export interface AssetIndex {
   images: Record<string, [number, number]>;
   audio?: Record<string, unknown>;
 }
-export interface ValidateOptions {
+export interface ValidateOptions extends VoiceCheckOptions {
   /** A release: every `say` / `toast` / `guide` object needs a stable `id` (translations and voices are keyed by it). */
   release?: boolean;
   /** The game ships more than one language (or voices): in a release every line, plain strings included, needs a stable id. */
@@ -137,8 +141,7 @@ export function validate(gameIn: GameDef, layouts: Record<string, Layout>, opts:
   // ------------------------------------------------------------ images
   const images = opts.assets?.images;
   const img = (id: Id | undefined, where: string) => {
-    if (!id || !images) return;
-    if (!images[id]) err(where, `image not found: "${id}"`);
+    if (id && images && !images[id]) err(where, `image not found: "${id}"`);
   };
 
   // ------------------------------------------------------------ text
@@ -395,12 +398,8 @@ export function validate(gameIn: GameDef, layouts: Record<string, Layout>, opts:
       setF(Array.isArray(c.set) ? c.set[0] : c.set, where);
       return;
     }
-    if ('unset' in c) {
-      setF(c.unset, where);
-      return;
-    }
-    if ('inc' in c) {
-      setF(c.inc, where);
+    if ('unset' in c || 'inc' in c) {
+      setF('unset' in c ? c.unset : c.inc, where);
       return;
     }
     if ('unlock' in c) {
@@ -509,6 +508,7 @@ export function validate(gameIn: GameDef, layouts: Record<string, Layout>, opts:
         const w = `${where}.choice[${j}]`;
         stable(o.id, w, 'choice');
         text(o.text, w);
+        img(o.img, `${w}.img`);
         cond(o.if, w, room);
       });
       return;
@@ -833,23 +833,7 @@ export function validate(gameIn: GameDef, layouts: Record<string, Layout>, opts:
   events(game.events, 'events');
 
   // Map
-  if (game.map) {
-    const m = game.map;
-    if (!m.regions[m.start]) err('map', `unknown start region: "${m.start}"`);
-    for (const [rid, reg] of Object.entries(m.regions)) {
-      img(reg.image, `map.${rid}`);
-      if (reg.parent && !m.regions[reg.parent]) err(`map.${rid}`, `unknown parent region: "${reg.parent}"`);
-    }
-    for (const [pid, p] of Object.entries(m.places)) {
-      const w = `map.${pid}`;
-      if (!rooms.has(p.room)) err(w, `unknown room: "${p.room}"`);
-      if (!m.regions[p.region]) err(w, `unknown region: "${p.region}"`);
-      img(p.portrait, w);
-      cond(p.news, w);
-    }
-    for (const v of Object.values(m.vehicles ?? {})) img(v, 'map.vehicles');
-    if (m.music && !music[m.music]) err('map', `unknown music: "${m.music}"`);
-  }
+  mapChecks(game, { err, img, cond: (c, w) => cond(c, w), rooms, music });
 
   // Rooms
   // The stage (3.4): ids, images, geometry for every id and nothing else, walk zones joined by their links, what
@@ -1052,27 +1036,9 @@ export function validate(gameIn: GameDef, layouts: Record<string, Layout>, opts:
   for (const e of g.oneWay)
     warn(`${e.from}.exits.${e.via}`, `no way back from ${e.to} to ${e.from} (add oneWay: true if intended)`);
 
-  // Chapters, invariants, saves, migrations
+  // Chapters, invariants, the player's side (menus, taps), migrations
   (game.invariants ?? []).forEach((c, i) => cond(c, `invariants[${i}]`));
-  if (game.saves && (!Number.isInteger(game.saves.slots) || game.saves.slots < 0))
-    err('saves', 'slots must be a whole number');
-  if (game.saves?.slots)
-    for (const k of ['save', 'load', 'slot', 'emptySlot', 'exportSave', 'importSave', 'confirmOverwrite'] as const)
-      if (!game.ui[k]) warn(`ui.${k}`, 'missing text for the save menu (English default used)');
-  if (game.settings)
-    for (const k of [
-      'settings',
-      'textSpeed',
-      'textSize',
-      'reduceMotion',
-      'volumeMusic',
-      'volumeSfx',
-      'slow',
-      'normal',
-      'fast',
-      'large',
-    ] as const)
-      if (!game.ui[k]) warn(`ui.${k}`, 'missing text for the settings menu (English default used)');
+  playerChecks(game, { err, warn, locales: opts.locales });
   migrationChecks(game, { items, rooms, places, scriptIds, playerIds, chars, err, warn });
   // Checkpoints
   for (const [cid, c] of Object.entries(game.checkpoints ?? {})) {
@@ -1090,12 +1056,14 @@ export function validate(gameIn: GameDef, layouts: Record<string, Layout>, opts:
       for (const i of p.inventory ?? []) if (!items[i]) err(`${w}.players.${pid}`, `unknown item: "${i}"`);
     }
   }
-  // Events and scripts, objectives, the speedrun manifest (4.1.14), Remix (4.1.15); then the flags
+  // Events and scripts, objectives, Remix (4.1.15), the speedrun manifest (4.1.14), text switches (4.3.0); then the flags
   for (const [id, where] of scriptRefs) if (!scriptIds.has(id)) err(where, `unknown script: "${id}"`);
   eventChecks(game, { emitted, listened, waited }, err, warn);
   objectiveChecks(game, { cond, err, warn, commands: opts.commands });
   remixChecks(game, { err, warn, flagsSet, flagsRead });
   speedrunChecks(game, { err, warn, flags: new Set(flagsSet.keys()) });
+  textSwitchChecks(gameIn, { err, warn, flagsSet, flagsRead, commands: opts.commands });
+  voiceValueChecks(gameIn, warn, opts.locales);
   for (const [f, where] of flagsRead) if (!flagsSet.has(f)) warn(where, `flag "${f}" is read but never set`);
   // A decorative flag kept on purpose: `lint.ignore` names it (`flag-never-read` or `flag-never-read:<flag>`), like the lint's codes.
   const ignored = new Set(game.lint?.ignore ?? []);

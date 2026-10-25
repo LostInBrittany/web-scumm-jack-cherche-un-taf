@@ -1,6 +1,6 @@
 // The game's bootstrap, so a game that embeds the engine does not copy `src/main.ts` by hand: language, fonts, the
 // verified save store (errors reported once the App exists), the App, the dev tools, the title screen, the service
-// worker. Each step is also exported on its own. `src/main.ts` is the reference caller (docs/en/UPGRADING.md §8).
+// worker. Each step is also exported on its own. `src/main.ts` is the reference caller (wiki/en/install.upgrade-notes-v3.md#embedded-engine).
 import { App } from './dom/app';
 import type { SaveStore } from './core/ports';
 import type { BuildRevision } from './dom/revision';
@@ -11,6 +11,7 @@ import type { Minigame } from './minigames';
 import type { EditorOptions } from './dev/editor';
 import { FONT_PIXEL, FONT_UI } from './dom/fonts';
 import { applyLocale } from './tools/i18n';
+import { langVoices } from './core/voice-key';
 import { uiText } from './dom/ui-defaults';
 
 /** The translations a game ships, by language then by text path (`locales/<lang>.json`). @public */
@@ -197,7 +198,7 @@ export async function bootGame(o: BootOptions): Promise<App> {
     }
   }
   // The voices of the chosen language (`audio.voicesByLang`), else the game's own: a translated line keeps its id.
-  const byLang = lang && lang !== (written.lang ?? 'en') ? written.audio?.voicesByLang?.[lang] : undefined;
+  const byLang = langVoices(written, lang);
   const localized = byLang ? { ...translated, audio: { ...translated.audio, voices: byLang } } : translated;
   document.documentElement.lang = lang ?? written.lang ?? 'en';
   await waitFonts(localized);

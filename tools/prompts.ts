@@ -1,7 +1,7 @@
 // Art prompts for the current game: `npm run prompts [--missing] [--out games/<id>/prompts.md]`.
 // Reads the game module (characters, rooms, props, items, minigame params) and the art folder, and writes one
 // ready-to-paste image-model prompt per sheet to generate, all sharing one STYLE block and one reference sheet, with
-// the engine's pose rows (docs/en/PROMPTS.md). `--missing`: only the sheets with at least one image not cut yet.
+// the engine's pose rows (wiki/en/create.images.md). `--missing`: only the sheets with at least one image not cut yet.
 // Also used by the MCP tool `asset_prompts` (tools/mcp/server.ts).
 import { existsSync, readFileSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
@@ -56,8 +56,7 @@ export function readArtStyle(gameDir: string): ArtStyle {
 /**
  * Background of the sprite sheets, from `games/<id>/site.json` → `"sheetBackground"`: a flat `#RRGGBB` colour the
  * cutter keys out (default {@link BG}), or `transparent` for an image tool that writes real alpha (the cutter then
- * keeps the opaque pixels and keys nothing). Room backgrounds are not concerned. docs/en/PROMPTS.md, "Choosing the
- * sheet background".
+ * keeps the opaque pixels and keys nothing). Room backgrounds are not concerned. wiki/en/create.images.md#sheet-background.
  */
 export type SheetBackground = 'transparent' | `#${string}`;
 
@@ -96,7 +95,7 @@ export interface PromptResult {
   sheets: PromptSheet[];
 }
 
-// ------------------------------------------------------------------ the shared text (docs/en/PROMPTS.md)
+// ------------------------------------------------------------------ the shared text (wiki/en/create.images.md)
 
 interface StyleText {
   char: string;
@@ -115,7 +114,7 @@ const STYLES: Record<ArtStyle, StyleText> = {
     bg: `match exactly the art style of the attached reference sheet (same retro pixel art, crisp, no anti-aliasing, same flat tones, warm saturated palette). A pixel-art background for a 1990s LucasArts point-and-click adventure, in the spirit of Day of the Tentacle and Monkey Island 2: drawn on a ${1536 / PIXEL_SCALE} x ${960 / PIXEL_SCALE} pixel grid and scaled up ${PIXEL_SCALE}x with hard edges; cozy, funny, full of small details, but readable.`,
   },
 };
-/** The colour discipline shared by every art style (docs/en/PROMPTS.md, "Common rules"). */
+/** The colour discipline shared by every art style (wiki/en/create.images.md#common-rules). */
 export const COLOR_RULES = [
   'COLOR RULES:',
   '- Use a limited palette. For each material (skin, hair, each garment, each object) use at most 4 flat tones: highlight, base, shadow, deep shadow.',

@@ -210,3 +210,20 @@ describe('applyMigration: room renames and undotted keys', () => {
     expect(out.props).toEqual({ lobbyx: 'on', 'hall.door': 'open' });
   });
 });
+
+// Killed mutants (4.3.0 reread of the exemptions): a rename map's keys are old ids, never checked, so one may be the
+// text "undefined". A save with no script step or no active player keeps it absent: the map is not read with an
+// undefined id (which would find that key).
+describe('applyMigration: an absent step or active player is not renamed', () => {
+  it('leaves a script with no step without one, whatever the step map holds', () => {
+    const out = applyMigration(bare({ scripts: { s: { pc: 0 } } }), {
+      from: 1,
+      renameScriptStep: { s: { undefined: 'b' } },
+    });
+    expect(out.scripts?.s?.step).toBeUndefined();
+  });
+  it('leaves a save with no active player without one, whatever the player map holds', () => {
+    const out = applyMigration(bare(), { from: 1, renamePlayer: { undefined: 'p2' } });
+    expect(out.active).toBeUndefined();
+  });
+});

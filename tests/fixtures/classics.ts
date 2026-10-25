@@ -1,4 +1,4 @@
-// Micro-games for the classic adventure mechanics (docs/en/CLASSICS.md): each one is a famous puzzle shape written
+// Micro-games for the classic adventure mechanics (wiki/en/create.classics.md): each one is a famous puzzle shape written
 // with the DSL as is, one or two rooms, no art. tests/classics.test.ts proves them with the engine and the solver.
 import type { Cmd, GameDef, Layout } from '@engine/core/types';
 

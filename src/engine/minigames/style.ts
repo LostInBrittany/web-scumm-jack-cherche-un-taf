@@ -1,7 +1,7 @@
 // Shared minigame styles. The host injects them once (e.g. via a <style> tag).
 /** The shared styles of the minigames, injected once by the host. @public */
 export const MINIGAME_CSS = `
-.mg{position:absolute;inset:0;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;font-family:var(--font-ui,'DotGothic16'),monospace;color:#fff}
+.mg{position:absolute;inset:0;overflow:hidden;user-select:none;-webkit-user-select:none;touch-action:none;font-family:var(--font-ui,'Galmuri11'),monospace;color:#fff}
 .mg-img{position:absolute;pointer-events:none;transform-origin:50% 100%}
 .mg-skip{position:absolute;right:2%;top:3%;z-index:995;border:2px solid #fff;background:rgba(0,0,0,.6);color:#fff;border-radius:6px;font:inherit;padding:.2em .6em;cursor:pointer}
 .mg-tile{position:relative;padding:0;border:0;border-radius:4px;cursor:pointer;background-size:cover;background-position:center}

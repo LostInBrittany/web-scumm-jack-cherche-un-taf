@@ -1,0 +1,597 @@
+{
+  "format": "quest-n-click-docs-errors",
+  "version": 1,
+  "studio": [
+    {
+      "status": 400,
+      "description": {
+        "en": "A malformed request: a field missing or of the wrong type, an id that is not one, a body that is not a JSON object, a header of the Studio Server that does not have its form. Nothing was written. Fix the request as the message says and send it again.",
+        "fr": "Une requête mal formée : un champ absent ou du mauvais type, un id qui n’en est pas un, un corps qui n’est pas un objet JSON, un en-tête du Studio Server qui n’a pas sa forme. Rien n’a été écrit. Corrigez la requête comme le dit le message, puis renvoyez-la."
+      }
+    },
+    {
+      "status": 401,
+      "description": {
+        "en": "Not signed in, or the credentials are not valid: a hosted Studio's session is missing or expired (the answer may carry `login: \"/auth/login\"`), the remote MCP or the metrics came without their token. Sign in again (`quest-n-click-studio-server login --server <url>` for the CLI and the MCP).",
+        "fr": "Pas connecté, ou des identifiants non valides : la session d’un Studio hébergé manque ou a expiré (la réponse peut porter `login: \"/auth/login\"`), le MCP distant ou les métriques sont arrivés sans leur jeton. Reconnectez-vous (`quest-n-click-studio-server login --server <url>` pour la CLI et le MCP)."
+      }
+    },
+    {
+      "status": 403,
+      "description": {
+        "en": "Signed in, and not allowed: not a member of this project, a role too low for the action (a reviewer writes nothing), a request from another origin, a game page opened outside a browser session, a comment that is not yours, a job someone else started. Ask an owner for the role.",
+        "fr": "Connecté, mais pas autorisé : pas membre de ce projet, un rôle trop bas pour l’action (un relecteur n’écrit rien), une requête d’une autre origine, une page du jeu ouverte hors d’une session de navigateur, un commentaire qui n’est pas le vôtre, une tâche lancée par quelqu’un d’autre. Demandez le rôle à un owner."
+      }
+    },
+    {
+      "status": 404,
+      "description": {
+        "en": "What the request names is not there: a room, a note, a line, a revision, a build, a job, a file, a storyboard; or a feature this Studio does not have (published builds, comments, the health of revisions are a hosted Studio's; preparing assets, cutting a sheet or upgrading the engine needs its processing worker; Git needs `git` in the configuration).",
+        "fr": "Ce que la requête nomme n’existe pas : une salle, une note, une réplique, une révision, un build, une tâche, un fichier, un storyboard ; ou une fonction que ce Studio n’a pas (les builds publiés, les commentaires, la santé des révisions sont ceux d’un Studio hébergé ; préparer les assets, découper une planche ou mettre à jour le moteur demande son application de traitement ; Git demande `git` dans la configuration)."
+      }
+    },
+    {
+      "status": 409,
+      "description": {
+        "en": "A conflict, nothing overwritten: a file changed since the revision you read (the hosted Studio's stale base), a file changed while the edit was being prepared or checked (try again), an undo whose file changed since, an id that already exists, cells of a sheet that already exist, a job already ended, a build from another history of the game, a Git branch that moved, undo on a shared Studio.",
+        "fr": "Un conflit, rien d’écrasé : un fichier modifié depuis la révision que vous avez lue (la base périmée du Studio hébergé), un fichier modifié pendant que l’édition se préparait ou se vérifiait (réessayez), une annulation dont le fichier a changé depuis, un id qui existe déjà, des cases d’une planche qui existent déjà, une tâche déjà finie, un build d’une autre histoire du jeu, une branche Git qui a bougé, l’annulation sur un Studio partagé."
+      }
+    },
+    {
+      "status": 413,
+      "description": {
+        "en": "Too big: a request body over the route's bound (`body too large`), an upload over the hosted Studio's size, an import of more files or bytes than the Studio takes. Send less, or split it.",
+        "fr": "Trop gros : un corps de requête au-delà de la limite de la route (`body too large`), un envoi au-delà de la taille du Studio hébergé, un import de plus de fichiers ou d’octets que le Studio n’en prend. Envoyez moins, ou découpez."
+      }
+    },
+    {
+      "status": 415,
+      "description": {
+        "en": "The wrong kind of content: a write that is not sent as JSON, a sound on a hosted Studio that is not an .ogg, .mp3 or .wav file, or whose bytes say it is something else.",
+        "fr": "Le mauvais type de contenu : une écriture qui n’est pas envoyée en JSON, un son sur un Studio hébergé qui n’est pas un fichier .ogg, .mp3 ou .wav, ou dont les octets disent autre chose."
+      }
+    },
+    {
+      "status": 422,
+      "description": {
+        "en": "Understood and refused: the edit would add validation errors (the answer lists them, with the diff; nothing is written since 4.2.1), a Git commit that holds no game, or a link or a submodule, prepared assets that would lose files the game had, a cut, a migration or an engine upgrade the processing worker refused.",
+        "fr": "Compris et refusé : l’édition ajouterait des erreurs de validation (la réponse les liste, avec le diff ; rien n’est écrit depuis la 4.2.1), un commit Git qui ne contient pas de jeu, ou un lien, ou un sous-module, des assets préparés qui perdraient des fichiers que le jeu avait, une découpe, une migration ou une mise à jour du moteur refusée par l’application de traitement."
+      }
+    },
+    {
+      "status": 423,
+      "description": {
+        "en": "A span (a room, a language, the game…) is held by another member of a hosted Studio, or your own lease on it ended: the answer names the span and its holder; your draft is kept.",
+        "fr": "Un pan (une salle, une langue, le jeu…) est tenu par un autre membre d’un Studio hébergé, ou votre propre bail dessus a pris fin : la réponse nomme le pan et qui le tient ; votre brouillon est gardé."
+      }
+    },
+    {
+      "status": 429,
+      "description": {
+        "en": "Too much at once, try again later: a build or an asset preparation is already running, the engine's upgrade is running, too many jobs wait, too many open comments.",
+        "fr": "Trop à la fois, réessayez plus tard : un build ou une préparation des assets est déjà en cours, la mise à jour du moteur tourne, trop de tâches attendent, trop de commentaires ouverts."
+      }
+    },
+    {
+      "status": 500,
+      "description": {
+        "en": "The game or the Studio itself failed: the game does not load (a syntax error, a former `web-scumm/…` import), a JSON file of the game is invalid, an edit would break the file it writes (refused, nothing written), a write on a shared Studio without its author. The dev server writes the stack to its terminal.",
+        "fr": "Le jeu ou le Studio lui-même a échoué : le jeu ne se charge pas (une erreur de syntaxe, un ancien import `web-scumm/…`), un fichier JSON du jeu n’est pas valide, une édition casserait le fichier qu’elle écrit (refusée, rien d’écrit), une écriture sur un Studio partagé sans son auteur. Le serveur de dev écrit la pile dans son terminal."
+      }
+    },
+    {
+      "status": 501,
+      "description": {
+        "en": "Not available here: a screenshot or the captures of a diff without Playwright or its Chromium, or on a hosted Studio (the answer carries `unavailable: true` and `reason`); a Reality policy solved on a hosted Studio (local only).",
+        "fr": "Pas disponible ici : une capture ou les captures d’un diff sans Playwright ou son Chromium, ou sur un Studio hébergé (la réponse porte `unavailable: true` et `reason`) ; une politique Reality résolue sur un Studio hébergé (en local seulement)."
+      }
+    },
+    {
+      "status": 502,
+      "description": {
+        "en": "A service behind the Studio Server failed: a `git` command or a push to the game's repository.",
+        "fr": "Un service derrière le Studio Server a échoué : une commande `git` ou un push vers le dépôt du jeu."
+      }
+    },
+    {
+      "status": 503,
+      "description": {
+        "en": "Not now, nothing lost: another process is writing this game, the edit cannot be judged now (the validation could not run), or a hosted Studio's identity provider cannot be reached (the session is suspended). Try again.",
+        "fr": "Pas maintenant, rien de perdu : un autre processus écrit ce jeu, l’édition ne peut pas être jugée maintenant (la validation n’a pas pu tourner), ou le fournisseur d’identité d’un Studio hébergé ne répond pas (la session est suspendue). Réessayez."
+      }
+    },
+    {
+      "status": 504,
+      "description": {
+        "en": "The processing worker of a hosted Studio did not answer in time (a preparation, a cut, a diagnostic): try again, or do it on a local Studio.",
+        "fr": "L’application de traitement d’un Studio hébergé n’a pas répondu à temps (une préparation, une découpe, un diagnostic) : réessayez, ou faites-le sur un Studio local."
+      }
+    }
+  ],
+  "bridge": [
+    {
+      "status": 400,
+      "code": "shape",
+      "description": {
+        "en": "The request is not what the route reads: not JSON, a field missing or malformed, a `through` the Bridge never sent, a revocation id that is not hex, a webhook delivery without its `id`.",
+        "fr": "La requête n’est pas ce que la route lit : pas du JSON, un champ absent ou mal formé, un `through` que le Bridge n’a jamais envoyé, un id de révocation qui n’est pas hexadécimal, une livraison de webhook sans son `id`."
+      }
+    },
+    {
+      "status": 401,
+      "code": "admin",
+      "description": {
+        "en": "An operator route (`/v1/admin/…`, as `quest-n-click-bridge revoke` calls it) without the operator's token (`admin-token` in the Bridge's folder).",
+        "fr": "Une route d’opérateur (`/v1/admin/…`, comme l’appelle `quest-n-click-bridge revoke`) sans le jeton de l’opérateur (`admin-token` dans le dossier du Bridge)."
+      }
+    },
+    {
+      "status": 401,
+      "code": "capability",
+      "description": {
+        "en": "The player's link to the Bridge (its capability) is unknown, revoked, expired or too old: the player pairs again.",
+        "fr": "Le lien du joueur avec le Bridge (sa capacité) est inconnu, révoqué, expiré ou trop vieux : le joueur s’apparie de nouveau."
+      }
+    },
+    {
+      "status": 401,
+      "code": "revoked",
+      "description": {
+        "en": "The connector's token was revoked while its signal was being proposed: grant a new one (`quest-n-click-bridge grant`).",
+        "fr": "Le jeton du connecteur a été révoqué pendant que son signal était proposé : accordez-en un nouveau (`quest-n-click-bridge grant`)."
+      }
+    },
+    {
+      "status": 401,
+      "code": "signature",
+      "description": {
+        "en": "A webhook delivery whose HMAC signature does not match the webhook's secret.",
+        "fr": "Une livraison de webhook dont la signature HMAC ne correspond pas au secret du webhook."
+      }
+    },
+    {
+      "status": 401,
+      "code": "token",
+      "description": {
+        "en": "A connector's token that cannot be read, or that was revoked, on a pairing confirmation or a signal.",
+        "fr": "Un jeton de connecteur illisible, ou révoqué, sur une confirmation d’appariement ou un signal."
+      }
+    },
+    {
+      "status": 403,
+      "code": "denied",
+      "description": {
+        "en": "The connector's token is valid and does not allow this: it may not pair (granted without `--pair`), or its Biscuit does not allow that signal, source or player.",
+        "fr": "Le jeton du connecteur est valide et ne permet pas ceci : il ne peut pas apparier (accordé sans `--pair`), ou son Biscuit ne permet pas ce signal, cette source ou ce joueur."
+      }
+    },
+    {
+      "status": 404,
+      "code": "game",
+      "description": {
+        "en": "A pairing asked for a game this Bridge does not serve (its `gameId` is another).",
+        "fr": "Un appariement demandé pour un jeu que ce Bridge ne sert pas (son `gameId` est un autre)."
+      }
+    },
+    {
+      "status": 404,
+      "code": "hook",
+      "description": {
+        "en": "No webhook of that name in the Bridge's configuration.",
+        "fr": "Aucun webhook de ce nom dans la configuration du Bridge."
+      }
+    },
+    {
+      "status": 404,
+      "code": "pairing",
+      "description": {
+        "en": "The pairing code is unknown or expired: the player starts a new pairing.",
+        "fr": "Le code d’appariement est inconnu ou expiré : le joueur lance un nouvel appariement."
+      }
+    },
+    {
+      "status": 404,
+      "code": "player",
+      "description": {
+        "en": "The player is unknown to this Bridge, or was revoked (`quest-n-click-bridge revoke --player=…`, or the player unlinked).",
+        "fr": "Le joueur est inconnu de ce Bridge, ou a été révoqué (`quest-n-click-bridge revoke --player=…`, ou le joueur s’est délié)."
+      }
+    },
+    {
+      "status": 404,
+      "code": "tenant",
+      "description": {
+        "en": "A Bridge serving several tenants found none for this request.",
+        "fr": "Un Bridge qui sert plusieurs tenants n’en trouve aucun pour cette requête."
+      }
+    },
+    {
+      "status": 409,
+      "code": "pairing",
+      "description": {
+        "en": "The pairing code was already confirmed, by this connector or another one: the player is paired, nothing to redo.",
+        "fr": "Le code d’appariement a déjà été confirmé, par ce connecteur ou un autre : le joueur est apparié, rien à refaire."
+      }
+    },
+    {
+      "status": 410,
+      "code": "pairing",
+      "description": {
+        "en": "The pairing was already claimed: the player's capability was handed out once and never again; pair again from the game.",
+        "fr": "L’appariement a déjà été réclamé : la capacité du joueur a été remise une fois et ne le sera plus ; appariez de nouveau depuis le jeu."
+      }
+    },
+    {
+      "status": 413,
+      "code": "size",
+      "description": {
+        "en": "The request body is over the Bridge's bound.",
+        "fr": "Le corps de la requête dépasse la limite du Bridge."
+      }
+    },
+    {
+      "status": 422,
+      "code": "event",
+      "description": {
+        "en": "The webhook does not map that event to a signal (its configuration lists the events it knows).",
+        "fr": "Le webhook n’associe pas cet événement à un signal (sa configuration liste les événements qu’il connaît)."
+      }
+    },
+    {
+      "status": 422,
+      "code": "signal",
+      "description": {
+        "en": "The signal is not in the game's Reality manifest.",
+        "fr": "Le signal n’est pas dans le manifeste Reality du jeu."
+      }
+    },
+    {
+      "status": 422,
+      "code": "source",
+      "description": {
+        "en": "The signal is declared for another source than the connector that sends it.",
+        "fr": "Le signal est déclaré pour une autre source que le connecteur qui l’envoie."
+      }
+    },
+    {
+      "status": 429,
+      "code": "pairings",
+      "description": {
+        "en": "Too many pairing codes wait for a confirmation: try again in a minute.",
+        "fr": "Trop de codes d’appariement attendent une confirmation : réessayez dans une minute."
+      }
+    },
+    {
+      "status": 429,
+      "code": "pending",
+      "description": {
+        "en": "The player has too many signals waiting to be delivered.",
+        "fr": "Le joueur a trop de signaux en attente de livraison."
+      }
+    },
+    {
+      "status": 429,
+      "code": "quota",
+      "description": {
+        "en": "Too many signals this minute for the player (the Bridge's per-minute quota).",
+        "fr": "Trop de signaux cette minute pour le joueur (le quota par minute du Bridge)."
+      }
+    },
+    {
+      "status": 429,
+      "code": "rate",
+      "description": {
+        "en": "Too many requests from this address: the answer carries `Retry-After: 60`.",
+        "fr": "Trop de requêtes depuis cette adresse : la réponse porte `Retry-After: 60`."
+      }
+    },
+    {
+      "status": 429,
+      "code": "streams",
+      "description": {
+        "en": "Too many open event streams: for this player, or for this instance of the Bridge.",
+        "fr": "Trop de flux d’événements ouverts : pour ce joueur, ou pour cette instance du Bridge."
+      }
+    }
+  ],
+  "solver": [
+    {
+      "status": "solved",
+      "description": {
+        "en": "The ending (or the goal) is reached: on one path for a witness search, from every reachable state with `--prove`.",
+        "fr": "La fin (ou le but) est atteinte : sur un chemin pour une recherche de témoin, depuis chaque état atteignable avec `--prove`."
+      }
+    },
+    {
+      "status": "softlocks",
+      "description": {
+        "en": "Some reachable states can no longer reach the ending: the output lists them with the path to each.",
+        "fr": "Certains états atteignables ne peuvent plus atteindre la fin : la sortie les liste avec le chemin vers chacun."
+      }
+    },
+    {
+      "status": "unsolved",
+      "description": {
+        "en": "The ending is not reached from any state explored.",
+        "fr": "La fin n’est atteinte depuis aucun des états explorés."
+      }
+    },
+    {
+      "status": "truncated",
+      "description": {
+        "en": "The search stopped on its budget (states `--max`, time `--time`, memory `--mem`): nothing is proved; raise the budget or resume from the checkpoint.",
+        "fr": "La recherche s’est arrêtée sur son budget (états `--max`, temps `--time`, mémoire `--mem`) : rien n’est prouvé ; augmentez le budget ou reprenez depuis le point de reprise."
+      }
+    },
+    {
+      "status": "broken",
+      "description": {
+        "en": "An invariant of the game became true on a reachable state.",
+        "fr": "Un invariant du jeu est devenu vrai sur un état atteignable."
+      }
+    },
+    {
+      "status": "error",
+      "description": {
+        "en": "The engine raised errors while exploring.",
+        "fr": "Le moteur a levé des erreurs pendant l’exploration."
+      }
+    },
+    {
+      "status": "checkpoint_mismatch",
+      "description": {
+        "en": "A proof by chapters (`--prove --chapters`): every chapter is proved, but a hand-written checkpoint is none of its chapter's reachable boundary states.",
+        "fr": "Une preuve par chapitres (`--prove --chapters`) : chaque chapitre est prouvé, mais un checkpoint écrit à la main n’est aucun des états frontières atteignables de son chapitre."
+      }
+    }
+  ],
+  "exits": [
+    {
+      "id": "validate",
+      "command": "npm run validate",
+      "file": "tools/validate.ts",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "No error (warnings may be printed); `--report` always exits 0.",
+            "fr": "Aucune erreur (des avertissements peuvent s’afficher) ; `--report` sort toujours avec 0."
+          }
+        },
+        {
+          "code": 1,
+          "description": { "en": "At least one error, listed after `✖`.", "fr": "Au moins une erreur, listée après `✖`." }
+        }
+      ]
+    },
+    {
+      "id": "solve",
+      "command": "npm run solve",
+      "file": "tools/solve.ts",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "`solved`; also `--prove --chapters` on a game that declares no chapter.",
+            "fr": "`solved` ; aussi `--prove --chapters` sur un jeu qui ne déclare aucun chapitre."
+          }
+        },
+        {
+          "code": 1,
+          "description": {
+            "en": "Any other status but `truncated` (`softlocks`, `unsolved`, `broken`, `error`, `checkpoint_mismatch`); with `--audit-abstractions`, the two searches diverged.",
+            "fr": "Tout autre statut que `truncated` (`softlocks`, `unsolved`, `broken`, `error`, `checkpoint_mismatch`) ; avec `--audit-abstractions`, les deux recherches divergent."
+          }
+        },
+        {
+          "code": 2,
+          "description": {
+            "en": "`truncated`: nothing proved (with `--audit-abstractions`, the explicit search was truncated); or a refused `--goal` (only `--goal=100%`, and only on a game with an objective that is not optional).",
+            "fr": "`truncated` : rien de prouvé (avec `--audit-abstractions`, la recherche explicite a été tronquée) ; ou un `--goal` refusé (seulement `--goal=100%`, et seulement sur un jeu qui a un objectif non facultatif)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "solve-reality",
+      "command": "npm run solve:reality",
+      "file": "tools/solve-reality.ts",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "Every world proved (closed, each scenario and replay, adversarial), or a game without `reality`.",
+            "fr": "Chaque monde prouvé (fermé, chaque scénario et replay, adversarial), ou un jeu sans `reality`."
+          }
+        },
+        {
+          "code": 1,
+          "description": {
+            "en": "A world fails; a truncated search counts as a failure.",
+            "fr": "Un monde échoue ; une recherche tronquée compte comme un échec."
+          }
+        }
+      ]
+    },
+    {
+      "id": "lint",
+      "command": "npm run lint",
+      "file": "tools/lint.ts",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "No finding of severity `error`, and the solver's search was not truncated.",
+            "fr": "Aucun constat de gravité `error`, et la recherche du solveur n’a pas été tronquée."
+          }
+        },
+        {
+          "code": 1,
+          "description": {
+            "en": "At least one finding of severity `error`.",
+            "fr": "Au moins un constat de gravité `error`."
+          }
+        }
+      ]
+    },
+    {
+      "id": "doctor",
+      "command": "npm run doctor",
+      "file": "tools/doctor.ts",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "Every required prerequisite is there (optional ones may be missing).",
+            "fr": "Chaque prérequis obligatoire est là (des optionnels peuvent manquer)."
+          }
+        },
+        {
+          "code": 1,
+          "description": {
+            "en": "A required prerequisite is missing; with `--release`, every prerequisite of `npm run release-check` is required.",
+            "fr": "Un prérequis obligatoire manque ; avec `--release`, chaque prérequis de `npm run release-check` est obligatoire."
+          }
+        }
+      ]
+    },
+    {
+      "id": "speedrun-verify",
+      "command": "npm run speedrun:verify",
+      "file": "tools/speedrun/verify.ts",
+      "codes": [
+        {
+          "code": 0,
+          "description": { "en": "The verdict is `valid` or `valid-unranked`.", "fr": "Le verdict est `valid` ou `valid-unranked`." }
+        },
+        {
+          "code": 1,
+          "description": {
+            "en": "Any other verdict, `inconclusive` included: never valid.",
+            "fr": "Tout autre verdict, `inconclusive` compris : jamais valide."
+          }
+        },
+        {
+          "code": 2,
+          "description": {
+            "en": "No `.wsrun` file named: the usage line is printed.",
+            "fr": "Aucun fichier `.wsrun` nommé : la ligne d’usage s’affiche."
+          }
+        }
+      ]
+    },
+    {
+      "id": "e2e-canonical",
+      "command": "npm run e2e:canonical",
+      "file": "scripts/e2e-canonical.mjs",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "Every browser writes every value as Node does (or a browser skipped with `--allow-skip`, said on the output).",
+            "fr": "Chaque navigateur écrit chaque valeur comme Node (ou un navigateur sauté avec `--allow-skip`, dit dans la sortie)."
+          }
+        },
+        {
+          "code": 1,
+          "description": { "en": "A browser writes a value differently.", "fr": "Un navigateur écrit une valeur autrement." }
+        },
+        {
+          "code": 3,
+          "description": {
+            "en": "A browser Playwright cannot launch here, without `--allow-skip`.",
+            "fr": "Un navigateur que Playwright ne peut pas lancer ici, sans `--allow-skip`."
+          }
+        }
+      ]
+    },
+    {
+      "id": "e2e-remix",
+      "command": "npm run e2e:remix",
+      "file": "scripts/e2e-remix.mjs",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "Every runtime makes the same worlds (or a browser skipped with `--allow-skip`, said).",
+            "fr": "Chaque environnement fait les mêmes mondes (ou un navigateur sauté avec `--allow-skip`, dit)."
+          }
+        },
+        { "code": 1, "description": { "en": "A difference, the seed named.", "fr": "Une différence, la graine nommée." } },
+        {
+          "code": 3,
+          "description": {
+            "en": "A browser Playwright cannot launch, without `--allow-skip`.",
+            "fr": "Un navigateur que Playwright ne peut pas lancer, sans `--allow-skip`."
+          }
+        }
+      ]
+    },
+    {
+      "id": "e2e-speedrun",
+      "command": "npm run e2e:speedrun",
+      "file": "scripts/e2e-speedrun.mjs",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "Determinism proved in every browser run (or `--bundle-only`, or a browser skipped with `--allow-skip`).",
+            "fr": "Déterminisme prouvé dans chaque navigateur lancé (ou `--bundle-only`, ou un navigateur sauté avec `--allow-skip`)."
+          }
+        },
+        { "code": 1, "description": { "en": "A check failed.", "fr": "Une vérification a échoué." } },
+        {
+          "code": 3,
+          "description": {
+            "en": "A browser Playwright cannot launch, without `--allow-skip`.",
+            "fr": "Un navigateur que Playwright ne peut pas lancer, sans `--allow-skip`."
+          }
+        }
+      ]
+    },
+    {
+      "id": "e2e-pwa",
+      "command": "npm run e2e:pwa",
+      "file": "scripts/e2e-pwa.mjs",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "Proved; or skipped with `--allow-skip` (an explicit \"skipped\" line, never a proof).",
+            "fr": "Prouvé ; ou sauté avec `--allow-skip` (une ligne « skipped » explicite, jamais une preuve)."
+          }
+        },
+        { "code": 1, "description": { "en": "Failed.", "fr": "Échec." } },
+        {
+          "code": 3,
+          "description": {
+            "en": "Skipped: the browser cannot navigate offline under automation (WebKit), without `--allow-skip`.",
+            "fr": "Sauté : le navigateur ne sait pas naviguer hors ligne sous automatisation (WebKit), sans `--allow-skip`."
+          }
+        }
+      ]
+    },
+    {
+      "id": "e2e-remix-speedrun",
+      "command": "npm run e2e:remix-speedrun",
+      "file": "scripts/e2e-remix-speedrun.ts",
+      "codes": [
+        {
+          "code": 0,
+          "description": {
+            "en": "Every world policy recorded the same run in every runtime, verified (or a browser skipped with `--allow-skip`).",
+            "fr": "Chaque politique de monde a enregistré la même partie dans chaque environnement, vérifiée (ou un navigateur sauté avec `--allow-skip`)."
+          }
+        },
+        { "code": 1, "description": { "en": "A check failed.", "fr": "Une vérification a échoué." } },
+        {
+          "code": 3,
+          "description": {
+            "en": "A browser Playwright cannot launch, without `--allow-skip`.",
+            "fr": "Un navigateur que Playwright ne peut pas lancer, sans `--allow-skip`."
+          }
+        }
+      ]
+    }
+  ]
+}

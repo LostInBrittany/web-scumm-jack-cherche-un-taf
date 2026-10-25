@@ -19,7 +19,7 @@ describe('a signature whose verification throws', () => {
   it('is refused by verifyJws, whatever the algorithm', () => {
     const ed = generateKeyPairSync('ed25519').publicKey;
     const ec = generateKeyPairSync('ec', { namedCurve: 'P-256' }).publicKey;
-    const rsa = generateKeyPairSync('rsa', { modulusLength: 1024 }).publicKey;
+    const rsa = generateKeyPairSync('rsa', { modulusLength: 2048 }).publicKey;
     const jws = (alg: string) => ({ header: { alg }, payload: {}, signingInput: 'a.b', signature: Buffer.alloc(64) });
     expect(verifyJws(jws('EdDSA'), ed)).toBe(false);
     expect(verifyJws(jws('ES256'), ec)).toBe(false);

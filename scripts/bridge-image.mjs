@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// The Bridge's qualification image, built once (4.1.19, plan §6.2): from the candidate's own `web-scumm-bridge`
-// archive and the image's versioned lock (scripts/locks/web-scumm-bridge-image.json, `npm ci`, nothing resolved), then
-// saved as an archive that later jobs load instead of building again. An image has three identities, each written to
-// web-scumm-bridge-image.json and checked after a load:
+// The Bridge's qualification image, built once (4.1.19, plan §6.2): from the candidate's own `quest-n-click-bridge`
+// archive and the image's versioned lock (scripts/locks/quest-n-click-bridge-image.json, `npm ci`, nothing resolved),
+// then saved as an archive that later jobs load instead of building again. An image has three identities, each written
+// to quest-n-click-bridge-image.json (web-scumm-bridge-image.json before 4.2.5, D47) and checked after a load:
 //   - the config digest (the image id `docker image inspect` gives: what runs);
 //   - the OCI manifest digest (index.json of the saved layout, Docker 25+: what a registry would name);
 //   - the SHA-256 of the archive carried between jobs and published (what was transported).
@@ -21,15 +21,18 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { imageManifest, lockFor, lockProblems } from './pack-manifests.mjs';
+import { projectOf } from '../tools/release/artifacts.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const PROFILE = join(ROOT, 'ops', 'qualify');
-export const TAG = 'web-scumm-bridge:qualify';
-export const ARCHIVE = 'web-scumm-bridge-image.tar';
-export const IDENTITY = 'web-scumm-bridge-image.json';
-export const SBOM = 'web-scumm-bridge-image.cdx.json';
-
 const root = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+// The image's name follows the release's (web-scumm up to 4.2.4, quest-n-click from 4.2.5): the candidate's surfaces
+// name the files by the version, so a candidate before the version's bump still finds them.
+const PROJECT = projectOf(root.version);
+export const TAG = `${PROJECT}-bridge:qualify`;
+export const ARCHIVE = `${PROJECT}-bridge-image.tar`;
+export const IDENTITY = `${PROJECT}-bridge-image.json`;
+export const SBOM = `${PROJECT}-bridge-image.cdx.json`;
 
 /**
  * A build context: the Dockerfile, the candidate's Bridge archive, and the image's manifest and lock, checked against
@@ -38,9 +41,9 @@ const root = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 export function buildContext(bridgeTgz, dir) {
   mkdirSync(dir, { recursive: true });
   copyFileSync(join(PROFILE, 'Dockerfile.bridge'), join(dir, 'Dockerfile.bridge'));
-  copyFileSync(bridgeTgz, join(dir, 'web-scumm-bridge.tgz'));
+  copyFileSync(bridgeTgz, join(dir, 'quest-n-click-bridge.tgz'));
   const manifest = imageManifest(root);
-  const lock = JSON.parse(readFileSync(join(ROOT, 'scripts', 'locks', 'web-scumm-bridge-image.json'), 'utf8'));
+  const lock = JSON.parse(readFileSync(join(ROOT, 'scripts', 'locks', 'quest-n-click-bridge-image.json'), 'utf8'));
   const bad = lockProblems(lock, manifest);
   if (bad.length) throw new Error(`the image's lock does not fit its manifest: ${bad.join('; ')} (npm run locks)`);
   writeFileSync(join(dir, 'package.json'), `${JSON.stringify(manifest, null, 2)}\n`);
@@ -128,10 +131,10 @@ function imageSbom(identity) {
   // The Bridge itself (unpacked in /opt/bridge, outside the tree `npm sbom` reads in /opt), by its archive's SHA-256.
   const bridge = {
     type: 'library',
-    'bom-ref': `web-scumm-bridge@${version}`,
-    name: 'web-scumm-bridge',
+    'bom-ref': `quest-n-click-bridge@${version}`,
+    name: 'quest-n-click-bridge',
     version,
-    purl: `pkg:npm/web-scumm-bridge@${version}`,
+    purl: `pkg:npm/quest-n-click-bridge@${version}`,
     hashes: [{ alg: 'SHA-256', content: identity.bridgeSha256 }],
   };
   sbom.components = [
@@ -153,9 +156,10 @@ function imageSbom(identity) {
     component: {
       ...root,
       type: 'container',
-      name: 'web-scumm-bridge-image',
+      name: 'quest-n-click-bridge-image',
       version,
       hashes: [{ alg: 'SHA-256', content: identity.archiveSha256 }],
+      // Property names from web-scumm, kept so a reader of earlier SBOMs reads these the same way (D47).
       properties: [
         { name: 'web-scumm:configDigest', value: identity.configDigest },
         { name: 'web-scumm:manifestDigest', value: identity.manifestDigest },
@@ -172,7 +176,7 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
   if (cmd === 'context' || cmd === 'build') {
     const tarballs = resolve(flag('tarballs') ?? '');
     const out = resolve(flag('out') ?? '');
-    const tgz = join(tarballs, `web-scumm-bridge-${root.version}.tgz`);
+    const tgz = join(tarballs, `quest-n-click-bridge-${root.version}.tgz`);
     if (cmd === 'context') {
       buildContext(tgz, out);
       console.log(`✔  build context in ${out}`);

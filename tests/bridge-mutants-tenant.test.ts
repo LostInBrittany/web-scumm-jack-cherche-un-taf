@@ -246,3 +246,15 @@ describe('the keyed lock with three sections (mutants of lock.ts)', () => {
     expect(order).toEqual(['a+', 'a-', 'b+', 'b-', 'c+']);
   });
 });
+
+// Killed mutant (4.3.0 reread of the exemptions): a key nobody waits on is forgotten. Keys are player ids and pairing
+// codes, so a lock that kept them would grow with every code anyone asked to confirm on a long-running Bridge.
+describe('KeyedLock forgets an idle key', () => {
+  it('holds no key once every section has ended, one or several on a key', async () => {
+    const lock = new KeyedLock();
+    const tails = () => (lock as unknown as { tails: Map<string, unknown> }).tails.size;
+    expect(await lock.run('a', async () => 1)).toBe(1);
+    expect(await Promise.all([lock.run('b', async () => 2), lock.run('b', async () => 3)])).toEqual([2, 3]);
+    expect(tails()).toBe(0);
+  });
+});

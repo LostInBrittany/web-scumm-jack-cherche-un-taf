@@ -62,6 +62,7 @@ import {
   travel as travelImpl,
   openMap as openMapImpl,
   teleport as teleportImpl,
+  faceEachOther as faceEachOtherImpl,
 } from './movement';
 import type { ReceiveResult } from './reality-runtime';
 import { SessionLog } from './session-runtime';
@@ -82,6 +83,7 @@ import {
   findRule as findRuleImpl,
   findKind as findKindImpl,
   fill as fillImpl,
+  text as textImpl,
   voiceOf as voiceOfImpl,
   sayFallback as sayFallbackImpl,
   fallback as fallbackImpl,
@@ -115,6 +117,11 @@ export class Engine {
   private rooms: Map<Id, RoomDef>;
   /** @internal Read by the modules of core/ (4.1.0). */
   lastFallback: Record<string, number> = {};
+  /**
+   * @internal The `{ talk }` command that ends the rule being resolved (4.3.0, #218): the one conversation that is the
+   * whole rest of its action, so its topics may be saved. Null outside a rule.
+   */
+  tailTalk: Cmd | null = null;
   /** @internal The busy owner (4.1.11, core/busy.ts): runs in progress, the tutorial step waited for, a skip. */
   readonly busyState = new Busy();
   /** Called on every state change relevant to the UI (inventory, room, busy state). */
@@ -206,8 +213,15 @@ export class Engine {
     this.sessions.feedSession(s);
   }
   /** A choice, recorded (and fed back when replaying). */
-  choose(options: { text: string; seen?: boolean; global?: boolean }[], who?: Id): Promise<number> {
-    return this.sessions.choose(options, who);
+  choose(options: { text: string; seen?: boolean; global?: boolean; img?: Id }[], who?: Id): Promise<number> {
+    return this.sessions.choose(
+      options.map((o) => ({ ...o, text: this.text(o.text) })),
+      who,
+    );
+  }
+  /** A text as shown now (4.3.0, core/text-switch.ts): its switches and `{hero}` filled, after `fill()` and translation. */
+  text(s: string): string {
+    return textImpl(this, s);
   }
   /** The map's answer, recorded. */
   pickPlace(): Promise<Id | null> {
@@ -477,9 +491,9 @@ export class Engine {
     return transferImpl(this, item, to);
   }
 
-  /** Display name of any id (item, actor, prop, hotspot). */
+  /** Display name of any id (item, actor, prop, hotspot), its switches filled (4.3.0). */
   nameOf(id: Id, room: RoomDef = this.room()): string {
-    return nameOfImpl(this, id, room);
+    return this.text(nameOfImpl(this, id, room));
   }
 
   /** A character's sheet with the variant that applies to the current state (sprites, mouths, portrait). */
@@ -548,7 +562,7 @@ export class Engine {
     if (g) {
       if (!this.busyState.accepts(act)) {
         await this.run(async () => {
-          await this.ui.say(this.heroId(), g.say, {});
+          await this.ui.say(this.heroId(), this.text(g.say), {});
         });
         return 'guide';
       }
@@ -582,10 +596,7 @@ export class Engine {
             this.runClock.walk(room.id, this.heroId(), ap);
           }
         }
-        if (inScene) {
-          this.faceTowards(target, room);
-          this.faceHero(target, room);
-        }
+        if (inScene) faceEachOtherImpl(this, target, room);
         src = await this.resolve(act, { room, fast: false });
         this.log('action', `${act.verb} ${act.a}${act.b ? ` → ${act.b}` : ''}: ${src ?? 'nothing'}`);
       });
@@ -644,20 +655,6 @@ export class Engine {
     }
   }
 
-  /** The targeted character turns to face the hero: two characters talking look at each other. */
-  private faceHero(id: Id, room: RoomDef) {
-    if (!room.actors?.[id]) return;
-    const x = this.centerX(id, room);
-    const hx = this.state.hero[room.id]?.[0];
-    if (x !== null && hx !== undefined && Math.abs(hx - x) > 8) this.ui.face(id, hx < x ? 'left' : 'right');
-  }
-
-  private faceTowards(id: Id, room: RoomDef) {
-    const x = this.centerX(id, room);
-    const hx = this.state.hero[room.id]?.[0];
-    if (x !== null && hx !== undefined) this.ui.face(this.heroId(), x < hx ? 'left' : 'right');
-  }
-
   // ------------------------------------------------------------------ resolution
 
   /** Finds the reaction to an action and executes it. */
@@ -678,9 +675,9 @@ export class Engine {
     return fillImpl(this, text, a, b);
   }
 
-  /** A line's voice clip: its id, when `audio.voices` has a clip under it (the rule of `say` lines). */
-  voiceOf(l: ListLine | { id?: Id }): Id | undefined {
-    return voiceOfImpl(this, l);
+  /** A line's voice clip: its keyed id for its switches' values, else its id, when `audio.voices` has the clip. */
+  voiceOf(l: ListLine | { id?: Id }, text?: string): Id | undefined {
+    return voiceOfImpl(this, l, text);
   }
 
   async sayFallback(who: Id, key: string, ctx: Ctx, a: Id, b?: Id) {
@@ -699,9 +696,9 @@ export class Engine {
     return hintImpl(this, ctx);
   }
 
-  /** Conversation topic menu, until "Bye". */
-  async talkLoop(actor: Id, ctx: Ctx) {
-    return talkLoopImpl(this, actor, ctx);
+  /** Conversation topic menu, until "Bye"; `saveTopics` when nothing of the action follows it (4.3.0, #218). */
+  async talkLoop(actor: Id, ctx: Ctx, saveTopics = false) {
+    return talkLoopImpl(this, actor, ctx, saveTopics);
   }
 
   // ------------------------------------------------------------------ rooms

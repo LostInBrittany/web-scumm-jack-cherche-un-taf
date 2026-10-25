@@ -114,7 +114,9 @@ describe('the check of a pull request', () => {
     expect(needsFragment(['src/engine/core/engine.ts', 'changes/fix-x.md'])).toBe(false);
     expect(needsFragment(['src/engine/core/engine.ts', 'changes/fix-x.log.md'])).toBe(true);
     expect(needsFragment(['src/engine/core/engine.ts', 'CHANGELOG.md'])).toBe(false); // a release branch
-    expect(needsFragment(['docs/en/README.md', 'docs/dev/LOG.md', 'tests/x.test.ts'])).toBe(false);
+    expect(needsFragment(['wiki/en/create.rooms.md', 'docs/en/README.md', 'docs/dev/LOG.md', 'tests/x.test.ts'])).toBe(
+      false,
+    );
     expect(needsFragment(['games/demo/game.ts'])).toBe(true); // the bundled games ship
     expect(needsFragment(['src/x.ts', 'changes/README.md'])).toBe(true);
   });

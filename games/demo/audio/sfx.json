@@ -1,5 +1,5 @@
 {
-  "_doc": "The sample game's sound effects, built from the shared Mega Drive palette (tools/audio/palette.json) by `npm run audio -- sfx games/demo/audio/sfx.json` into audio/sfx/*.mp3 (docs/en/AUDIO.md). One row = 1/60 s. FM vol 0-127, PSG vol 0-15.",
+  "_doc": "The sample game's sound effects, built from the shared Mega Drive palette (tools/audio/palette.json) by `npm run audio -- sfx games/demo/audio/sfx.json` into audio/sfx/*.mp3 (wiki/en/create.music.md). One row = 1/60 s. FM vol 0-127, PSG vol 0-15.",
   "rate": 60,
   "sfx": {
     "click": {"desc": "a dry UI click", "rows": 8, "tracks": [

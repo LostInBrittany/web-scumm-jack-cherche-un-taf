@@ -1,0 +1,166 @@
+{
+  "format": "quest-n-click-docs-acceptance",
+  "version": 1,
+  "note": "The fixture of tests/wiki-acceptance.test.ts: a few questions over a small wiki, D3's 423 and 409 among them, each row of the counter-example table, one pending question, one miss.",
+  "beginner": ["error-423", "guard-patrol"],
+  "questions": [
+    {
+      "id": "error-423",
+      "kind": "question",
+      "audience": "author",
+      "maintainer": true,
+      "text": { "en": "I get a 423 in the Studio", "fr": "J'ai une erreur 423 dans le Studio" },
+      "expect": ["team.write-refused-423"],
+      "facts": ["Another member holds the lease on the span", "Wait 120 s, ask the member, or an owner takes it over"]
+    },
+    {
+      "id": "lock-conflict",
+      "kind": "question",
+      "audience": "author",
+      "text": { "en": "lock conflict", "fr": "conflit de verrou" },
+      "expect": ["team.write-refused-423#symptom"],
+      "facts": ["A lock is a lease another member holds"]
+    },
+    {
+      "id": "guard-patrol",
+      "kind": "question",
+      "audience": "author",
+      "maintainer": true,
+      "text": { "en": "I want the guard to patrol", "fr": "Je veux que le garde patrouille" },
+      "expect": ["create.moving-characters#patrols"],
+      "facts": ["Give the character a route and a pace"]
+    },
+    {
+      "id": "custom-minigame",
+      "kind": "question",
+      "audience": "author",
+      "text": { "en": "How do I write my own minigame?", "fr": "Comment écrire mon propre mini-jeu ?" },
+      "expect": ["create.custom-minigame"],
+      "facts": ["Register it in minigames as {run(ctx)}"]
+    },
+    {
+      "id": "no-sound",
+      "kind": "question",
+      "audience": "player",
+      "text": { "en": "The game is silent", "fr": "Le jeu est muet" },
+      "expect": ["play.troubleshooting"],
+      "facts": ["Sound unlocks at the first tap"],
+      "gaps": ["The page says nothing of sound yet"]
+    },
+    {
+      "id": "multiplayer",
+      "kind": "counter-example",
+      "row": "absent-feature",
+      "audience": "author",
+      "text": {
+        "en": "Can I make a real-time multiplayer game?",
+        "fr": "Puis-je faire un jeu multijoueur en temps réel ?"
+      },
+      "expect": ["index.not-supported"],
+      "expectEmpty": true,
+      "facts": ["Real-time multiplayer is not supported"]
+    },
+    {
+      "id": "vr-headset",
+      "kind": "counter-example",
+      "row": "absent-feature",
+      "audience": "player",
+      "text": { "en": "Does it support VR headsets?", "fr": "Est-ce compatible avec les casques VR ?" },
+      "expect": ["index.not-supported"],
+      "expectEmpty": true,
+      "facts": ["quest'n'click has no VR support"]
+    },
+    {
+      "id": "npm-run-studio",
+      "kind": "counter-example",
+      "row": "similar-commands",
+      "audience": "author",
+      "text": { "en": "Where do I run npm run studio?", "fr": "Où lancer npm run studio ?" },
+      "expect": [],
+      "withContext": [
+        {
+          "context": "engine-repo",
+          "expect": ["contribute.dev-loop#studio"],
+          "expectNotFirst": ["create.working-loop"]
+        },
+        {
+          "context": "created-project",
+          "expect": ["create.working-loop#studio"],
+          "expectNotFirst": ["contribute.dev-loop"]
+        }
+      ],
+      "withoutContext": {
+        "expectAll": ["contribute.dev-loop", "create.working-loop"],
+        "names": {
+          "contribute.dev-loop": ["engine repository", "dépôt du moteur"],
+          "create.working-loop": ["project", "projet"]
+        }
+      },
+      "facts": ["In the engine repository it opens the demo game", "In a created project it opens your game"]
+    },
+    {
+      "id": "v2-ids",
+      "kind": "counter-example",
+      "row": "old-version",
+      "audience": "author",
+      "text": { "en": "How do I migrate my v2 ids to v3?", "fr": "Comment migrer mes ids v2 en v3 ?" },
+      "version": "4.5.0",
+      "expect": ["install.upgrade-notes-v2-to-v3"],
+      "expectStatus": ["notApplicable", "archived"],
+      "facts": ["A procedure for v3 only, not for 4.5.0"]
+    },
+    {
+      "id": "error-409",
+      "kind": "counter-example",
+      "row": "shared-code",
+      "audience": "author",
+      "text": { "en": "Error 409", "fr": "Erreur 409" },
+      "expect": [],
+      "withContext": [
+        {
+          "context": "studio-hosted",
+          "expect": ["team.write-refused-409"],
+          "expectNotFirst": ["bridge.troubleshooting"]
+        },
+        {
+          "context": "bridge",
+          "expect": ["bridge.troubleshooting#conflict-409"]
+        }
+      ],
+      "withoutContext": {
+        "expectAll": ["team.write-refused-409", "bridge.troubleshooting"],
+        "names": {
+          "team.write-refused-409": ["Studio"],
+          "bridge.troubleshooting": ["Bridge"]
+        }
+      },
+      "facts": ["On the hosted Studio: a stale base revision", "On the Bridge: a duplicate signal"]
+    },
+    {
+      "id": "error-503",
+      "kind": "counter-example",
+      "row": "shared-code",
+      "audience": "admin",
+      "text": { "en": "Error 503", "fr": "Erreur 503" },
+      "expect": [],
+      "withContext": [
+        {
+          "context": "studio-hosted",
+          "expect": ["clever.troubleshooting#redeploy-503"]
+        },
+        {
+          "context": "bridge",
+          "expect": ["bridge.troubleshooting#unavailable-503"]
+        }
+      ],
+      "withoutContext": {
+        "expectAll": ["clever.troubleshooting", "bridge.troubleshooting"],
+        "names": {
+          "clever.troubleshooting": ["Studio", "Clever"],
+          "bridge.troubleshooting": ["Bridge"]
+        }
+      },
+      "facts": ["On Clever Cloud: a redeploy", "On the Bridge: its store is unavailable"]
+    }
+  ]
+}

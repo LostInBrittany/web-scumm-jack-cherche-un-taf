@@ -6,6 +6,7 @@ import type { AddressInfo } from 'node:net';
 import { resolve } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { MemoryRunStore, RunQueue, runsRoute, type RunRecord } from '../bridge/src/runs';
+import type { SubmissionLimiter } from '../bridge/src/runs-limiter';
 import { StoreBusyError } from '../bridge/src/store-async';
 
 let n = 0;
@@ -173,6 +174,28 @@ describe('/v1/runs', () => {
     expect(ok.status).toBe(413); // the envelope itself is over 100 bytes: the queue's own limit, not the body's
     const small = await fetch(`${base}/v1/runs`, { method: 'POST', body: ' '.repeat(2 * 100 + 4096) });
     expect(small.status).toBe(400);
+  });
+
+  it('a 429 says Retry-After only when its limiter gave seconds to wait (4.3.0)', async () => {
+    // Kills runs.ts `err.status === 429 && err.retryAfterS` → `||`: RunsOptions.limiter takes any SubmissionLimiter,
+    // and a Take may refuse with retryAfterS 0; then no Retry-After is sent, never `retry-after: 0`.
+    const own = q as unknown as { limiter: SubmissionLimiter };
+    const real = own.limiter;
+    try {
+      for (const [wait, header] of [
+        [0, null],
+        [7, '7'],
+      ] as const) {
+        own.limiter = { take: async () => ({ ok: false, retryAfterS: wait }), purge: async () => 0 };
+        const r = await fetch(`${base}/v1/runs`, {
+          method: 'POST',
+          body: JSON.stringify({ player: 'Lou', envelope: 'x' }),
+        });
+        expect([r.status, r.headers.get('retry-after')]).toEqual([429, header]);
+      }
+    } finally {
+      own.limiter = real;
+    }
   });
 
   it('a busy store is 503 with Retry-After 1; another failure is 500 without', async () => {

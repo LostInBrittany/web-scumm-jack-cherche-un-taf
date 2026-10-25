@@ -11,6 +11,7 @@ import { createHash } from 'node:crypto';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { projectOf } from '../release/artifacts.mjs';
 import { filesUnder } from '../release/candidate.mjs';
 
 const sha256 = (b) => createHash('sha256').update(b).digest('hex');
@@ -81,7 +82,8 @@ export function surfacesOf({ candidate, site, declared, version, config }) {
     ...candidate,
     ...Object.fromEntries(Object.entries(site).map(([p, d]) => [`site:${p}`, d])),
   };
-  const fill = (g) => g.replaceAll('{pkg}', pkg);
+  // `{proj}`: the name the release's own files start with, quest-n-click from 4.2.5 (D47), web-scumm before.
+  const fill = (g) => g.replaceAll('{pkg}', pkg).replaceAll('{proj}', projectOf(pkg));
   const claimed = new Set();
   // A surface whose pass came later (`since`, 4.2.1) is not one of an older candidate.
   const atLeast = (a, b) => {

@@ -1,6 +1,6 @@
 // The contract of `RealityStore` (4.1.10, ADR 0009), the same tests for every store: memory, a 4.1.9 store wrapped,
 // SQLite (a file, two connections), and Postgres when `BRIDGE_PG_URL` names a database (CI's `bridge-postgres` job;
-// locally a throwaway server: docs/en/REALITY-OPS.md). Properties with fast-check: n proposals at once for one player
+// locally a throwaway server: wiki/en/bridge.install-run.md). Properties with fast-check: n proposals at once for one player
 // give contiguous sequences and one row per dedupe key; every read and write with the wrong tenant sees nothing of the
 // other tenant. The schema goes up, down and up again.
 import { readdirSync } from 'node:fs';

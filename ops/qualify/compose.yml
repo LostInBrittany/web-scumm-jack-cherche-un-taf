@@ -8,13 +8,13 @@
 # the database URL and password are secret files, never environment values. Three networks: `public` (the proxy's
 # ports, on 127.0.0.1 only), `edge` (the proxy and the Bridges) and `store` (the Bridges and Postgres), the last two
 # internal: Postgres and the Bridges' own ports are never published.
-name: web-scumm-qualify
+name: quest-n-click-qualify
 
 x-bridge: &bridge
   build:
     context: ${QUALIFY_BUILD:?ops:qualify sets QUALIFY_BUILD}
     dockerfile: Dockerfile.bridge
-  image: web-scumm-bridge:qualify
+  image: quest-n-click-bridge:qualify
   # The proxy is trusted by its fixed address on `edge` (second reading of 4.1.18 PR 4): without it every client
   # shares the proxy's address, and one client failing its token would close the per-address limits for everyone.
   command:

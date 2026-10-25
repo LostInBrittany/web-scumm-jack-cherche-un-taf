@@ -12,8 +12,35 @@ export interface Probes {
   command: (cmd: string, args: string[]) => { ok: boolean; stdout: string };
   exists: (path: string) => boolean;
   nodeVersion: string;
-  /** Playwright browser name → executable path. */
-  browsers: Record<string, string>;
+  /** Playwright browser name → executable path; null when the `playwright` package is not installed. */
+  browsers: Record<string, string> | null;
+}
+
+interface PlaywrightBrowsers {
+  chromium: { executablePath(): string };
+  firefox: { executablePath(): string };
+  webkit: { executablePath(): string };
+}
+
+/**
+ * The Playwright browsers' paths, or null when the package is absent (4.5.0): a created project does not ship it, and
+ * `npx quest-n-click doctor` there said ERR_MODULE_NOT_FOUND instead of the fix. Another failure is not hidden.
+ */
+export async function playwrightBrowsers(
+  load: () => Promise<PlaywrightBrowsers>,
+): Promise<Record<string, string> | null> {
+  let pw: PlaywrightBrowsers;
+  try {
+    pw = await load();
+  } catch (e) {
+    if ((e as { code?: unknown } | null)?.code === 'ERR_MODULE_NOT_FOUND') return null;
+    throw e;
+  }
+  return {
+    Chromium: pw.chromium.executablePath(),
+    Firefox: pw.firefox.executablePath(),
+    WebKit: pw.webkit.executablePath(),
+  };
 }
 
 /**
@@ -42,7 +69,7 @@ export function collectChecks(p: Probes, o: { release?: boolean } = {}): Check[]
     name: 'Python image modules',
     ok: mods.ok,
     detail: mods.ok ? mods.stdout.trim() : 'Pillow, NumPy and/or SciPy missing',
-    fix: 'Run: python3 -m pip install -r requirements.txt',
+    fix: 'Run: python3 -m pip install --require-hashes -r requirements.txt',
     ...optional,
   });
   const ffmpeg = p.command('ffmpeg', ['-version']);
@@ -53,7 +80,16 @@ export function collectChecks(p: Probes, o: { release?: boolean } = {}): Check[]
     fix: 'Install ffmpeg to build audio.',
     ...optional,
   });
-  for (const [name, path] of Object.entries(p.browsers)) {
+  if (!p.browsers)
+    // Without the package no browser test runs; a game is still written, played and built without it.
+    checks.push({
+      name: 'Playwright',
+      ok: false,
+      detail: 'the playwright package is not installed (browser tests only)',
+      fix: 'Run: npm install --save-dev playwright, then npx playwright install chromium',
+      optional: true,
+    });
+  for (const [name, path] of Object.entries(p.browsers ?? {})) {
     const ok = p.exists(path);
     checks.push({
       name: `Playwright ${name}`,
@@ -81,7 +117,7 @@ export function doctorReport(checks: Check[]): { text: string; failed: number; o
     failed
       ? `${failed} prerequisite${failed === 1 ? '' : 's'} missing.`
       : optional
-        ? `Development and browser-test prerequisites are ready; ${optional} optional one${optional === 1 ? '' : 's'} missing (assets, audio or a second browser).`
+        ? `Development and browser-test prerequisites are ready; ${optional} optional one${optional === 1 ? '' : 's'} missing (assets, audio or a browser).`
         : 'Development, asset and browser-test prerequisites are ready.',
   );
   return { text: lines.join('\n'), failed, optional };

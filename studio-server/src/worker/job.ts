@@ -42,6 +42,12 @@ const KINDS: readonly string[] = [
 ];
 
 export const MAX_JOB_MS = 5 * 60_000;
+/**
+ * How far the Studio's clock may run ahead of the worker's (4.2.3, the reference deployment: a few milliseconds of
+ * skew between two machines refused half the jobs, signed at exactly `now + MAX_JOB_MS`). A job still lives
+ * `MAX_JOB_MS + CLOCK_SKEW_MS` at most by the worker's clock.
+ */
+export const CLOCK_SKEW_MS = 30_000;
 
 export function signJob(job: Job, privateKey: KeyObject): string {
   const body = Buffer.from(JSON.stringify(job)).toString('base64url');
@@ -54,7 +60,8 @@ export function verifyJob(token: string, publicKey: KeyObject, now = Date.now())
   if (!body || !sig || !verify(null, Buffer.from(body), publicKey, Buffer.from(sig, 'base64url')))
     throw new Error('the job is not signed by the Studio');
   const job = JSON.parse(Buffer.from(body, 'base64url').toString('utf8')) as Job;
-  if (!(job.exp > now) || job.exp - now > MAX_JOB_MS) throw new Error('the job has expired');
+  if (!(job.exp > now)) throw new Error('the job has expired');
+  if (job.exp - now > MAX_JOB_MS + CLOCK_SKEW_MS) throw new Error('the job lives longer than a job may');
   if (job.dest !== `staging/${job.id}/`) throw new Error('the job writes outside its own staging prefix');
   if (!KINDS.includes(job.kind)) throw new Error(`unknown job kind: ${String(job.kind)}`);
   return job;

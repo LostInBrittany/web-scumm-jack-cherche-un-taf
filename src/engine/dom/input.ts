@@ -6,9 +6,11 @@ import { defaultVerb } from '../core/default-verb';
 import { isTyping } from './a11y';
 import { DOUBLE_TAP_MS, el, esc, NEAR_MISS } from './app-shared';
 import type { App } from './app';
+import { fitSideColumn } from './shell';
 
 /** Escape closes the topmost thing (a menu, the map, the transcript, a cutscene's skip) or opens the pause menu;
- * Space and Enter advance a line of dialogue (a focused button already acts on Enter and Space on its own). */
+ * Space and Enter advance a line of dialogue (a focused button already acts on Enter and Space on its own); a verb's
+ * `key` picks it (#203). */
 export function onKey(app: App, e: KeyboardEvent) {
   if (isTyping(e) || !app.engine.state) return;
   const onButton = (e.target as HTMLElement | null)?.tagName === 'BUTTON';
@@ -58,7 +60,30 @@ export function onKey(app: App, e: KeyboardEvent) {
     e.preventDefault();
     app.endSpeech();
     app.eatClick = performance.now();
+    return;
   }
+  const v = verbForKey(app, e);
+  if (v) {
+    e.preventDefault();
+    app.pickVerb(v);
+  }
+}
+
+/**
+ * The verb a key picks (#203): the verb whose `key` it is, any case, without Ctrl, Alt or Meta, and only when the
+ * verb bar is what the player plays with (shown, nothing over the scene, no line on screen, the engine idle), and while
+ * the player has not turned the keys off in the settings (4.3.0).
+ */
+function verbForKey(app: App, e: KeyboardEvent): VerbId | null {
+  if (!app.settings.verbKeys || e.ctrlKey || e.altKey || e.metaKey || e.repeat || e.key.length !== 1) return null;
+  const k = e.key.toLocaleLowerCase();
+  const v = app.game.verbs.find((x) => x.key?.toLocaleLowerCase() === k);
+  if (!v || app.engine.busy || app.verbsEl.hidden || app.speechEl || app.choosing || app.transcript) return null;
+  // The credits (from the pause menu) roll over the scene too, without being an overlay (4.3.0).
+  if (app.scene.querySelector('.overlay, .dim, .credits')) return null;
+  // A dialog outside the scene (a remix or revision prompt) holds the focus: the letter is for it.
+  if ((e.target as HTMLElement | null)?.closest?.('[role="dialog"], [aria-modal="true"]')) return null;
+  return v.id;
 }
 
 export function toScene(app: App, e: PointerEvent): Point {
@@ -126,11 +151,15 @@ export function verbFor(app: App, target: Id): VerbId | null {
 /**
  * The verb a single tap with no verb picked goes through this exit with (#188), or null when the tap only walks: an
  * exit (declared, or its generated hotspot) whose `onTap` is `go`, or any exit but a `walk` one when the game sets
- * `input.exitOnTap`. The verb is the double tap's (`defaultVerb`).
+ * `input.exitOnTap`. A hotspot that says `onTap: 'go'` acts the same way (4.4.0); `exitOnTap` is about exits only.
+ * The verb is the double tap's (`defaultVerb`).
  */
 function tapVerb(app: App, id: Id): VerbId | null {
   const room = app.view.room;
-  if (!room || (!room.exits?.[id] && !room.hotspots?.[id]?.exit)) return null;
+  if (!room) return null;
+  const spot = room.hotspots?.[id];
+  if (spot && !spot.exit && !room.exits?.[id]) return spot.onTap === 'go' ? defaultVerb(app.game, room, id) : null;
+  if (!room.exits?.[id] && !spot?.exit) return null;
   const onTap = room.exits?.[id]?.onTap ?? (app.game.input?.exitOnTap ? 'go' : 'walk');
   return onTap === 'go' ? defaultVerb(app.game, room, id) : null;
 }
@@ -152,11 +181,15 @@ export async function actOnTarget(app: App, id: Id) {
     }
     const ap = app.engine.approach(id);
     const go = tapVerb(app, id);
+    // The game the tap was made in: a load (or a new game, a checkpoint) replaces the state, a room change moves it.
+    const state = app.engine.state;
+    const at = state.room;
     app.sentence(id);
     if (ap) await app.presenter.intent({ kind: 'walk', to: ap });
     // An exit that goes on a single tap (#188): through it on arrival, as a double tap would. The walk stays a walk, so
-    // a tap elsewhere meanwhile redirects the hero and cancels this; so do a verb or an item picked, or another room.
-    if (go && tap === app.taps && !app.verb && !app.a && app.view.room === room) {
+    // a tap elsewhere meanwhile redirects the hero and cancels this; so do a verb or an item picked, a save loaded or
+    // another room.
+    if (go && tap === app.taps && !app.verb && !app.a && app.engine.state === state && state.room === at) {
       app.resetVerb();
       await app.presenter.intent({ kind: 'act', verb: go, target: id });
     }
@@ -293,7 +326,7 @@ export function renderInv(app: App) {
     if (b.dataset.id !== id) {
       b.dataset.id = id;
       b.innerHTML = `<img src="${app.bank.img(it?.icon ?? id)}" alt="">`;
-      b.setAttribute('aria-label', it?.name ?? id);
+      b.setAttribute('aria-label', app.engine.text(it?.name ?? id));
       b.onclick = () => void app.onItem(id);
       b.onpointerenter = (e) => {
         if (e.pointerType === 'mouse' && !app.engine.busy) app.sentence(id);
@@ -311,6 +344,8 @@ export function renderInv(app: App) {
     else b.removeAttribute('aria-disabled');
   }
   app.invNav.hidden = n <= per && !app.desk;
+  // The page buttons take or give back a row of the column, and the verbs come back here after a talk or the map.
+  fitSideColumn(app);
   // The three buttons appended when the side panel was built.
   const [up, pg, down] = app.invNav.children as HTMLCollectionOf<HTMLButtonElement>;
   must(up, 'page up button').disabled = app.invPage === 0;

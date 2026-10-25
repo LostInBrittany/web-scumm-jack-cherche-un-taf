@@ -67,7 +67,7 @@ export class RemixTab {
         h(
           'p',
           null,
-          'This game declares no `remix` manifest: one world, the story. docs/en/REMIX.md says how to add one.',
+          'This game declares no `remix` manifest: one world, the story. https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Create-Remix says how to add one.',
         ),
         this.anchorsSection(),
       );

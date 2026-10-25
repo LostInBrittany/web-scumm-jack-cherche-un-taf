@@ -21,8 +21,9 @@ import { createStudio, operationContext } from '../ops/core';
 import { anchorsOf, Comments } from './comments';
 import { GitSync } from './git';
 import { mcpEndpoint, type McpEndpoint } from './mcp';
+import { snapshotMemo } from './snapshot-memo';
 import { StudioError } from '../ops/errors';
-import { spansOf } from '../ops/spans';
+import { readOwnSpans, spansOf } from '../ops/spans';
 import { type BlobStore, fsBlobStore } from '../ops/blobs';
 import { sha256 } from '../ops/durable';
 import { Journal } from '../ops/journal';
@@ -274,7 +275,10 @@ async function main(argv: string[]): Promise<number> {
   if (restoring) throw new ConfigError('a restore is under way: end it with `replay` (see STUDIO-SERVER.md)');
 
   // A shared Studio (OIDC): every write claims the spans of its files, in the transaction of its intent (P2).
-  const leases = config.oidc ? new Leases(db) : undefined;
+  // A faulty spans.json leaves the game's own files without a span (422) but never blocks the write that repairs it.
+  const ownFault = (e: Error) =>
+    console.error(`studio: ${e.message}: the game's own files have no span until it is fixed`);
+  const leases = config.oidc ? new Leases(db, { own: () => readOwnSpans(gameDir, ownFault) }) : undefined;
   const journal = await Journal.open({
     db,
     blobs,
@@ -291,7 +295,7 @@ async function main(argv: string[]): Promise<number> {
     precheck: leases
       ? async (paths) => {
           const who = operationContext.getStore()?.claimant;
-          if (who) await leases.check(who, spansOf(paths));
+          if (who) await leases.check(who, spansOf(paths, leases.own()));
         }
       : undefined,
   });
@@ -428,6 +432,7 @@ async function main(argv: string[]): Promise<number> {
       privateKeyPem: secrets.STUDIO_WORKER_KEY.replace(/\\n/g, '\n'),
       instance: config.worker.instance,
       metrics,
+      log: logLine,
       at: async () => ({ epoch: await journal.epoch(), rev: await journal.revision() }),
     });
   }
@@ -517,7 +522,7 @@ async function main(argv: string[]): Promise<number> {
           executor!.cut(packCut(gameDir, req.sheetId, source, ext), config.game, req, signal)
       : undefined,
   });
-  // The page: configured, else the one the package was built with (web-scumm-studio-server), else this checkout's.
+  // The page: configured, else the one the package was built with (quest-n-click-studio-server), else this checkout's.
   const clientDir = resolve(
     config.clientDir ?? process.env.WEB_SCUMM_STUDIO_CLIENT ?? join(engineRoot, '.cache', 'studio-client'),
   );
@@ -538,6 +543,17 @@ async function main(argv: string[]): Promise<number> {
   // between reading the head and packing it, and the folder (a cache) has not drifted from it. The prepared assets are
   // read only on a hosted Studio: their version is computed once, at the first build.
   let version: string | undefined;
+  // One snapshot per revision (4.4.0), shared by the preview, the health, the published builds and the engine's
+  // upgrade: packed once under the lock, given again while the head has not moved (snapshot-memo.ts).
+  const snapshot = snapshotMemo({
+    pack: () =>
+      server.exclusive(async () => {
+        await journal.reconcile();
+        return { epoch: await journal.epoch(), rev: await journal.revision(), bytes: packSnapshot(gameDir) };
+      }),
+    head: async () => ({ epoch: await journal.epoch(), rev: await journal.revision() }),
+    events: journal.events,
+  });
   const previews =
     auth && authStore && executor
       ? new Previews({
@@ -546,11 +562,7 @@ async function main(argv: string[]): Promise<number> {
           publicDir,
           game: config.game,
           studioOrigin: config.publicUrl,
-          snapshot: () =>
-            server.exclusive(async () => {
-              await journal.reconcile();
-              return { epoch: await journal.epoch(), rev: await journal.revision(), bytes: packSnapshot(gameDir) };
-            }),
+          snapshot,
           build: (bytes, params, at) => executor!.preview(bytes, params, at),
           assetsVersion: () => prepared?.version() ?? (version ??= assetsVersion(join(publicDir, 'assets'))),
           prepared: () => prepared?.folder() ?? null,
@@ -587,30 +599,23 @@ async function main(argv: string[]): Promise<number> {
       ? new Health({
           db,
           journal,
-          snapshot: () =>
-            server.exclusive(async () => {
-              await journal.reconcile();
-              return { epoch: await journal.epoch(), rev: await journal.revision(), bytes: packSnapshot(gameDir) };
-            }),
+          snapshot,
           judge: judge!,
           log: logLine,
         })
       : undefined;
   journal.events.on('confirmed', () => void health?.schedule());
   // The engine's upgrade (4.2.3 PR 8, H6): the owner's, on the worker, under their exclusive lease, judged before it
-  // is written as one undoable operation. Hosted only: a local Studio runs `web-scumm migrate` itself.
+  // is written as one undoable operation. Hosted only: a local Studio runs `quest-n-click migrate` itself.
   const engineUpgrade =
     executor && hosted && judge
       ? new EngineUpgrade({
-          snapshot: () =>
-            server.exclusive(async () => {
-              await journal.reconcile();
-              return { epoch: await journal.epoch(), rev: await journal.revision(), bytes: packSnapshot(gameDir) };
-            }),
+          snapshot,
           migrate: (bytes, at) => executor!.migrate(bytes, at),
           judge,
-          write: async (what, files) => {
-            await studio.writeFiles(what, files);
+          validate: (bytes, at) => executor!.validateSnapshot(bytes, at),
+          write: async (what, files, o) => {
+            await studio.writeFiles(what, files, o);
             return journal.revision();
           },
           exclusive: exclusiveLease,
@@ -654,11 +659,7 @@ async function main(argv: string[]): Promise<number> {
           studioOrigin: config.publicUrl,
           assetsVersion: () => prepared?.version() ?? (version ??= assetsVersion(join(publicDir, 'assets'))),
           prepared: () => prepared?.folder() ?? null,
-          snapshot: () =>
-            server.exclusive(async () => {
-              await journal.reconcile();
-              return { epoch: await journal.epoch(), rev: await journal.revision(), bytes: packSnapshot(gameDir) };
-            }),
+          snapshot,
           snapshotAt: async (rev) => packFiles(await journal.filesAt(rev, (p) => packable(p))),
           epoch: () => journal.epoch(),
           build: (bytes, params, at) => executor!.preview(bytes, params, at),

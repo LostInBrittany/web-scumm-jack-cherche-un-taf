@@ -56,7 +56,7 @@ function at(root: unknown, segs: Seg[]): unknown {
 }
 
 /**
- * Applies a text edit (`setText` semantics, docs/en/STUDIO.md "Texts") to a room definition: replace the string at
+ * Applies a text edit (`setText` semantics, wiki/en/studio.api.md#texts) to a room definition: replace the string at
  * `path`, `value: null` deletes a list line (or a whole look entry; the last line of a look list removes the entry),
  * a path ending in `[+]` appends a line (`look.<id>[+]` creates the entry, and turns a single look line into a list).
  * Best effort on the data: returns false when the definition has nothing at that path (a text built by code).

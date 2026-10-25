@@ -1,5 +1,6 @@
 // Shared types of the Studio: the core functions (studio-server/src/ops/core.ts), the dev-server API (tools/studio/plugin.ts),
 // the Studio UI (src/studio/) and the MCP server all speak these shapes. Type-only: safe to import from the browser.
+import type { DocsSet } from '../wiki/docs';
 import type {
   CharacterDef,
   GameDef,
@@ -222,6 +223,32 @@ export interface SolveData {
 
 export type ScreenshotResult = { file: string; url: string } | { unavailable: true; reason: string };
 
+/** One side of a room's capture in the diff (4.4.0): the PNG (a data URL, and its file), or why there is none. */
+export type DiffShot = { file: string; url: string } | { missing: string };
+
+/** GET /diff/<from>..<to>/captures (4.4.0): each room the diff names, rendered at both revisions. */
+export type DiffCaptures =
+  | {
+      from: number;
+      to: number;
+      /** The captures' size in pixels (a fixed viewport, one device pixel). */
+      size: [number, number];
+      rooms: {
+        room: string;
+        why: string[];
+        before: DiffShot;
+        after: DiffShot;
+        /** Both sides drawn: where they differ ([x, y, width, height], in the captures' pixels)… */
+        box?: [number, number, number, number];
+        /** …or nowhere (no channel off by more than 16): no visible change at this size. */
+        same?: true;
+      }[];
+      /** More rooms than the captures show (6). */
+      cut?: true;
+      ms: number;
+    }
+  | { unavailable: true; reason: string };
+
 /** Server-sent event of GET /__studio/api/events. `file` is relative to the game folder (`rooms/house.ts`). */
 // ---------------------------------------------------------------------------
 // Demo mode (no server: GitHub Pages): a snapshot of the game, the user's edits as a patch list.
@@ -239,6 +266,11 @@ export interface StudioSnapshot {
   notes: NotesFile;
   /** Markdown documents by name (CONTENT_GUIDE). */
   docs: Record<string, string>;
+  /**
+   * 4.5.0: the documentation of wiki/ the demo's Assistant searches and reads by id: its index and its `ready` pages
+   * (never a draft). Absent from an older snapshot.
+   */
+  wiki?: DocsSet;
   /** The Assets tab's listing (read-only in the demo; thumbnails from public/assets). */
   assets?: AssetsListing;
 }

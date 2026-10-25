@@ -1,6 +1,6 @@
 """Sound effects from the house palette: short Furnace modules (one pattern, one row = one tick at 60 Hz) rendered to
 WAV, trimmed, normalised and written as MP3 into a game's audio/sfx folder (what `npm run assets` ships). The recipes live in a game's sfx.json
-(docs/en/AUDIO.md, "Sound effects"): every effect uses the palette's FM patches, PSG envelopes and noise, so the
+(wiki/en/create.sound-effects.md#recipes): every effect uses the palette's FM patches, PSG envelopes and noise, so the
 effects and the music share one sonic identity.
 
   sfx.json:

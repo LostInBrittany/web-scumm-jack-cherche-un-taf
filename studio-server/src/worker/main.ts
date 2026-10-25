@@ -1,6 +1,6 @@
 // The processing worker (4.2.1, plan §3.8, ADR 0028): a separate Clever Cloud application that holds no secret of
 // the platform — no database, no session key, no permanent Cellar credentials, no signing key. It is the trusted
-// supervisor of one job at a time:
+// supervisor of one job at a time per lane (4.4.0, lanes.ts: a preview never waits behind the other kinds):
 //   POST /jobs {token}   checks the Studio's signature (public key only), the instance, the expiry and single use;
 //                        fetches the snapshot by its presigned URL and checks its sha256 against the signed one;
 //                        runs the game's code in a fresh child process, in a fresh folder, with an emptied
@@ -17,12 +17,14 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Job, publicKeyOf, verifyJob } from './job';
+import { Lanes, laneOf } from './lanes';
 import { pythonPathOf } from './prepare';
 import { previewFiles } from './preview-build';
 import { unpackSnapshot } from './snapshot';
 
 const CHILD = fileURLToPath(new URL('./child.ts', import.meta.url));
-// A game imports `web-scumm/content` by the package's self-reference: its folder must sit inside the package.
+// A game imports `@quest-n-click/engine/content` by the package's
+// self-reference: its folder must sit inside the package.
 export const JOBS = fileURLToPath(new URL('../../../.cache/jobs/', import.meta.url));
 const MAX_OUT = 16 * 1024 * 1024;
 /** A `prepare`'s answer carries the prepared files (4.2.2): up to the Studio's own bound on a result (32 MiB). */
@@ -48,6 +50,8 @@ export interface JobResult {
   /** validate: the verdict. */
   errors?: string[];
   warnings?: string[];
+  /** validate (4.3.0): the game's own code did not load, and why; no verdict then. */
+  unloadable?: string;
   /** load: the module as data. */
   module?: unknown;
   /** lint, solve, playtests (4.2.2): the diagnostic, as the Studio's route answers it; prepare, migrate: their answer. */
@@ -152,6 +156,19 @@ async function survivors(pid: number): Promise<boolean> {
   return true;
 }
 
+/**
+ * A job's phases in ms (4.4.0), as the worker lived them: `queueMs` (from its POST received to its run's start: the
+ * request read, the job checked, the jobs before it), `fetchMs` (the snapshot fetched and checked), `unpackMs`,
+ * `childMs` (the child, from its start to its exit), `putMs` (the result written). A phase not reached is left out.
+ */
+export interface Phases {
+  queueMs?: number;
+  fetchMs?: number;
+  unpackMs?: number;
+  childMs?: number;
+  putMs?: number;
+}
+
 const strings = (v: unknown, max = 500): string[] =>
   Array.isArray(v) ? v.slice(0, max).map((x) => String(x).slice(0, 2_000)) : [];
 
@@ -159,20 +176,28 @@ export function createWorker(o: WorkerOptions) {
   const key = publicKeyOf(o.publicKeyPem);
   const seen = new Map<string, number>();
   let recycle = false;
-  let chain: Promise<unknown> = Promise.resolve();
-  let queued = 0;
+  const lanes = new Lanes();
   const log = o.log ?? (() => {});
 
-  async function run(job: Job, signal: AbortSignal): Promise<JobResult> {
+  /** A job run; its phases in ms go to `t` as they end (4.4.0, the `worker-job` line). */
+  async function run(job: Job, signal: AbortSignal, t: Phases): Promise<JobResult> {
+    let at = Date.now();
+    const lap = (name: keyof Phases) => {
+      const now = Date.now();
+      t[name] = now - at;
+      at = now;
+    };
     const snap = await fetch(job.urls.snapshot, { signal: AbortSignal.timeout(30_000) });
     if (!snap.ok) throw new Error(`snapshot: ${snap.status}`);
     const bytes = Buffer.from(await snap.arrayBuffer());
     if (createHash('sha256').update(bytes).digest('hex') !== job.snapshot)
       throw new Error('the snapshot is not the signed one');
+    lap('fetchMs');
     mkdirSync(JOBS, { recursive: true });
     const dir = mkdtempSync(join(JOBS, 'job-'));
     try {
       unpackSnapshot(bytes, dir);
+      lap('unpackMs');
       const timeoutMs = Math.min(Number(job.params.timeoutMs) || DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS);
       const t0 = Date.now();
       // A `prepare` or a `cut` finds python3 and ffmpeg on the worker's own PATH, and the packages its build hook
@@ -182,6 +207,7 @@ export function createWorker(o: WorkerOptions) {
           ? { ...job.params, systemPath: process.env.PATH ?? '', pythonPath: pythonPathOf(process.env) }
           : job.params;
       const r = await runChild(dir, timeoutMs, job.kind, undefined, params, signal);
+      lap('childMs');
       if (r.pid && (await survivors(r.pid))) {
         recycle = true;
         log('worker-survivor', { job: job.id });
@@ -202,9 +228,12 @@ export function createWorker(o: WorkerOptions) {
           result.failed = `the game does not load (exit ${r.code})`;
         }
       if (!result.failed && job.kind === 'validate') {
-        const v = (parsed ?? {}) as { errors?: unknown; warnings?: unknown };
-        result.errors = strings(v.errors);
-        result.warnings = strings(v.warnings);
+        const v = (parsed ?? {}) as { errors?: unknown; warnings?: unknown; unloadable?: unknown };
+        if (typeof v.unloadable === 'string') result.unloadable = v.unloadable.slice(0, 2_000);
+        else {
+          result.errors = strings(v.errors);
+          result.warnings = strings(v.warnings);
+        }
       } else if (!result.failed && job.kind === 'preview') {
         const files = previewFiles((parsed as { files?: unknown } | undefined)?.files);
         if (files) result.files = files;
@@ -224,11 +253,13 @@ export function createWorker(o: WorkerOptions) {
         if (!result.data && refused === true) result.refused = true;
       } else if (!result.failed) result.module = parsed;
       result.ms = Date.now() - t0;
+      at = Date.now();
       const put = await fetch(job.urls.result, {
         method: 'PUT',
         body: JSON.stringify(result),
         signal: AbortSignal.timeout(30_000),
       });
+      lap('putMs');
       if (!put.ok) throw new Error(`result: ${put.status}`);
       return result;
     } finally {
@@ -237,6 +268,7 @@ export function createWorker(o: WorkerOptions) {
   }
 
   async function handle(req: IncomingMessage, res: ServerResponse) {
+    const received = Date.now();
     const send = (status: number, body: unknown) => {
       res.writeHead(status, { 'content-type': 'application/json', 'cache-control': 'no-store' });
       res.end(JSON.stringify(body));
@@ -256,6 +288,8 @@ export function createWorker(o: WorkerOptions) {
       job = verifyJob(String(token), key);
       if (job.instance !== o.instance) throw new Error('the job is for another instance');
     } catch (e) {
+      // Said in the worker's log too: the Studio sees a 403 and its reason, the host sees both sides.
+      log('worker-job-refused', { error: (e as Error).message });
       return send(403, { error: (e as Error).message });
     }
     const now = Date.now();
@@ -263,30 +297,29 @@ export function createWorker(o: WorkerOptions) {
     if (seen.has(job.id)) return send(409, { error: 'the job was already run' });
     seen.set(job.id, job.exp);
     if (recycle) return send(503, { error: 'this instance is to be recycled' });
-    if (queued >= 8) return send(429, { error: 'busy' });
-    queued++;
     // The Studio closed its request before the answer (a cancel): the job is not run, or its child is killed.
     const gone = new AbortController();
-    res.on('close', () => {
-      if (!res.writableEnded) gone.abort();
-    });
-    const p = chain.then(() => {
+    const t: Phases = {};
+    const p = lanes.run(laneOf(job.kind), () => {
+      t.queueMs = Date.now() - received;
       // A job that waited past its expiry is not run: its URLs are dead, and the Studio has given up on it.
       if (Date.now() >= job.exp) throw new Error('the job expired while it waited');
       if (gone.signal.aborted) throw new Error('cancelled by the Studio');
-      return run(job, gone.signal);
+      return run(job, gone.signal, t);
     });
-    chain = p.catch(() => {});
+    if (!p) return send(429, { error: 'busy' });
+    res.on('close', () => {
+      if (!res.writableEnded) gone.abort();
+    });
     try {
       const v = await p;
-      log('worker-job', { job: job.id, kind: v.kind, failed: !!v.failed, ms: v.ms });
+      log('worker-job', { job: job.id, kind: v.kind, failed: !!v.failed, ms: v.ms, ...t });
       send(200, { ok: true });
     } catch (e) {
-      log('worker-job-failed', { job: job.id, error: (e as Error).message });
+      log('worker-job-failed', { job: job.id, kind: job.kind, error: (e as Error).message, ...t });
       send(502, { error: (e as Error).message });
     } finally {
-      queued--;
-      if (recycle && queued === 0) o.onRecycle?.();
+      if (recycle && lanes.held() === 0) o.onRecycle?.();
     }
   }
 

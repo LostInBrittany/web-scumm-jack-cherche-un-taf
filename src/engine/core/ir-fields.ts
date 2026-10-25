@@ -6,6 +6,7 @@
 import type {
   ActorDef,
   CharacterDef,
+  Choice,
   ExitDef,
   GameDef,
   HotspotDef,
@@ -31,7 +32,7 @@ const game: Classes<GameDef> = {
   players: 'logic',
   hintItem: 'logic',
   hintVoice: 'logic',
-  // Ids and joining words are logic; labels too (said in the sentence line); colours are presentation.
+  // Ids and joining words are logic; labels too (said in the sentence line); colours and keys (#203) are presentation.
   verbs: 'both',
   characters: 'both',
   items: 'both',
@@ -128,6 +129,8 @@ const hotspot: Classes<HotspotDef> = {
   kind: 'logic',
   visible: 'logic',
   exit: 'logic',
+  // A single tap's meaning (4.4.0): the player's input, like an exit's.
+  onTap: 'presentation',
 };
 
 const exit: Classes<ExitDef> = {
@@ -176,5 +179,16 @@ const stage: Classes<StageDef> = {
   links: 'logic',
 };
 
+// A choice's option (inside a `{ choice }` command): what it offers and runs is logic, its card image presentation (the
+// IR drops it, core/ir.ts `withoutChoiceImages`).
+const choice: Classes<Choice> = {
+  id: 'logic',
+  text: 'logic',
+  if: 'logic',
+  once: 'logic',
+  do: 'logic',
+  img: 'presentation',
+};
+
 /** The classification of every field, by type. */
-export const FIELD_CLASSES = { game, room, prop, actor, hotspot, exit, item, character, stage } as const;
+export const FIELD_CLASSES = { game, room, prop, actor, hotspot, exit, item, character, stage, choice } as const;

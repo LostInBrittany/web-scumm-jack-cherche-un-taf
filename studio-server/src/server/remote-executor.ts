@@ -2,7 +2,8 @@
 // run of the game's code goes there: the guard's validations, and the loads of the game module the Studio reads. For
 // each job it packs a snapshot of the folder, puts it under `staging/<job>/`, presigns one read (the snapshot) and one
 // write (the result) for at most 5 min, signs the job with its Ed25519 key, and asks the worker. It then reads the
-// result itself, checks that it answers this job and is bounded, and deletes the staging prefix. The worker never
+// result itself, checks that it answers this job and is bounded, and deletes the staging prefix (4.4.0: without
+// waiting for the delete before it answers). The worker never
 // names a key the Studio publishes. A result is a signal in the project's trust domain, never a security decision.
 // The last answer of each kind is kept by the snapshot's sha256 for a minute (a redeployed worker is asked again
 // soon): an unchanged game is not sent again. A failure is never kept. A failure of the game's code (a timeout, a
@@ -14,13 +15,38 @@ import type { JobResult } from '../worker/main';
 import { PreviewBuildFailed, type PreviewParams, previewFiles } from '../worker/preview-build';
 import { packSnapshot, snapshotTexts } from '../worker/snapshot';
 import type { DiagnoseKind } from '../ops/diagnose';
-import { StudioError } from '../ops/errors';
+import { GameDoesNotLoad, StudioError } from '../ops/errors';
 import { type Migrated, migratedShape } from '../worker/migrate';
 import { type Prepared, preparedShape } from '../worker/prepare';
 import { type Cut, cutShape } from '../worker/cut';
 import type { CutRequest } from '../../../tools/studio/cut';
 import type { JobObserver } from './metrics';
 import type { S3 } from './s3';
+
+/** At most `max` bytes of a response's body, as text (the rest never read); `null` as JSON when it does not parse. */
+async function headOf(r: Response, max: number): Promise<string> {
+  const reader = r.body?.getReader();
+  if (!reader) return 'null';
+  const parts: Uint8Array[] = [];
+  let n = 0;
+  try {
+    while (n < max) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      n += value.length;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  const text = Buffer.concat(parts).subarray(0, max).toString('utf8');
+  try {
+    JSON.parse(text);
+    return text;
+  } catch {
+    return 'null';
+  }
+}
 
 export interface RemoteExecutorOptions {
   s3: Pick<S3, 'put' | 'get' | 'delete' | 'presign'>;
@@ -32,6 +58,12 @@ export interface RemoteExecutorOptions {
   timeoutMs?: number;
   /** The metrics (4.2.3, H9): each job asked of the worker, while it runs and how it ended. */
   metrics?: JobObserver;
+  /**
+   * A line per job asked of the worker (4.4.0, `worker-call`): its kind, outcome and phases in ms: `putMs` (the
+   * snapshot staged), `postMs` (the worker's answer: its queue and its run), `getMs` (the result read), `delMs` (the
+   * staging deleted). A phase not reached is left out.
+   */
+  log?: (line: Record<string, unknown>) => void;
 }
 
 const MAX_RESULT = 32 * 1024 * 1024;
@@ -41,6 +73,8 @@ export function remoteExecutor(o: RemoteExecutorOptions) {
   const key = privateKeyOf(o.privateKeyPem);
   const timeoutMs = Math.min(o.timeoutMs ?? 60_000, 120_000);
   const last = new Map<JobKind, { sha: string; at: number; result: JobResult }>();
+  /** The stagings being deleted (4.4.0: not awaited by the job): `settled` waits for them. */
+  const pending = new Set<Promise<unknown>>();
 
   async function run(
     kind: JobKind,
@@ -59,8 +93,17 @@ export function remoteExecutor(o: RemoteExecutorOptions) {
     const id = randomUUID();
     const dest = `staging/${id}/`;
     const ended = o.metrics?.job(kind);
+    const phases: Record<string, number> = {};
+    let t = performance.now();
+    const lap = (name: string) => {
+      const now = performance.now();
+      phases[name] = Math.round(now - t);
+      t = now;
+    };
+    let outcome: Parameters<ReturnType<JobObserver['job']>>[0] = 'error';
     try {
       await o.s3.put(`${dest}snapshot.json`, snapshot);
+      lap('putMs');
       const seconds = Math.floor(MAX_JOB_MS / 1000);
       const job: Job = {
         id,
@@ -84,26 +127,55 @@ export function remoteExecutor(o: RemoteExecutorOptions) {
         // The job's own expiry: the worker runs no job past it, so waiting longer would gain nothing.
         signal: signal ? AbortSignal.any([AbortSignal.timeout(MAX_JOB_MS), signal]) : AbortSignal.timeout(MAX_JOB_MS),
       });
+      lap('postMs');
+      if (!r.ok) {
+        // The worker's reason (an expired job, another instance's), read up to 4 KiB only: the worker is not trusted.
+        const why = (JSON.parse(await headOf(r, 4_096)) as { error?: unknown } | null)?.error;
+        throw new Error(
+          `the processing worker refused the job (${r.status}${typeof why === 'string' ? `: ${why.slice(0, 200)}` : ''})`,
+        );
+      }
       await r.body?.cancel();
-      if (!r.ok) throw new Error(`the processing worker refused the job (${r.status})`);
       signal?.throwIfAborted();
       const bytes = await o.s3.get(`${dest}result.json`, { max: MAX_RESULT });
+      lap('getMs');
       if (!bytes) throw new Error('the processing worker left no usable result');
       const v = JSON.parse(bytes.toString('utf8')) as JobResult;
       if (v.job !== id || v.kind !== kind) throw new Error('the processing worker result does not answer this job');
-      if (!v.failed && kind === 'validate' && (!Array.isArray(v.errors) || !Array.isArray(v.warnings)))
+      if (
+        !v.failed &&
+        kind === 'validate' &&
+        typeof v.unloadable !== 'string' &&
+        (!Array.isArray(v.errors) || !Array.isArray(v.warnings))
+      )
         throw new Error('the processing worker result does not answer this job');
       if (!v.failed && kind === 'preview' && !previewFiles(v.files))
         throw new Error('the processing worker result does not answer this job');
       if (!v.failed && cached) last.set(kind, { sha, at: Date.now(), result: v });
-      ended?.(v.timedOut ? 'timeout' : v.failed ? 'failed' : 'ok');
+      outcome = v.timedOut ? 'timeout' : v.failed ? 'failed' : 'ok';
+      ended?.(outcome);
       return v;
     } catch (e) {
       // A wait given up on its deadline is a timeout, as the worker's own is.
-      ended?.((e as Error)?.name === 'TimeoutError' ? 'timeout' : 'error');
+      outcome = (e as Error)?.name === 'TimeoutError' ? 'timeout' : 'error';
+      ended?.(outcome);
       throw e;
     } finally {
-      await Promise.all([o.s3.delete(`${dest}snapshot.json`), o.s3.delete(`${dest}result.json`)]).catch(() => {});
+      // The staging deleted without waiting for it (4.4.0): the answer goes now. A delete that fails is said; the
+      // collection takes what is left (staging older than an hour, ops/gc.ts).
+      t = performance.now();
+      const cleared: Promise<void> = Promise.all([
+        o.s3.delete(`${dest}snapshot.json`),
+        o.s3.delete(`${dest}result.json`),
+      ])
+        .catch((e) => o.log?.({ event: 'worker-staging-left', job: id, message: String((e as Error)?.message) }))
+        .then(() => {
+          lap('delMs');
+          o.log?.({ event: 'worker-call', kind, job: id, outcome, ...phases });
+        })
+        .catch(() => {})
+        .finally(() => pending.delete(cleared));
+      pending.add(cleared);
     }
   }
 
@@ -127,11 +199,16 @@ export function remoteExecutor(o: RemoteExecutorOptions) {
     const t0 = Date.now();
     const v = await run('validate', snapshot, {}, at);
     if (v.failed) throw new Error(v.failed);
+    if (typeof v.unloadable === 'string') throw new GameDoesNotLoad(v.unloadable.slice(0, 2_000), 422);
     const errors = v.errors!.map(String);
     return { ok: errors.length === 0, errors, warnings: (v.warnings ?? []).map(String), ms: Date.now() - t0 };
   }
 
   return {
+    /** Resolves once every staging being deleted is (the tests; a stop). */
+    async settled(): Promise<void> {
+      while (pending.size) await Promise.all(pending);
+    },
     validate: (dir: string): Promise<ValidateResult> => validateSnapshot(packSnapshot(dir)),
     validateSnapshot,
     /** The asset tools' `prepare` (4.2.2 PR 6b) on a version 2 snapshot: the prepared files and the new manifest. */
@@ -167,7 +244,7 @@ export function remoteExecutor(o: RemoteExecutorOptions) {
       const v = await run('migrate', snapshot, {}, at);
       if (v.timedOut) throw new StudioError(`${v.failed}: try again`, 504);
       if (v.failed) throw new StudioError(`the migration cannot run: ${v.failed}`, 422);
-      const m = migratedShape(v.data, new Set(snapshotTexts(snapshot).keys()));
+      const m = migratedShape(v.data, snapshotTexts(snapshot));
       if ('refused' in m) throw new StudioError(`the migration is refused: ${m.refused}`, 422);
       return m;
     },

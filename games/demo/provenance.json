@@ -11,11 +11,11 @@
       "author": "Wano",
       "licence": "CC BY 4.0",
       "status": "final",
-      "note": "LICENSE-ASSETS: attribution \"Artwork by Wano, from the web-scumm project\""
+      "note": "LICENSE-ASSETS: attribution \"Artwork by Wano, from the quest'n'click project, formerly web-scumm\""
     },
     {
       "match": "sfx:*",
-      "source": "Mega Drive renders of the recipes in games/demo/audio/sfx.json (npm run audio, docs/en/AUDIO.md)",
+      "source": "Mega Drive renders of the recipes in games/demo/audio/sfx.json (npm run audio, wiki/en/create.music.md)",
       "author": "Wano",
       "licence": "CC BY 4.0",
       "status": "final"

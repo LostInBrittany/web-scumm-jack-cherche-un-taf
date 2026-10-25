@@ -27,7 +27,8 @@ import { callTool } from '../tools/studio/tools';
 import { quest, questLayouts } from './fixtures/objectives';
 
 const ROOT = resolve(__dirname, '..');
-const docs = { en: readFileSync('docs/en/DSL.md', 'utf8'), fr: readFileSync('docs/fr/DSL.md', 'utf8') };
+/** The DSL reference: the wiki's `create.dsl` since 4.5.0 (docs/en|fr/DSL.md before). */
+const docs = { en: readFileSync('wiki/en/create.dsl.md', 'utf8'), fr: readFileSync('wiki/fr/create.dsl.md', 'utf8') };
 
 /** The quest fixture as a game folder the Studio and MCP work on. */
 function questFolder(): string {

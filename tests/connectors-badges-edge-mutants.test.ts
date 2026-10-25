@@ -3,7 +3,7 @@
 // docs/dev/MUTANTS.md): the exact reason of every refusal, the exact bounds of every date, count and index, each
 // shape a document may take (wrapped or not, an array or one, a key in three forms), the cache's bounds, and what
 // the form answers and rejects. Documents come from a map (no network); the one fetch test uses a local server.
-import { createHash, createPrivateKey, createPublicKey, type KeyObject, sign } from 'node:crypto';
+import { createHash, createPrivateKey, createPublicKey, generateKeyPairSync, type KeyObject, sign } from 'node:crypto';
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo, connect } from 'node:net';
 import { gzipSync } from 'node:zlib';
@@ -304,6 +304,26 @@ describe('OB2 signed', () => {
       'not a signed assertion',
     );
     is(await run({ badge: signed({ verification: { type: 'SignedBadge', creator: KEY } }), email: EMAIL }), 'valid');
+  });
+
+  it('an RS256 key of fewer than 2048 bits, or an ES256 key off P-256, signs no valid badge (4.3.0)', async () => {
+    // The key is the issuer's publicKeyPem: a 512-bit RSA modulus can be factored, so a badge it signs can be forged,
+    // and ES256 names P-256. Each badge below is signed correctly with its own key; only the key's strength differs.
+    const badgeWith = (alg: 'RS256' | 'ES256', priv: KeyObject) => {
+      const input = `${b64u({ alg })}.${b64u(signedPayload())}`;
+      const sig = sign('sha256', Buffer.from(input), alg === 'ES256' ? { key: priv, dsaEncoding: 'ieee-p1363' } : priv);
+      return `${input}.${sig.toString('base64url')}`;
+    };
+    const verdict = (alg: 'RS256' | 'ES256', pair: { publicKey: KeyObject; privateKey: KeyObject }) =>
+      run(
+        { badge: badgeWith(alg, pair.privateKey), email: EMAIL },
+        { docs: { [KEY]: { owner: ISSUER, publicKeyPem: pair.publicKey.export({ format: 'pem', type: 'spki' }) } } },
+      );
+    for (const bits of [512, 1024])
+      is(await verdict('RS256', generateKeyPairSync('rsa', { modulusLength: bits })), 'invalid', 'signature');
+    is(await verdict('RS256', generateKeyPairSync('rsa', { modulusLength: 2048 })), 'valid');
+    is(await verdict('ES256', generateKeyPairSync('ec', { namedCurve: 'P-384' })), 'invalid', 'signature');
+    is(await verdict('ES256', generateKeyPairSync('ec', { namedCurve: 'P-256' })), 'valid');
   });
 
   it('a creator that is not a string is asked as the empty URL', async () => {

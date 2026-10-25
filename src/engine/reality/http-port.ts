@@ -44,10 +44,17 @@ const MAX_WAIT_MS = 60_000;
 const DEFAULT_FRAME_BYTES = 64 * 1024;
 const DEFAULT_BUFFER_BYTES = 1024 * 1024;
 
+// The listener goes when the wait ends either way (4.4.0): `once` removes it only after an abort, and the port's
+// signal lives as long as the port, so each wait that ended on time left one more behind.
 const sleep = (ms: number, signal?: AbortSignal) =>
   new Promise<void>((ok) => {
-    const t = setTimeout(ok, ms);
-    signal?.addEventListener('abort', () => (clearTimeout(t), ok()), { once: true });
+    const end = () => {
+      clearTimeout(t);
+      signal?.removeEventListener('abort', end);
+      ok();
+    };
+    const t = setTimeout(end, ms);
+    signal?.addEventListener('abort', end, { once: true });
   });
 
 /**

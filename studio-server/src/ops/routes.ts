@@ -1,4 +1,4 @@
-// The Studio API's routes (docs/en/STUDIO.md) and the checks of their bodies, shared by the dev server's plugin
+// The Studio API's routes (wiki/en/studio.api.md) and the checks of their bodies, shared by the dev server's plugin
 // (tools/studio/plugin.ts) and the Studio Server (4.2.1): one table, so both serve the same API.
 import type { Point } from '../../../src/engine/core/types.ts';
 import type { AddEntity, EntityKind, NoteEdit } from '../../../tools/studio/types.ts';
@@ -51,6 +51,15 @@ export function noteEdit(b: Body): NoteEdit {
   return { text: t, about: optText(b.about) };
 }
 
+/** PUT voices/:lang/:id: the id as the client encoded it (`encodeURIComponent`). */
+function voiceId(raw: string): string {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    throw new StudioError(`malformed voice id "${raw}"`);
+  }
+}
+
 /** PUT voices/:lang/:id: each field a string, or absent (null: absent). */
 export function voicePatch(b: Body): { status?: string; note?: string; actor?: string } {
   const field = (k: 'status' | 'note' | 'actor') => {
@@ -62,7 +71,7 @@ export function voicePatch(b: Body): { status?: string; note?: string; actor?: s
   return { status: field('status'), note: field('note'), actor: field('actor') };
 }
 
-/** The Studio API's routes (docs/en/STUDIO.md): the dev server and the Studio Server serve the same table. */
+/** The Studio API's routes (wiki/en/studio.api.md): the dev server and the Studio Server serve the same table. */
 export function routes(s: Studio): [string, RegExp, Handler][] {
   return [
     ['GET', /^\/game$/, () => s.gameInfo()],
@@ -84,12 +93,25 @@ export function routes(s: Studio): [string, RegExp, Handler][] {
     ['GET', /^\/ir$/, () => s.ir()],
     // 4.2.3 (H3): what changed between two revisions, by what the game names.
     ['GET', /^\/diff\/(\d{1,12})\.\.(\d{1,12})$/, (m) => s.diff(Number(m[1]), Number(m[2]))],
+    // 4.4.0: the rooms it names, rendered at both revisions (local only: a hosted Studio says it is unavailable).
+    [
+      'GET',
+      /^\/diff\/(\d{1,12})\.\.(\d{1,12})\/captures$/,
+      async (m) => {
+        const r = await s.diffCaptures(Number(m[1]), Number(m[2]));
+        if ('unavailable' in r) throw Object.assign(new StudioError(r.reason, 501), { body: r });
+        return r;
+      },
+    ],
     ['POST', /^\/undo$/, () => s.undo()],
     ['POST', /^\/redo$/, () => s.redo()],
     ['GET', /^\/history$/, () => s.history()],
     ['GET', /^\/voices(?:\/([\w-]+))?$/, (m) => s.voices(m[1])],
-    ['PUT', /^\/voices\/([\w-]+)\/([\w.-]+)$/, (m, b) => s.setVoice(m[1], m[2], voicePatch(b))],
+    // A clip of a line with switches is keyed `<id>~<flag>=<value>` (4.3.0): the client encodes it (`=` is `%3D`).
+    ['PUT', /^\/voices\/([\w-]+)\/([\w.~%-]+)$/, (m, b) => s.setVoice(m[1], voiceId(m[2]), voicePatch(b))],
     ['GET', /^\/voices\/([\w-]+)\/csv$/, (m) => s.voicesCsv(m[1])],
+    // 4.4.0: the hero × language matrix, read-only (a reviewer's, as every GET).
+    ['GET', /^\/hero-matrix$/, () => s.heroMatrix()],
     ['GET', /^\/storyboard$/, () => s.getStoryboard()],
     ['PUT', /^\/storyboard$/, (_m, b) => s.setStoryboard(b)],
     ['POST', /^\/storyboard\/markdown$/, () => s.exportStoryboardMarkdown()],

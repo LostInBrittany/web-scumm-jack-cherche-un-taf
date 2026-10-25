@@ -6,16 +6,16 @@ Sources: games/<id>/sources.json, else the game's default folders:
   video   games/<id>/art/decor/{name}.mp4    sounds  games/<id>/audio/music/{file}, games/<id>/audio/sfx/{file}, games/<id>/audio/voice/{file}
 Outputs: public/assets/img/<id>.webp, public/assets/audio/{music,sfx}/<file>, public/assets/video/<name>.mp4,
 and the manifest games/<id>/assets.gen.json (pixel sizes, for proportions).
-Only reprocesses what changed. See docs/en/TOOLS.md (sources.json format, "overrides").
+Only reprocesses what changed. See wiki/en/create.images.md#pipeline (sources.json format, "overrides").
 Pixel art ("artStyle": "pixel" in games/<id>/site.json): lossless WebP, every resize with nearest neighbour, and a
-background wider than 640 px (drawn 4x up, docs/en/PROMPTS.md) is scaled down 4x to its art pixels; the engine scales
+background wider than 640 px (drawn 4x up, wiki/en/create.images.md) is scaled down 4x to its art pixels; the engine scales
 it back up with hard edges (skin.pixelArt). "cel" (default): unchanged.
 """
 import glob, json, os, re, subprocess, sys
 from PIL import Image
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-# A game project outside the repository (3.9, the `web-scumm` command): its folder holds game/, public/ and .cache/.
+# A game project outside the repository (3.9, the `quest-n-click` command): its folder holds game/, public/ and .cache/.
 PROJECT = os.environ.get('WEB_SCUMM_PROJECT', '').strip()
 os.chdir(PROJECT or ROOT)
 

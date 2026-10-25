@@ -213,6 +213,25 @@ Image.fromarray(dark, 'RGBA').save(sys.argv[3])
     });
     expect(masks(join(tmp, 'dark', 's')).r1c1).toEqual(masks(join(tmp, 'flat', 's')).r1c1);
   });
+
+  it('cuts a sheet on a semi-transparent haze as a flat sheet: 24 figures, not one', () => {
+    // The flat sheet with its #2B2E45 background at alpha 200: no pixel is really transparent, so the colour keys it.
+    py(
+      `
+import sys, numpy as np
+from PIL import Image
+a = np.asarray(Image.open(sys.argv[1]).convert('RGB'))
+bg = (a == (0x2B, 0x2E, 0x45)).all(-1)
+Image.fromarray(np.dstack([a, np.where(bg, 200, 255).astype(np.uint8)]), 'RGBA').save(sys.argv[2])
+`,
+      flat,
+      join(tmp, 'haze.png'),
+    );
+    execFileSync('python3', ['tools/cut-sheet.py', join(tmp, 'haze.png'), 's', '--out', join(tmp, 'haze'), '--cel'], {
+      cwd: ROOT,
+    });
+    expect(masks(join(tmp, 'haze', 's'))).toEqual(masks(join(tmp, 'flat', 's')));
+  });
 });
 
 describe('tools/check-alpha.py and tools/pick-bg.py', () => {
@@ -269,6 +288,25 @@ Image.fromarray(a, 'RGBA').save(sys.argv[1])
     mkdirSync(join(tmp, 'sprites'), { recursive: true });
     figure(join(tmp, 'sprites', 'r1c1.png'), 'transparent');
     expect(best(join(tmp, 'sprites'))).toBe('BEST #00FFFF');
+  });
+
+  it('pick-bg counts the dark colours of a cut sprite: its transparent border (black underneath) is no background', () => {
+    // A dark navy figure with a white patch, alpha 0 around it and black under the alpha.
+    py(
+      `
+import sys, numpy as np
+from PIL import Image
+a = np.zeros((256, 256, 4), np.uint8)
+a[40:216, 60:196] = (20, 24, 48, 255)
+a[80:120, 100:140] = (252, 252, 252, 255)
+Image.fromarray(a, 'RGBA').save(sys.argv[1])
+`,
+      join(tmp, 'navy.png'),
+    );
+    const out = execFileSync('python3', ['tools/pick-bg.py', join(tmp, 'navy.png')], { cwd: ROOT, encoding: 'utf8' });
+    expect(out).toMatch(/^2 colours in the drawing/);
+    // Navy counted, blue and green are close to the drawing; white alone would have ranked them first.
+    expect(out.trim().split('\n').pop()).toBe('BEST #FF00FF');
   });
 });
 

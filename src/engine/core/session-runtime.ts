@@ -148,7 +148,7 @@ export class SessionLog {
   }
 
   /** A choice, recorded (and fed back when replaying). */
-  async choose(options: { text: string; seen?: boolean; global?: boolean }[], who?: Id): Promise<number> {
+  async choose(options: { text: string; seen?: boolean; global?: boolean; img?: Id }[], who?: Id): Promise<number> {
     const o = this.cur;
     const fed = o?.src?.picks?.[o.pi];
     const i = fed !== undefined ? (o!.pi++, fed) : await this.host.ui.choose(options, who);

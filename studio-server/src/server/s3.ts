@@ -199,8 +199,30 @@ const unxml = (s: string) =>
       : ({ amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" } as Record<string, string>)[e]!,
   );
 
-/** Blobs in S3 under `sha256/<hex>`, read back and checked against their hash. */
-export function s3BlobStore(s3: S3): BlobStore {
+/**
+ * How long a blob this store wrote itself is not written again (4.4.0): far below the collection's grace period (a
+ * day, ops/gc.ts), so a blob named again within it is still younger than the grace, and never collected before its row
+ * lands.
+ */
+export const FRESH_MS = 60 * 60_000;
+/** The blobs remembered as written at most (the oldest forgotten first). */
+export const FRESH_MAX = 10_000;
+
+/**
+ * Blobs in S3 under `sha256/<hex>`, read back and checked against their hash. A blob is written even when it is
+ * there: its date is the last time it was stored (the collection's grace period). Except (4.4.0) one this store
+ * wrote itself less than `FRESH_MS` ago: its date is that recent already, and the key is its content's hash, so the
+ * object holds these very bytes. Nothing but the collection deletes a blob, and only past the grace.
+ */
+export function s3BlobStore(
+  s3: Pick<S3, 'put' | 'get' | 'has' | 'list' | 'delete'>,
+  o: { now?: () => number; freshMs?: number; max?: number } = {},
+): BlobStore {
+  const now = o.now ?? Date.now;
+  const freshMs = o.freshMs ?? FRESH_MS;
+  const max = o.max ?? FRESH_MAX;
+  /** The blobs written by this store, and when: oldest first. */
+  const written = new Map<string, number>();
   const key = (h: string) => {
     if (!/^[0-9a-f]{64}$/.test(h)) throw new Error(`not a blob hash: "${h}"`);
     return `sha256/${h}`;
@@ -208,8 +230,12 @@ export function s3BlobStore(s3: S3): BlobStore {
   return {
     async put(bytes) {
       const h = sha256(bytes);
-      // Written even when it is there: its date is the last time it was stored (the collection's grace period).
+      const at = written.get(h);
+      if (at !== undefined && now() - at < freshMs) return h;
       await s3.put(key(h), bytes);
+      written.delete(h);
+      written.set(h, now());
+      if (written.size > max) written.delete(written.keys().next().value!);
       return h;
     },
     async get(h) {
@@ -225,6 +251,9 @@ export function s3BlobStore(s3: S3): BlobStore {
         if (/^[0-9a-f]{64}$/.test(h)) yield { hash: h, at: o.at };
       }
     },
-    remove: (h) => s3.delete(key(h)),
+    async remove(h) {
+      written.delete(h);
+      await s3.delete(key(h));
+    },
   };
 }

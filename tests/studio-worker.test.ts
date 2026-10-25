@@ -77,7 +77,9 @@ describe('a job', () => {
 
   it('expires within 5 min, writes under its own staging prefix only, and is of a known kind', () => {
     expect(() => verifyJob(signJob(job({ exp: Date.now() - 1 }), priv), pub)).toThrow(/expired/);
-    expect(() => verifyJob(signJob(job({ exp: Date.now() + 10 * 60_000 }), priv), pub)).toThrow(/expired/);
+    expect(() => verifyJob(signJob(job({ exp: Date.now() + 10 * 60_000 }), priv), pub)).toThrow(
+      /lives longer than a job may/,
+    );
     expect(() => verifyJob(signJob(job({ dest: 'sha256/' }), priv), pub)).toThrow(/staging prefix/);
     expect(() => verifyJob(signJob(job({ kind: 'build' as never }), priv), pub)).toThrow(/unknown job kind/);
   });
@@ -152,8 +154,11 @@ describe('the child', () => {
 });
 
 /** A worker on a free port; `stop` closes it. */
-async function startWorker(instance = 'studio-a'): Promise<{ url: string; server: Server }> {
-  const w = createWorker({ publicKeyPem: keys.publicPem, instance });
+async function startWorker(
+  instance = 'studio-a',
+  log?: (event: string, data?: Record<string, unknown>) => void,
+): Promise<{ url: string; server: Server }> {
+  const w = createWorker({ publicKeyPem: keys.publicPem, instance, log });
   const server = createServer(w.handler);
   await new Promise<void>((ok) => server.listen(0, '127.0.0.1', ok));
   return { url: `http://127.0.0.1:${(server.address() as AddressInfo).port}`, server };
@@ -220,6 +225,61 @@ describe('the worker refuses', () => {
   });
 });
 
+describe("the worker's log of a job (4.4.0)", () => {
+  it('says its phases: waiting, the snapshot fetched and unpacked, the child, the result written', async () => {
+    const lines: [string, Record<string, unknown>][] = [];
+    const { url, server } = await startWorker('studio-a', (event, data = {}) => lines.push([event, data]));
+    const mem = await memoryS3();
+    const priv = privateKeyOf(keys.privatePem);
+    const game = join(tmp, 'g-phases');
+    mkdirSync(game);
+    writeFileSync(join(game, 'index.ts'), "export const game = { id: 'phases' };\n");
+    const snap = packSnapshot(game);
+    const sha = (await import('node:crypto')).createHash('sha256').update(snap).digest('hex');
+    const post = (o: Partial<Job>) => {
+      const id = randomUUID();
+      void mem.s3.put(`staging/${id}/snapshot.json`, snap);
+      const token = signJob(
+        job({
+          id,
+          kind: 'load',
+          snapshot: sha,
+          params: { timeoutMs: 30_000 },
+          urls: {
+            snapshot: mem.s3.presign('GET', `staging/${id}/snapshot.json`),
+            result: mem.s3.presign('PUT', `staging/${id}/result.json`),
+          },
+          ...o,
+        }),
+        priv,
+      );
+      return fetch(`${url}/jobs`, { method: 'POST', body: JSON.stringify({ token }) });
+    };
+    try {
+      expect((await post({})).status).toBe(200);
+      const [event, data] = lines.at(-1)!;
+      expect(event).toBe('worker-job');
+      for (const k of ['queueMs', 'fetchMs', 'unpackMs', 'childMs', 'putMs'])
+        expect(data[k], k).toEqual(expect.any(Number));
+      // The child is the job's longest phase here (a node and tsx started), and is counted once: not in its neighbours.
+      const n = data as Record<string, number>;
+      expect(n.childMs).toBeGreaterThan(100);
+      expect(n.putMs).toBeLessThan(n.childMs);
+      expect(n.unpackMs).toBeLessThan(n.childMs);
+      expect(n.childMs).toBeLessThanOrEqual(n.ms! + 50);
+      // A job whose snapshot cannot be read: its wait said, and nothing after it.
+      expect((await post({ urls: { snapshot: `${url}/nothing`, result: `${url}/nothing` } })).status).toBe(502);
+      const [failed, why] = lines.at(-1)!;
+      expect(failed).toBe('worker-job-failed');
+      expect(why).toMatchObject({ kind: 'load', queueMs: expect.any(Number) });
+      expect(why).not.toHaveProperty('fetchMs');
+    } finally {
+      server.close();
+      mem.server.close();
+    }
+  }, 60_000);
+});
+
 describe('the Studio accepts a result', () => {
   it('a job that expired while it waited is not run', async () => {
     const { url, server } = await startWorker();
@@ -266,6 +326,55 @@ describe('the Studio accepts a result', () => {
       expect((await slow).status).toBe(200);
       // The game's background processes died with its group: the instance is not marked to recycle.
       expect((await fetch(`${url}/readyz`)).status).toBe(200);
+    } finally {
+      server.close();
+      mem.server.close();
+    }
+  }, 30_000);
+
+  it('a preview runs at once while another kind runs, which still waits its turn (4.4.0)', async () => {
+    const { url, server } = await startWorker();
+    const mem = await memoryS3();
+    const priv = privateKeyOf(keys.privatePem);
+    const game = join(tmp, 'g-lanes');
+    mkdirSync(game);
+    writeFileSync(join(game, 'index.ts'), 'while (true) {}\nexport {};\n');
+    const snap = packSnapshot(game);
+    const sha = (await import('node:crypto')).createHash('sha256').update(snap).digest('hex');
+    const post = (o: Partial<Job>) => {
+      const id = randomUUID();
+      void mem.s3.put(`staging/${id}/snapshot.json`, snap);
+      const token = signJob(
+        job({
+          id,
+          snapshot: sha,
+          urls: {
+            snapshot: mem.s3.presign('GET', `staging/${id}/snapshot.json`),
+            result: mem.s3.presign('PUT', `staging/${id}/result.json`),
+          },
+          ...o,
+        }),
+        priv,
+      );
+      return fetch(`${url}/jobs`, { method: 'POST', body: JSON.stringify({ token }) });
+    };
+    try {
+      const slow = post({ kind: 'load', params: { timeoutMs: 2_000 } });
+      await new Promise((ok) => setTimeout(ok, 100));
+      // Its snapshot is not there: it fails at once, in its own lane, long before the load ends.
+      const t0 = Date.now();
+      const preview = await post({
+        kind: 'preview',
+        exp: Date.now() + 1_000,
+        urls: { snapshot: `${url}/no`, result: `${url}/no` },
+      });
+      expect(preview.status).toBe(502);
+      expect(((await preview.json()) as { error: string }).error).toMatch(/^snapshot: 404/);
+      expect(Date.now() - t0).toBeLessThan(1_000);
+      // Another kind waits behind the load, as before.
+      const late = await post({ kind: 'validate', exp: Date.now() + 500 });
+      expect(((await late.json()) as { error: string }).error).toMatch(/expired while it waited/);
+      expect((await slow).status).toBe(200);
     } finally {
       server.close();
       mem.server.close();

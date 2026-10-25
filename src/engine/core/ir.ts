@@ -237,6 +237,32 @@ function logicFields<T extends object>(o: T, table: Readonly<Record<string, Fiel
 }
 
 /**
+ * A value of the IR without its choices' card images (`Choice.img`, presentation in core/ir-fields.ts): a portrait
+ * changed on a choice moves no logic. The same value (not a copy) when nothing in it has one.
+ */
+function withoutChoiceImages<T>(x: T): T {
+  if (Array.isArray(x)) {
+    const out = x.map(withoutChoiceImages);
+    return out.some((v, i) => v !== x[i]) ? (out as T) : x;
+  }
+  if (!x || typeof x !== 'object') return x;
+  let changed = false;
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(x)) {
+    let nv = withoutChoiceImages(v);
+    if (k === 'choice' && Array.isArray(nv))
+      nv = nv.map((o: unknown) => {
+        if (!o || typeof o !== 'object' || !('img' in o)) return o;
+        const { img: _img, ...rest } = o as Record<string, unknown>;
+        return rest;
+      });
+    if (nv !== v && !(Array.isArray(nv) && Array.isArray(v) && nv.every((e, i) => e === v[i]))) changed = true;
+    out[k] = nv;
+  }
+  return changed ? (out as T) : x;
+}
+
+/**
  * The IR of a compiled game (ADR 0013): pure and deterministic. Rules without an id (v2 content) are named by their
  * position, as the puzzle graph names them.
  * @public
@@ -451,11 +477,11 @@ export function compileIR(game: CompiledGame, o: CompileIROptions): GameIR {
     schema: IR_SCHEMA_VERSION,
     engine: o.engine ?? 'unknown',
     gameId: game.id,
-    world,
+    world: withoutChoiceImages(world),
     rooms,
-    entities,
-    rules,
-    scripts,
+    entities: withoutChoiceImages(entities),
+    rules: withoutChoiceImages(rules),
+    scripts: withoutChoiceImages(scripts),
     objectives: Object.entries(game.objectives ?? {}).map(([id, x]) =>
       defined({ id, title: x.title, done: x.done, optional: !!x.optional, parent: x.parent }),
     ),
@@ -464,7 +490,7 @@ export function compileIR(game: CompiledGame, o: CompileIROptions): GameIR {
       trusted: ext.trusted,
       commands: Object.entries(ext.commands ?? {})
         .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-        .map(([name, c]) => defined({ name, pure: c.pure, effects: c.effects })),
+        .map(([name, c]) => defined({ name, pure: c.pure, effects: withoutChoiceImages(c.effects) })),
       minigames: [...(ext.minigames ?? [])].sort(),
       plugins: [...(ext.plugins ?? [])].sort(),
     },

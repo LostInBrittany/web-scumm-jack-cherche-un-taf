@@ -1,7 +1,7 @@
 // npm run fresh-install [-- --dir=<folder>] [--keep] (3.9): the engine used the way another project uses it. Packs
-// web-scumm (scripts/pack.mjs), creates a game from the packed template in an empty folder outside the repository,
+// quest-n-click (scripts/pack.mjs), creates a game from the packed template in an empty folder outside the repository,
 // installs the tarball, then runs the game's own commands: assets, verify, build (every file of dist/ accounted for),
-// and plays it to its ending in a browser (scripts/e2e.mjs on `web-scumm preview`). Nothing in the new project points
+// and plays it to its ending in a browser (scripts/e2e.mjs on `quest-n-click preview`). Nothing in the new project points
 // into this repository: a path that does is an error. Exit 0 when every step passes.
 import { execFileSync, spawn } from 'node:child_process';
 import {
@@ -20,7 +20,7 @@ import { join, resolve } from 'node:path';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const args = process.argv.slice(2);
-const base = args.find((a) => a.startsWith('--dir='))?.slice(6) ?? mkdtempSync(join(tmpdir(), 'web-scumm-fresh-'));
+const base = args.find((a) => a.startsWith('--dir='))?.slice(6) ?? mkdtempSync(join(tmpdir(), 'quest-n-click-fresh-'));
 const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const step = (title, cmd, a, cwd) => {
   console.log(`\n▶ ${title}`);
@@ -32,7 +32,7 @@ const step = (title, cmd, a, cwd) => {
 };
 
 step('pack', process.execPath, [join(ROOT, 'scripts', 'pack.mjs'), `--out=${join(base, 'pack')}`], ROOT);
-const tgz = join(base, 'pack', `web-scumm-${version}.tgz`);
+const tgz = join(base, 'pack', `quest-n-click-${version}.tgz`);
 step('create', 'tar', ['-xzf', tgz, '-C', base], base);
 step(
   'create',
@@ -44,17 +44,23 @@ rmSync(join(base, 'package'), { recursive: true, force: true });
 const game = join(base, 'lantern');
 step('install', 'npm', ['install', '--no-audit', '--no-fund'], game);
 
-// The `create-web-scumm` archive too (4.1.8): installed next to the engine's (its dependency on `web-scumm` is
-// satisfied by the tarball given in the same command), then run as `npx create-web-scumm`.
-const createTgz = join(base, 'pack', `create-web-scumm-${version}.tgz`);
+// The `@quest-n-click/create` archive too (4.1.8): installed next to the engine's (its dependency on
+// `@quest-n-click/engine` is satisfied by the tarball given in the same command), then run by its command,
+// `npx create-quest-n-click` (`npm init @quest-n-click` once it is on npm, D53).
+const createTgz = join(base, 'pack', `create-quest-n-click-${version}.tgz`);
 const creator = join(base, 'creator');
 mkdirSync(creator, { recursive: true });
 writeFileSync(join(creator, 'package.json'), '{ "name": "creator", "private": true }\n');
-step('create-web-scumm: install', 'npm', ['install', '--no-audit', '--no-fund', createTgz, tgz], creator);
-step('create-web-scumm: run', 'npx', ['create-web-scumm', 'beacon', 'The Beacon', `--engine=file:${tgz}`], creator);
+step('create-quest-n-click: install', 'npm', ['install', '--no-audit', '--no-fund', createTgz, tgz], creator);
+step(
+  'create-quest-n-click: run',
+  'npx',
+  ['create-quest-n-click', 'beacon', 'The Beacon', `--engine=file:${tgz}`],
+  creator,
+);
 const beacon = JSON.parse(readFileSync(join(creator, 'beacon', 'package.json'), 'utf8'));
-if (beacon.dependencies?.['web-scumm'] !== `file:${tgz}` || !existsSync(join(creator, 'beacon', 'game'))) {
-  console.error('✖ create-web-scumm made no project on this engine');
+if (beacon.dependencies?.['@quest-n-click/engine'] !== `file:${tgz}` || !existsSync(join(creator, 'beacon', 'game'))) {
+  console.error('✖ create-quest-n-click made no project on this engine');
   process.exit(1);
 }
 
@@ -75,18 +81,18 @@ if (leaks.length) {
   process.exit(1);
 }
 
-step('assets', 'npx', ['web-scumm', 'assets'], game);
-step('verify', 'npx', ['web-scumm', 'verify'], game);
+step('assets', 'npx', ['quest-n-click', 'assets'], game);
+step('verify', 'npx', ['quest-n-click', 'verify'], game);
 // The tools that read the sources with the compiler API (4.1.8: `@typescript/typescript6` must be in the tarball).
-step('ids (read)', 'npx', ['web-scumm', 'ids'], game);
-step('build', 'npx', ['web-scumm', 'build'], game);
+step('ids (read)', 'npx', ['quest-n-click', 'ids'], game);
+step('build', 'npx', ['quest-n-click', 'build'], game);
 if (!existsSync(join(game, 'dist', 'licenses', 'assets-manifest.json'))) {
   console.error('✖ no licenses/ in the build');
   process.exit(1);
 }
 
 console.log('\n▶ play it to the end');
-const server = spawn('npx', ['web-scumm', 'preview', '--port', '5181', '--strictPort'], {
+const server = spawn('npx', ['quest-n-click', 'preview', '--port', '5181', '--strictPort'], {
   cwd: game,
   stdio: 'ignore',
   detached: true,
@@ -119,7 +125,7 @@ try {
 // The Bridge the same way (4.1.2): its tarball installed on its own, outside the repository, with the sample game's
 // manifest; init without the demonstration webhooks, the journal read, the service up and answering its keys.
 console.log('\n▶ the Bridge from its tarball');
-const bridgeTgz = join(base, 'pack', `web-scumm-bridge-${version}.tgz`);
+const bridgeTgz = join(base, 'pack', `quest-n-click-bridge-${version}.tgz`);
 const bridgeDir = join(base, 'bridge');
 step('bridge: unpack', 'tar', ['-xzf', bridgeTgz, '-C', base], base);
 execFileSync('mv', [join(base, 'package'), bridgeDir]);
@@ -174,10 +180,10 @@ try {
 }
 
 // The connectors (4.1.9): their tarball installed on its own, without native code (no optional dependency, no install
-// script: ssh2 runs in pure JavaScript), then `web-scumm-connector --help` from the installed package, which must run
+// script: ssh2 runs in pure JavaScript), then `quest-n-click-connector --help` from the installed package, which must run
 // no TypeScript and no tsx.
 console.log('\n▶ the connectors from their tarball');
-const connectorsTgz = join(base, 'pack', `web-scumm-connectors-${version}.tgz`);
+const connectorsTgz = join(base, 'pack', `quest-n-click-connectors-${version}.tgz`);
 const operator = join(base, 'operator');
 mkdirSync(operator, { recursive: true });
 writeFileSync(join(operator, 'package.json'), '{ "name": "operator", "private": true }\n');
@@ -187,16 +193,16 @@ step(
   ['install', '--omit=optional', '--ignore-scripts', '--no-audit', '--no-fund', connectorsTgz],
   operator,
 );
-const help = execFileSync('npx', ['web-scumm-connector', '--help'], { cwd: operator, encoding: 'utf8' });
-const runMjs = readFileSync(join(operator, 'node_modules', 'web-scumm-connectors', 'src', 'run.mjs'), 'utf8');
-if (!help.includes('usage: web-scumm-connector') || runMjs.includes('tsx/esm/api')) {
-  console.error('✖ web-scumm-connector did not run from its installed package');
+const help = execFileSync('npx', ['quest-n-click-connector', '--help'], { cwd: operator, encoding: 'utf8' });
+const runMjs = readFileSync(join(operator, 'node_modules', '@quest-n-click', 'connectors', 'src', 'run.mjs'), 'utf8');
+if (!help.includes('usage: quest-n-click-connector') || runMjs.includes('tsx/esm/api')) {
+  console.error('✖ quest-n-click-connector did not run from its installed package');
   process.exit(1);
 }
-console.log('✔  web-scumm-connector answers from the installed package');
+console.log('✔  quest-n-click-connector answers from the installed package');
 
 if (!args.includes('--keep') && !args.some((a) => a.startsWith('--dir=')))
   rmSync(base, { recursive: true, force: true });
 console.log(
-  `\n✔  fresh install: web-scumm ${version} packed, a game created, verified, built and played outside the repository; the Bridge installed and serving; the connectors installed and answering`,
+  `\n✔  fresh install: quest-n-click ${version} packed, a game created, verified, built and played outside the repository; the Bridge installed and serving; the connectors installed and answering`,
 );

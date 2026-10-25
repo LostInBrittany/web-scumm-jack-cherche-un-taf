@@ -4,7 +4,7 @@
 // (public/assets, `ASSETS_DIR` for a fixture) and, when the bundle is built (`dist/`, `DIST_DIR`), the app shell the
 // service worker precaches (counted in `initial`, compressed size beside the raw one). Exit codes: 0 within budget,
 // 1 over a budget or a file missing (`--release`: or a budget not set, the step of `verify:release`). `--json` for
-// tools (`scripts/e2e-weight.mjs` reads it). docs/en/TOOLS.md "Weight".
+// tools (`scripts/e2e-weight.mjs` reads it). wiki/en/create.checking.md#commands.
 import { cachedSolve } from './proof-cache';
 import { statSync, existsSync, readFileSync } from 'node:fs';
 import { gzipSync } from 'node:zlib';

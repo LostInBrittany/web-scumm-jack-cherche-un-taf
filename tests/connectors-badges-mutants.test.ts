@@ -93,10 +93,10 @@ describe('the cryptographic pieces, at their edges', () => {
   });
 
   /** A document signed as `eddsa-jcs-2022` says (the proof's configuration with the document's `@context`). */
-  const signDi = (doc: Record<string, unknown>, proof: Record<string, unknown>) => {
+  const signDi = (doc: Record<string, unknown>, proof: Record<string, unknown>, key: KeyObject = ed.privateKey) => {
     const config = doc['@context'] === undefined ? proof : { ...proof, '@context': doc['@context'] };
     const h = (v: unknown) => createHash('sha256').update(canonicalJson(v)).digest();
-    return `z${base58Encode(sign(null, Buffer.concat([h(config), h(doc)]), ed.privateKey))}`;
+    return `z${base58Encode(sign(null, Buffer.concat([h(config), h(doc)]), key))}`;
   };
   const PROOF = { type: 'DataIntegrityProof', cryptosuite: 'eddsa-jcs-2022', proofPurpose: 'assertionMethod' };
 
@@ -113,6 +113,20 @@ describe('the cryptographic pieces, at their edges', () => {
     const bare = { name: 'Badge' };
     const withContext = { ...PROOF, '@context': ['https://www.w3.org/ns/credentials/v2'] };
     expect(verifyEddsaJcs(bare, { ...withContext, proofValue: signDi(bare, withContext) }, ed.publicKey)).toBe(true);
+  });
+
+  it('eddsa-jcs-2022 takes an Ed25519 key only: an RSA proof is refused, a 64-byte one of RSA-512 included (4.3.0)', () => {
+    // The key comes from the issuer's document (a JWK may be RSA or EC), and `verify(null, …)` with an RSA key checks
+    // an RSA-SHA256 signature: before 4.3.0 an RSA-512 key, whose signature is exactly 64 bytes, made a valid proof.
+    const doc = { '@context': ['https://www.w3.org/ns/credentials/v2'], name: 'Badge' };
+    for (const bits of [2048, 512]) {
+      const rsa = generateKeyPairSync('rsa', { modulusLength: bits });
+      const proofValue = signDi(doc, PROOF, rsa.privateKey);
+      expect(base58Decode(proofValue.slice(1))).toHaveLength(bits / 8);
+      expect(verifyEddsaJcs(doc, { ...PROOF, proofValue }, rsa.publicKey), `RSA-${bits}`).toBe(false);
+    }
+    const ec = generateKeyPairSync('ec', { namedCurve: 'P-256' });
+    expect(verifyEddsaJcs(doc, { ...PROOF, proofValue: signDi(doc, PROOF, ec.privateKey) }, ec.publicKey)).toBe(false);
   });
 });
 

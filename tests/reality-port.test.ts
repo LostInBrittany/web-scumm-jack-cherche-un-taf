@@ -383,6 +383,44 @@ describe('the backoff and the stream the port ends (fake timers)', () => {
     await done;
   });
 
+  // 4.4.0: each wait added an `abort` listener to the port's signal and never removed it when the wait ended on time:
+  // a page polling once a second held some 86 000 more closures a day.
+  it('polling: a wait that ends on time leaves no listener on the signal behind it', async () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });
+    let net = 0;
+    const add = vi.spyOn(EventTarget.prototype, 'addEventListener');
+    const remove = vi.spyOn(EventTarget.prototype, 'removeEventListener');
+    const count = () => {
+      net =
+        add.mock.calls.filter(([t]) => t === 'abort').length - remove.mock.calls.filter(([t]) => t === 'abort').length;
+      return net;
+    };
+    try {
+      const b = fakeBridge(0);
+      const { port } = portOn(b, { mode: 'poll', retryMs: 10 });
+      const ctrl = new AbortController();
+      const { done } = read(port, ctrl, 0);
+      await flush();
+      await vi.advanceTimersByTimeAsync(10);
+      await flush();
+      const early = count();
+      const askedEarly = b.asked.length;
+      for (let k = 0; k < 20; k++) {
+        await vi.advanceTimersByTimeAsync(10);
+        await flush();
+      }
+      expect(b.asked.length).toBeGreaterThan(20);
+      // The fake Bridge leaves one listener per request on the request's own signal; the port's waits leave none.
+      expect(count() - early).toBe(b.asked.length - askedEarly);
+      ctrl.abort();
+      await port.close();
+      await done;
+    } finally {
+      add.mockRestore();
+      remove.mockRestore();
+    }
+  });
+
   // kills http-port.ts:203 === → !==; http-port.ts:204 condition false: stuck → false; http-port.ts:204 condition true
   it('polling: a signal handed over and not settled doubles the wait; a poll that settles one resets it', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });

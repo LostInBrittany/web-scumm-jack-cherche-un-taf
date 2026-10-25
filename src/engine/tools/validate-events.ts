@@ -1,4 +1,4 @@
-// The validator's checks of events (emitted, listened to, waited for) and of `reality` (4.1.1, docs/en/REALITY.md): a
+// The validator's checks of events (emitted, listened to, waited for) and of `reality` (4.1.1, wiki/en/bridge.what-it-is.md): a
 // finite, declared alphabet of signals, each one an event the world emits; a required one names the action that stands
 // in for it when the outside never answers. Called by validate() with the event maps it filled walking the content.
 import type { GameDef, Id } from '../core/types';
@@ -67,7 +67,7 @@ export function eventChecks(
 export const TERMINAL_BUILTINS = ['help', 'exit', 'quit', 'clear', 'ls', 'cd', 'cat', 'pwd'];
 
 /**
- * `reality.connectors` (4.1.9, docs/en/CONNECTORS.md): every signal it names is declared; words, commands and paths
+ * `reality.connectors` (4.1.9, wiki/en/bridge.connectors.md): every signal it names is declared; words, commands and paths
  * have the shapes the connectors read without a pattern of the author's (no regular expression reaches a connector).
  */
 function connectorChecks(game: GameDef, signalIds: Set<string>, err: (where: string, msg: string) => void): void {

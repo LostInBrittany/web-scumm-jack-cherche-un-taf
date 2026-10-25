@@ -4,6 +4,7 @@
 // worker (ADR 0028), and without OIDC there is no game origin.
 import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
+import { GameDoesNotLoad } from '../ops/errors';
 import { JOBS, runChild } from './main';
 import { PreviewBuildFailed, type PreviewParams, previewFiles } from './preview-build';
 import { type Migrated, migratedShape } from './migrate';
@@ -46,7 +47,8 @@ export async function localValidate(snapshot: Buffer, timeoutMs = 60_000): Promi
     unpackSnapshot(snapshot, dir);
     const r = await runChild(dir, timeoutMs, 'validate');
     if (r.timedOut) throw new Error(`the game's code did not finish within ${timeoutMs} ms`);
-    const v = JSON.parse(r.out) as { errors: string[]; warnings: string[] };
+    const v = JSON.parse(r.out) as { errors: string[]; warnings: string[]; unloadable?: string };
+    if (typeof v.unloadable === 'string') throw new GameDoesNotLoad(v.unloadable, 422);
     return { ok: v.errors.length === 0, errors: v.errors, warnings: v.warnings, ms: Date.now() - t0 };
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -147,7 +149,7 @@ export async function localMigrate(snapshot: Buffer, timeoutMs = 60_000): Promis
     if (r.timedOut) throw new Error(`the game's code did not finish within ${timeoutMs} ms`);
     const v = JSON.parse(r.out || '{}') as { data?: unknown; error?: string };
     if (!v.data) throw new Error(v.error ?? `migrate gave no answer (exit ${r.code})`);
-    const m = migratedShape(v.data, new Set(snapshotTexts(snapshot).keys()));
+    const m = migratedShape(v.data, snapshotTexts(snapshot));
     if ('refused' in m) throw new Error(`the migration is refused: ${m.refused}`);
     return m;
   } finally {

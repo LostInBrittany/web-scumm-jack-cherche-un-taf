@@ -1,0 +1,393 @@
+{
+  "format": "quest-n-click-contracts",
+  "version": 1,
+  "note": "The status registry's data (4.5.0 \"Wiki\", docs/dev/PLAN-4.5-WIKI.md §4.4.2, phase A5; read by tools/wiki/contracts.ts): per product surface, its contract status (experimental, stable, deprecated), quoted from the surface table of the wiki's `start.stability` (wiki/en|fr/start.stability.md, since 4.5.0: the row's surface, contract and promise; tests/contracts.test.ts checks the quotes are there and say that status); the environments the support matrix says CI verifies, as of `asOf`; the automated checks that cover it (ci:plan's gates, CI and candidate jobs, test files); and the rows of the support matrix that speak for it (`matrixRows`: the first cells of the table of `reference.support-matrix#matrix`, each row named by a surface, tested; a surface the pages do not name yet has a null quote or rows, with its `reason`); the people's passes it waits for (ids of tools/field/schema.ts and docs/dev/surfaces.json). The passes' states are never written here: they are read from docs/dev/passes/<version>.md, with the issue that tracks each for that version (`passIssues`, by pass then version: the sheets do not hold the numbers; a test requires one for every pass of the newest sheet). Known limits are the pages' own [!LIMIT] blocks. A wiki page names its surfaces in the manifest (`surfaces`); its header shows the five statuses separately.",
+  "asOf": { "version": "4.4.0", "date": "2026-10-23" },
+  "passIssues": {
+    "archive-human-install": { "4.4.0": 75, "4.5.0": 75, "4.5.1": 75, "4.5.2": 75, "4.5.3": 75 },
+    "blind-playtesters": { "4.4.0": 76, "4.5.0": 76, "4.5.1": 76, "4.5.2": 76, "4.5.3": 76 },
+    "bridge-postgres-https": { "4.4.0": 77, "4.5.0": 77, "4.5.1": 77, "4.5.2": 77, "4.5.3": 77 },
+    "code-wheel-human": { "4.4.0": 78, "4.5.0": 78, "4.5.1": 78, "4.5.2": 78, "4.5.3": 78 },
+    "connectors-real-security": { "4.4.0": 79, "4.5.0": 79, "4.5.1": 79, "4.5.2": 79, "4.5.3": 79 },
+    "firefox-real-offline": { "4.4.0": 80, "4.5.0": 80, "4.5.1": 80, "4.5.2": 80, "4.5.3": 80 },
+    "livesplit-obs": { "4.4.0": 81, "4.5.0": 81, "4.5.1": 81, "4.5.2": 81, "4.5.3": 81 },
+    "mystery-deployed": { "4.4.0": 82, "4.5.0": 82, "4.5.1": 82, "4.5.2": 82, "4.5.3": 82 },
+    "phone-both-renderers": { "4.4.0": 83, "4.5.0": 83, "4.5.1": 83, "4.5.2": 83, "4.5.3": 83 },
+    "run-resume-power-cycle": { "4.4.0": 84, "4.5.0": 84, "4.5.1": 84, "4.5.2": 84, "4.5.3": 84 },
+    "runs-real-players": { "4.4.0": 85, "4.5.0": 85, "4.5.1": 85, "4.5.2": 85, "4.5.3": 85 },
+    "safari-ios-offline-update": { "4.4.0": 86, "4.5.0": 86, "4.5.1": 86, "4.5.2": 86, "4.5.3": 86 },
+    "voices-listening": { "4.4.0": 87, "4.5.0": 87, "4.5.1": 87, "4.5.2": 87, "4.5.3": 87 },
+    "studio-hosted": { "4.4.0": 149, "4.5.0": 149, "4.5.1": 149, "4.5.2": 149, "4.5.3": 149 },
+    "studio-collab": { "4.4.0": 150, "4.5.0": 150, "4.5.1": 150, "4.5.2": 150, "4.5.3": 150 },
+    "studio-preview": { "4.4.0": 166, "4.5.0": 166, "4.5.1": 166, "4.5.2": 166, "4.5.3": 166 },
+    "studio-assets-hosted": { "4.4.0": 167, "4.5.0": 167, "4.5.1": 167, "4.5.2": 167, "4.5.3": 167 },
+    "studio-mcp-remote": { "4.4.0": 196, "4.5.0": 196, "4.5.1": 196, "4.5.2": 196, "4.5.3": 196 },
+    "studio-oidc-generic": { "4.4.0": 197, "4.5.0": 197, "4.5.1": 197, "4.5.2": 197, "4.5.3": 197 },
+    "heroes-two-languages": { "4.4.0": 237, "4.5.0": 237, "4.5.1": 237, "4.5.2": 237, "4.5.3": 237 },
+    "studio-hero-matrix": { "4.4.0": 238, "4.5.0": 238, "4.5.1": 238, "4.5.2": 238, "4.5.3": 238 },
+    "docs-beginner-reader": { "4.5.0": 258, "4.5.1": 258, "4.5.2": 258, "4.5.3": 258 }
+  },
+  "contracts": {
+    "content-format": {
+      "title": { "en": "The content format and its tools", "fr": "Le format du contenu et ses outils" },
+      "status": "stable",
+      "support": {
+        "en": "| The content format and its tools | stable | Stable |",
+        "fr": "| Le format du contenu et ses outils | stable | Stable |"
+      },
+      "matrixRows": {
+        "en": ["Node", "Windows", "Python"],
+        "fr": ["Node", "Windows", "Python"]
+      },
+      "environments": [
+        { "en": "Node 22 and 24 on Ubuntu", "fr": "Node 22 et 24 sous Ubuntu" },
+        {
+          "en": "Windows (windows-latest): the unit suite but six POSIX files",
+          "fr": "Windows (windows-latest) : la suite unitaire moins six fichiers POSIX"
+        }
+      ],
+      "checks": {
+        "gates": ["node24", "windows", "secondGame", "freshInstall", "upgrade", "reference"],
+        "jobs": ["check", "coverage", "second-game", "upgrade"],
+        "tests": [
+          "tests/validate-stage.test.ts",
+          "tests/solver-contract.test.ts",
+          "tests/save-v3.test.ts",
+          "tests/hero-choice.test.ts"
+        ]
+      },
+      "passes": ["heroes-two-languages"]
+    },
+    "public-api": {
+      "title": { "en": "The public API", "fr": "L'API publique" },
+      "status": "stable",
+      "support": {
+        "en": "| The public API | stable | Stable, under SemVer |",
+        "fr": "| L’API publique | stable | Stable, en SemVer |"
+      },
+      "matrixRows": {
+        "en": ["Node"],
+        "fr": ["Node"]
+      },
+      "environments": [
+        { "en": "Node 22 and 24 on Ubuntu", "fr": "Node 22 et 24 sous Ubuntu" }
+      ],
+      "checks": {
+        "gates": ["node24", "freshInstall"],
+        "jobs": ["check", "external-consumer"],
+        "tests": ["tests/api-surface.test.ts", "tests/api-doc.test.ts"]
+      },
+      "passes": []
+    },
+    "player-dom": {
+      "title": { "en": "The player (DOM painter)", "fr": "Le joueur (peintre DOM)" },
+      "status": "stable",
+      "support": {
+        "en": "| The player (DOM painter) | stable | Limited until its passes: phones and screen readers |",
+        "fr": "| Le lecteur de jeu (peintre DOM) | stable | Limité jusqu’à ses passes : téléphones et lecteurs d’écran |"
+      },
+      "matrixRows": {
+        "en": ["Player, phone", "Player, desktop", "Player, screen reader"],
+        "fr": ["Joueur, téléphone", "Joueur, bureau", "Joueur, lecteur d'écran"]
+      },
+      "environments": [
+        { "en": "Chromium on the desktop, mouse and keyboard", "fr": "Chromium de bureau, souris et clavier" },
+        {
+          "en": "Chromium and WebKit at a phone's size, touch and keyboard (emulated)",
+          "fr": "Chromium et WebKit à la taille d'un téléphone, tactile et clavier (émulés)"
+        },
+        {
+          "en": "axe-core on every screen (not a WCAG claim)",
+          "fr": "axe-core sur chaque écran (pas une conformité WCAG)"
+        }
+      ],
+      "checks": {
+        "gates": ["e2e"],
+        "jobs": ["e2e"],
+        "tests": ["tests/dom/a11y.test.ts", "tests/dom/presenter.test.ts"]
+      },
+      "passes": ["phone-both-renderers", "code-wheel-human", "blind-playtesters"]
+    },
+    "player-canvas": {
+      "title": { "en": "The Canvas painter", "fr": "Le peintre Canvas" },
+      "status": "experimental",
+      "support": {
+        "en": "| The Canvas painter | experimental | Experimental |",
+        "fr": "| Le peintre Canvas | expérimental | Expérimental |"
+      },
+      "matrixRows": {
+        "en": [],
+        "fr": []
+      },
+      "environments": [
+        { "en": "Chromium in CI, the same game drawn and played", "fr": "Chromium en CI, le même jeu dessiné et joué" }
+      ],
+      "checks": {
+        "gates": ["e2e"],
+        "jobs": ["e2e"],
+        "tests": ["tests/dom/render-canvas.test.ts", "tests/dom/renderer-contract.test.ts"]
+      },
+      "passes": ["phone-both-renderers"]
+    },
+    "pwa": {
+      "title": { "en": "The installed game (PWA) and offline play", "fr": "Le jeu installé (PWA) et hors ligne" },
+      "status": "stable",
+      "support": {
+        "en": "| The installed game (PWA) and offline play | stable | Stable on desktop Chromium; limited on Safari and Firefox (the PWA only) |",
+        "fr": "| Le jeu installé (PWA) et le jeu hors ligne | stable | Stable sur Chromium d’ordinateur ; limité sur Safari et Firefox (la PWA seulement) |"
+      },
+      "matrixRows": {
+        "en": ["Player, phone", "Firefox"],
+        "fr": ["Joueur, téléphone", "Firefox"]
+      },
+      "environments": [
+        {
+          "en": "Chromium, WebKit and Firefox: installed, updated after a durable save, reinstalled",
+          "fr": "Chromium, WebKit et Firefox : installée, mise à jour après une sauvegarde durable, réinstallée"
+        },
+        { "en": "Offline in Chromium and Firefox", "fr": "Hors ligne dans Chromium et Firefox" }
+      ],
+      "checks": {
+        "gates": ["e2e", "pwaFirefox"],
+        "jobs": ["e2e", "pwa-firefox"],
+        "tests": ["tests/offline.test.ts"]
+      },
+      "passes": ["safari-ios-offline-update", "firefox-real-offline"]
+    },
+    "bridge-local": {
+      "title": {
+        "en": "The Reality Bridge, `local` profile (SQLite)",
+        "fr": "Le Reality Bridge, profil `local` (SQLite)"
+      },
+      "status": "stable",
+      "support": {
+        "en": "| The Reality Bridge, `local` profile (SQLite) | stable | Stable |",
+        "fr": "| Le Bridge Reality, profil `local` (SQLite) | stable | Stable |"
+      },
+      "matrixRows": {
+        "en": ["Reality Bridge", "Bridge, `local` profile (4.1.10)"],
+        "fr": ["Reality Bridge", "Bridge, profil `local` (4.1.10)"]
+      },
+      "environments": [
+        { "en": "Node 22.13+ with node:sqlite, on Ubuntu", "fr": "Node 22.13+ avec node:sqlite, sous Ubuntu" },
+        { "en": "Chromium and WebKit end to end", "fr": "Chromium et WebKit de bout en bout" }
+      ],
+      "checks": {
+        "gates": ["reality"],
+        "jobs": ["reality", "reality-xcheck"],
+        "tests": ["tests/bridge-store.test.ts", "tests/bridge-backup.test.ts"]
+      },
+      "passes": []
+    },
+    "bridge-distributed": {
+      "title": {
+        "en": "The Reality Bridge, `distributed` profile (Postgres)",
+        "fr": "Le Reality Bridge, profil `distributed` (Postgres)"
+      },
+      "status": "experimental",
+      "support": {
+        "en": "| The Reality Bridge, `distributed` profile (Postgres) | experimental | Experimental |",
+        "fr": "| Le Bridge Reality, profil `distributed` (Postgres) | expérimental | Expérimental |"
+      },
+      "matrixRows": {
+        "en": ["Bridge, `distributed` profile (4.1.10, `experimental`)"],
+        "fr": ["Bridge, profil `distributed` (4.1.10, `experimental`)"]
+      },
+      "environments": [
+        { "en": "Postgres 16 in CI", "fr": "Postgres 16 en CI" },
+        {
+          "en": "The qualification profile: HTTPS, three instances (ops/qualify/)",
+          "fr": "Le profil de qualification : HTTPS, trois instances (ops/qualify/)"
+        }
+      ],
+      "checks": {
+        "gates": ["reality"],
+        "jobs": ["bridge-postgres", "deployment-smoke"],
+        "tests": ["tests/bridge-postgres-isolation.test.ts"]
+      },
+      "passes": ["bridge-postgres-https"]
+    },
+    "connectors": {
+      "title": {
+        "en": "The connectors (email, Telnet, SSH, Open Badges)",
+        "fr": "Les connecteurs (email, Telnet, SSH, Open Badges)"
+      },
+      "status": "experimental",
+      "support": {
+        "en": "| The connectors (email, Telnet, SSH, Open Badges) | experimental | Experimental |",
+        "fr": "| Les connecteurs (email, Telnet, SSH, Open Badges) | expérimental | Expérimental |"
+      },
+      "matrixRows": {
+        "en": ["Connectors (4.1.9), **experimental** (D19)"],
+        "fr": ["Connecteurs (4.1.9), **expérimental** (D19)"]
+      },
+      "environments": [
+        {
+          "en": "Node 22 on Ubuntu (Telnet and SSH not on Windows)",
+          "fr": "Node 22 sous Ubuntu (Telnet et SSH pas sous Windows)"
+        }
+      ],
+      "checks": {
+        "gates": ["reality"],
+        "jobs": ["connectors", "connector-archive-e2e"],
+        "tests": ["tests/connectors-sdk.test.ts", "tests/connectors-email.test.ts", "tests/connectors-ssh.test.ts"]
+      },
+      "passes": ["connectors-real-security"]
+    },
+    "speedrun-remix": {
+      "title": { "en": "Speedrun and Remix", "fr": "Speedrun et Remix" },
+      "status": "stable",
+      "support": {
+        "en": "| Speedrun and Remix | stable | Limited until their passes |",
+        "fr": "| Speedrun et Remix | stable | Limité jusqu’à leurs passes |"
+      },
+      "matrixRows": {
+        "en": [],
+        "fr": []
+      },
+      "environments": [
+        {
+          "en": "Replays in four runtimes (cross-runtime)",
+          "fr": "Replays dans quatre environnements d'exécution (cross-runtime)"
+        }
+      ],
+      "checks": {
+        "gates": ["e2e"],
+        "jobs": ["cross-runtime", "e2e"],
+        "tests": ["tests/speedrun-verify.test.ts", "tests/remix-worlds.test.ts"]
+      },
+      "passes": ["runs-real-players", "run-resume-power-cycle", "mystery-deployed", "livesplit-obs", "code-wheel-human"]
+    },
+    "voices-music": {
+      "title": { "en": "Voices and music", "fr": "Voix et musique" },
+      "status": "stable",
+      "support": {
+        "en": "| Voices and music | stable | Limited until their pass |",
+        "fr": "| Voix et musique | stable | Limité jusqu’à sa passe |"
+      },
+      "matrixRows": {
+        "en": [],
+        "fr": []
+      },
+      "environments": [
+        { "en": "The music director in Chromium and WebKit", "fr": "Le directeur musical dans Chromium et WebKit" }
+      ],
+      "checks": {
+        "gates": ["e2e"],
+        "jobs": ["e2e"],
+        "tests": ["tests/voices.test.ts", "tests/voice-locale.test.ts"]
+      },
+      "passes": ["voices-listening"]
+    },
+    "archives-install": {
+      "title": { "en": "The package archives and their install", "fr": "Les archives des paquets et leur installation" },
+      "status": "stable",
+      "support": {
+        "en": "| The package archives and their install | stable | Limited until a person installs them |",
+        "fr": "| Les archives des packages et leur installation | stable | Limité jusqu’à ce qu’une personne les installe |"
+      },
+      "matrixRows": {
+        "en": [],
+        "fr": []
+      },
+      "environments": [
+        {
+          "en": "Installed outside the repository on Ubuntu (Node 22 and 24), macOS and Windows",
+          "fr": "Installées hors du dépôt sous Ubuntu (Node 22 et 24), macOS et Windows"
+        }
+      ],
+      "checks": {
+        "gates": ["freshInstall"],
+        "jobs": ["external-consumer", "fresh-install"],
+        "tests": ["tests/pack-locks.test.ts"]
+      },
+      "passes": ["archive-human-install"]
+    },
+    "studio-local": {
+      "title": { "en": "The local Studio", "fr": "Le Studio local" },
+      "status": "stable",
+      "support": {
+        "en": "| The local Studio | stable | Partial on Windows |",
+        "fr": "| Le Studio local | stable | Partiel sous Windows |"
+      },
+      "matrixRows": {
+        "en": ["Windows"],
+        "fr": ["Windows"]
+      },
+      "environments": [
+        {
+          "en": "Chromium end to end (the Studio's checks)",
+          "fr": "Chromium de bout en bout (les vérifications du Studio)"
+        },
+        { "en": "Windows: the unit suite only", "fr": "Windows : la suite unitaire seulement" }
+      ],
+      "checks": {
+        "gates": ["e2e", "windows"],
+        "jobs": ["e2e", "windows"],
+        "tests": ["tests/hero-matrix.test.ts", "tests/studio-assistant.test.ts"]
+      },
+      "passes": ["studio-hero-matrix"]
+    },
+    "studio-server": {
+      "title": { "en": "The Studio Server (hosted team Studio)", "fr": "Le Studio Server (Studio d'équipe hébergé)" },
+      "status": "experimental",
+      "support": {
+        "en": "| The Studio Server (hosted team Studio) | experimental | Experimental as a whole |",
+        "fr": "| Le Studio Server (Studio d’équipe hébergé) | expérimental | Expérimental dans son ensemble |"
+      },
+      "matrixRows": {
+        "en": [],
+        "fr": []
+      },
+      "environments": [
+        {
+          "en": "Postgres, S3 and Keycloak in CI; Chromium and Firefox (job studio-hosted)",
+          "fr": "Postgres, S3 et Keycloak en CI ; Chromium et Firefox (job studio-hosted)"
+        },
+        { "en": "WebKit on macOS, by hand only", "fr": "WebKit sous macOS, à la main seulement" }
+      ],
+      "checks": {
+        "gates": ["studioHosted"],
+        "jobs": ["studio-hosted", "studio-install-smoke"],
+        "tests": ["tests/studio-server.test.ts", "tests/studio-backup.test.ts", "tests/studio-collab.test.ts"]
+      },
+      "passes": [
+        "studio-hosted",
+        "studio-collab",
+        "studio-preview",
+        "studio-assets-hosted",
+        "studio-mcp-remote",
+        "studio-oidc-generic"
+      ]
+    },
+    "documentation": {
+      "title": {
+        "en": "The documentation: the wiki, its bundle in the package and its search",
+        "fr": "La documentation : le wiki, son bundle dans le paquet et sa recherche"
+      },
+      "status": "experimental",
+      "support": {
+        "en": "| The documentation (this wiki, its bundle, its search) | experimental | Experimental, from 4.5.0 |",
+        "fr": "| La documentation (ce wiki, son paquet, sa recherche) | expérimental | Expérimental, depuis la 4.5.0 |"
+      },
+      "matrixRows": {
+        "en": ["Documentation (4.5.0), **experimental**"],
+        "fr": ["Documentation (4.5.0), **expérimental**"]
+      },
+      "environments": [],
+      "checks": {
+        "gates": [],
+        "jobs": ["check", "external-consumer"],
+        "tests": [
+          "tests/wiki-manifest.test.ts",
+          "tests/wiki-check.test.ts",
+          "tests/wiki-access.test.ts",
+          "tests/wiki-proofs.test.ts",
+          "tests/wiki-acceptance.test.ts",
+          "tests/mcp-docs.test.ts"
+        ]
+      },
+      "passes": ["docs-beginner-reader"]
+    }
+  }
+}

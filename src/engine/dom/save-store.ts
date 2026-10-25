@@ -2,6 +2,7 @@ import type { SaveStore, SlotMeta, SlotStore } from '../core/ports';
 import type { GameDef, GameState } from '../core/types';
 import { parseSave, parseSlot, SaveWorldMismatch, saveEnvelope, type SlotRecord } from '../core/save';
 
+// The database's name from web-scumm, kept so existing saves are still found (D47).
 const DB = 'web-scumm-saves';
 const STORE = 'slots';
 

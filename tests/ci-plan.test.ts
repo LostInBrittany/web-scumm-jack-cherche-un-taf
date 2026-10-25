@@ -5,7 +5,7 @@
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { type CiPlan, classify, explain, fullPlan, GATES, type Gate, planFor } from '../tools/ci-plan';
+import { type CiPlan, classify, docsFor, explain, fullPlan, GATES, type Gate, planFor } from '../tools/ci-plan';
 
 /** The gates a plan opens, sorted, `all` first when set. */
 const on = (p: CiPlan) => [...(p.all ? ['all'] : []), ...GATES.filter((g) => p[g])].sort();
@@ -15,9 +15,16 @@ const EVERYTHING = gates('all', ...GATES.filter((g) => g !== 'auditDeps'));
 
 describe('the plan of a change', () => {
   const table: [string, string[], string[]][] = [
-    ['docs only', ['docs/en/TOOLS.md', 'docs/fr/TOOLS.md', 'README.md', 'changes/x.md'], []],
+    ['docs only', ['docs/en/TOOLS.md', 'wiki/fr/reference.npm-scripts.md', 'README.md', 'changes/x.md'], []],
+    ['the wiki sources', ['wiki/manifest.json', 'wiki/en/create.rooms.md', 'wiki/data/glossary.json'], []],
     ['a root markdown file', ['CHANGELOG.md', 'CONTRIBUTING.md'], []],
     ['another workflow', ['.github/workflows/nightly.yml'], []],
+    ["the documentation's publication workflow", ['.github/workflows/docs-publish.yml'], []],
+    [
+      "the documentation's publication tools",
+      ['tools/wiki/archive.ts', 'tools/wiki/pages.ts', 'tools/wiki/publication.ts', 'tools/wiki/transition.ts'],
+      gates('node24', 'windows'),
+    ],
     ['the Bridge', ['bridge/src/store.ts'], gates('reality', 'freshInstall', 'node24', 'windows')],
     ['the signals game', ['games/signals/index.ts'], gates('reality', 'node24', 'windows')],
     ['the engine core', ['src/engine/core/engine.ts'], EVERYTHING],
@@ -40,8 +47,9 @@ describe('the plan of a change', () => {
       ['bridge/src/migrations.ts'],
       gates('reality', 'freshInstall', 'node24', 'windows', 'studioHosted'),
     ],
-    ['the sample game', ['games/demo/rooms/x.ts'], gates('e2e', 'node24', 'windows')],
+    ['the sample game', ['games/demo/rooms/x.ts'], gates('e2e', 'reference', 'node24', 'windows')],
     ['the reference chapter', ['games/reference/index.ts'], gates('reference', 'node24')],
+    ['the hero choice example', ['games/heroes/e2e.mjs'], gates('reference', 'node24')],
     ['the template', ['games/_template/index.ts'], gates('secondGame', 'freshInstall', 'upgrade', 'node24', 'windows')],
     ['a golden save', ['tests/fixtures/saves/4.1.8.json'], gates('upgrade', 'node24', 'windows')],
     ['the PWA e2e', ['scripts/e2e-pwa.mjs'], gates('e2e', 'pwaFirefox')],
@@ -66,6 +74,40 @@ describe('the plan of a change', () => {
     it(name, () => {
       expect(on(planFor(files))).toEqual(want);
     });
+
+  it('runs the docs family on the docs, the wiki and its generators, and on a file a wiki page rests on (4.5.0)', () => {
+    const pages = [
+      { id: 'clever.backups', sources: ['studio-server/src/ops/backup*.ts'] },
+      { id: 'create.rooms', sources: ['src/engine/core/{save,stage}.ts'] },
+    ];
+    expect(docsFor(['wiki/en/create.rooms.md'], pages)).toEqual({ docs: true, docsPages: [] });
+    expect(docsFor(['tools/wiki/build.ts'], pages).docs).toBe(true);
+    // C2: the generators that write the wiki's references, and a transition page of docs/.
+    for (const f of [
+      'tools/dsl-doc.ts',
+      'tools/api-doc.ts',
+      'tools/docs-truth.ts',
+      'scripts/pack.mjs',
+      'docs/fr/DSL.md',
+    ])
+      expect(docsFor([f], pages).docs, f).toBe(true);
+    // A5b: the publication's tools are the docs family's too.
+    for (const f of ['tools/wiki/archive.ts', 'tools/wiki/html.ts', 'tools/wiki/pages.ts', 'tools/wiki/transition.ts'])
+      expect(docsFor([f], pages).docs, f).toBe(true);
+    // The root pages docs:truth and the link checks read (the coverage matrix's too, A3); the CHANGELOG is not.
+    expect(docsFor(['CONTRIBUTING.md'], pages).docs).toBe(true);
+    expect(docsFor(['README.fr.md'], pages).docs).toBe(true);
+    expect(docsFor(['CHANGELOG.md'], pages).docs).toBe(false);
+    expect(docsFor(['studio-server/src/ops/backup-bucket.ts', 'src/engine/core/save.ts'], pages)).toEqual({
+      docs: true,
+      docsPages: ['clever.backups', 'create.rooms'],
+    });
+    expect(docsFor(['bridge/src/store.ts'], pages)).toEqual({ docs: false, docsPages: [] });
+    expect(planFor(['studio-server/src/ops/backup.ts'], pages)).toMatchObject({ docsPages: ['clever.backups'] });
+    // The real manifest is read when no pages are given: its clever.restore-drill rests on the backup operation.
+    expect(planFor(['studio-server/src/ops/backup.ts']).docsPages).toContain('clever.restore-drill');
+    expect(fullPlan().docs).toBe(true);
+  });
 
   it('runs everything for the lockfile, and audits the dependencies only then', () => {
     const lock = planFor(['package-lock.json']);
@@ -130,6 +172,18 @@ describe('ci.yml and the plan', () => {
     expect([...read].sort()).toEqual([...GATES].sort());
   });
 
+  it('deploys no Pages (4.5.2, D51): no pages job, no Pages artifact, no pages-only run; the dist the e2e rows play stays', () => {
+    expect(yml).not.toMatch(/^ {2}pages:\n/m);
+    expect(yml).not.toMatch(
+      /deploy-pages|upload-pages-artifact|github-pages|pages-only|PAGES_ONLY|pagesOnly|env\.FULL/,
+    );
+    expect(yml).not.toMatch(/wiki -- pages/);
+    expect(job('plan')).toMatch(/if \[ "\$ALL" = true \]; then flag=--all; else flag=--base=HEAD\^1; fi/);
+    const check = job('check');
+    expect(check).toMatch(/- uses: actions\/upload-artifact@\S+ # v[\d.]+\n {8}with:\n {10}name: dist\n/);
+    expect(check).not.toMatch(/BASE_PATH:/);
+  });
+
   it('keeps every check the ruleset of main requires, under its name', () => {
     for (const id of [
       'check',
@@ -158,6 +212,32 @@ describe('ci.yml and the plan', () => {
     expect(job('reality')).toContain('browser: [chromium, webkit]');
   });
 
+  it("splits the reference chapter's Chromium work over three jobs on its gate (#265), each check run once", () => {
+    const runs = (id: string, cmd: string) => job(id).split(cmd).length - 1;
+    for (const id of ['reference-fr', 'heroes'])
+      expect(job(id), id).toMatch(/RUN: \$\{\{ fromJSON\(needs\.plan\.outputs\.plan\)\.reference \}\}/);
+    expect(job('reference-fr')).toMatch(/GAME: reference\n/);
+    expect(job('heroes')).toMatch(/GAME: heroes\n/);
+    // The keyboard run, the proofs, visual, perf, weight, music and taps stay in `reference`.
+    for (const cmd of [
+      '--keyboard',
+      'npm run prove:game',
+      'e2e:visual',
+      'e2e:perf',
+      'e2e:weight',
+      'e2e:music',
+      'e2e:taps',
+    ])
+      expect(runs('reference', cmd), cmd).toBe(1);
+    for (const cmd of ['--lang fr', '--generic --axe --save']) {
+      expect(runs('reference-fr', cmd), cmd).toBe(1);
+      expect(runs('reference', cmd), cmd).toBe(0);
+    }
+    expect(runs('heroes', 'npm run solve -- --prove')).toBe(1);
+    expect(runs('heroes', '--game heroes --prod')).toBe(1);
+    expect(job('reference')).not.toContain('heroes');
+  });
+
   it('gates the work of a spared job inside it: no job-level `if` on a gated job, a step that succeeds instead', () => {
     for (const id of [
       'node-24',
@@ -167,6 +247,8 @@ describe('ci.yml and the plan', () => {
       'reality',
       'e2e',
       'reference',
+      'reference-fr',
+      'heroes',
       'pwa-firefox',
       'windows',
     ].concat(['second-game', 'fresh-install', 'upgrade'])) {
@@ -186,9 +268,7 @@ describe('ci.yml and the plan', () => {
   it('the gate job needs every other job and asks each for success', () => {
     const gate = job('pr-gate');
     expect(gate).toMatch(/^ {4}if: always\(\)/m);
-    const ids = [...yml.matchAll(/^ {2}([\w-]+):\n/gm)]
-      .map((m) => m[1]!)
-      .filter((id) => !['pr-gate', 'pages'].includes(id));
+    const ids = [...yml.matchAll(/^ {2}([\w-]+):\n/gm)].map((m) => m[1]!).filter((id) => id !== 'pr-gate');
     const needs = gate
       .match(/needs: \[([^\]]+)\]/)?.[1]
       ?.split(',')
@@ -208,5 +288,34 @@ describe('the workflow, lot 0 details', () => {
     expect(yml).toMatch(/fetch-depth: 2/);
     expect(yml).toContain('--base=HEAD^1');
     expect(yml).toMatch(/--all/);
+  });
+});
+
+describe("Playwright's image (#261)", () => {
+  const yml = readFileSync('.github/workflows/ci.yml', 'utf8');
+  const lock = JSON.parse(readFileSync('package-lock.json', 'utf8')) as {
+    packages: Record<string, { version?: string }>;
+  };
+  const images = [...yml.matchAll(/'mcr\.microsoft\.com\/playwright:v([\d.]+)-noble@sha256:[0-9a-f]{64}'/g)];
+  const jobs = [...yml.matchAll(/^ {2}([\w-]+):\n[\s\S]*?(?=^ {2}[\w-]+:\n|$(?![\s\S]))/gm)].map((m) => m[0]);
+
+  it("is the lockfile's Playwright, pinned by digest, in every Linux browser job but studio-hosted", () => {
+    expect(images.length).toBe(9);
+    for (const m of images) expect(m[1]).toBe(lock.packages['node_modules/playwright']?.version);
+    // Every mention of the image is one of those pinned ones.
+    expect(yml.match(/mcr\.microsoft\.com\/playwright/g)?.length).toBe(images.length);
+  });
+
+  it('a job in the image installs no browser and no system package', () => {
+    const inImage = jobs.filter((j) => j.includes('mcr.microsoft.com/playwright'));
+    expect(inImage.length).toBe(9);
+    for (const j of inImage) {
+      expect(j).not.toMatch(/playwright install/);
+      expect(j).toMatch(/HOME: \/root/);
+      expect(j).toMatch(/safe\.directory "\$\(pwd\)"/);
+      // The tool cache's `pip` starts with the host's path to Python (`/opt/hostedtoolcache/…`), absent in the
+      // container: pip through the interpreter.
+      expect(j).not.toMatch(/\(pip install/);
+    }
   });
 });

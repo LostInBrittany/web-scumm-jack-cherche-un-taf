@@ -37,7 +37,7 @@ a small studio trust it with a long game, offline, on a phone, with saves that s
 9. **Public repo.** No private names, no private content. `npm run audit` before every commit; it covers `docs/dev/`.
    The maintainer's own game is called "the private reference game", nothing more.
 10. **Scope of v3.** Breaking v2 is accepted (decision D1). Each break ships with its migration: a data migration where
-    saves are concerned, `docs/en/UPGRADING.md` + `docs/fr/UPGRADING.md`, and the private reference game actually
+    saves are concerned, `wiki/en/install.upgrade.md` + `wiki/fr/install.upgrade.md`, and the private reference game actually
     migrated on a branch before v3.0.0 is tagged. What is out of scope stays out: no Phaser, no dialogue format beside
     the DSL, no realtime scripting.
 11. **Docs are part of the change.** A proposal without `docs/en` + `docs/fr` + `CHANGELOG.md` is not done; the

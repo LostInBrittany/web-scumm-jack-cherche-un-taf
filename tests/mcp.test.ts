@@ -57,6 +57,8 @@ describe('MCP server on games/demo', () => {
       'solve',
       'screenshot',
       'read_doc',
+      'search_docs',
+      'list_docs',
       'run_tests',
       'asset_prompts',
       'content_report',
@@ -89,7 +91,8 @@ describe('MCP server on games/demo', () => {
     const classics = await call(demo, 'read_doc', { name: 'CLASSICS' });
     expect(JSON.stringify(classics)).toContain('insult');
     const doc = await call(demo, 'read_doc', { name: 'STUDIO' });
-    expect(doc.content[0].text).toContain('# Studio');
+    // Rebuilt from the wiki's Studio pages since 4.5.0 (C2): their headings, in the old page's order.
+    expect(doc.content[0].text).toMatch(/^## What the Studio is$/m);
 
     const res = await demo.readResource({ uri: 'webscumm://room/house' });
     expect(JSON.parse((res.contents[0] as { text: string }).text).def.id).toBe('house');

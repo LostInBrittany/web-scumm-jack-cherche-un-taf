@@ -217,7 +217,7 @@ export async function oldStore(c) {
     for (let i = 1; !oldBytes && i <= 5; i++) {
       try {
         const got = await fetch(
-          'https://github.com/wanoo/web-scumm/releases/download/v4.1.17/web-scumm-bridge-4.1.17.tgz',
+          'https://github.com/Quest-n-Click/quest-n-click/releases/download/v4.1.17/web-scumm-bridge-4.1.17.tgz',
           { signal: AbortSignal.timeout(60_000) },
         );
         if (got.ok) oldBytes = Buffer.from(await got.arrayBuffer());
@@ -258,7 +258,7 @@ export async function oldStore(c) {
         'run',
         '--rm',
         '--network',
-        'web-scumm-qualify_store',
+        'quest-n-click-qualify_store',
         '--user',
         `${env.QUALIFY_UID}:${env.QUALIFY_GID}`,
         '-v',

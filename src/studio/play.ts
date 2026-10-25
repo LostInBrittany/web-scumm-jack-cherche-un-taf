@@ -19,6 +19,7 @@ import { SpeedrunPanel, type SpeedrunFrame } from './speedrun-panel';
 import { download, h, select, toast } from './ui';
 import { gameElsewhere, gameLink, gameUrl } from './game-origin';
 import { RealityPanel } from './reality-panel';
+import { HeroPicker } from './hero-picker';
 
 type GameWindow = Window & { __game?: { engine: Engine; game: GameDef } };
 
@@ -44,6 +45,8 @@ export class PlayTab {
 
   /** Signals from outside, simulated (4.1.1): shown for a game that declares `reality`. */
   private reality = new RealityPanel(() => this.frame.contentWindow);
+  /** The flags the texts switch on, each as a select: preview each hero (4.3.0). */
+  private heroes = new HeroPicker(() => this.game());
   /** Speedrun categories, splits, routes, preview and export (4.1.14): shown for a game that declares `speedrun`. */
   private speedrun = new SpeedrunPanel(() => this.game() as SpeedrunFrame | null, {
     ...(api.setValue ? { write: (m) => api.setValue!('@game', 'speedrun', m) } : {}),
@@ -105,7 +108,16 @@ export class PlayTab {
               ),
               h('button', { type: 'button', onclick: () => void this.load(this.painter) }, 'Load the latest preview'),
             )
-          : h('div', { class: 'playside' }, this.state, this.reality.el, this.speedrun.el, this.why, this.journal),
+          : h(
+              'div',
+              { class: 'playside' },
+              this.state,
+              this.heroes.el,
+              this.reality.el,
+              this.speedrun.el,
+              this.why,
+              this.journal,
+            ),
       ),
     );
     if (gameElsewhere()) {
@@ -114,6 +126,7 @@ export class PlayTab {
     }
     this.timer = setInterval(() => {
       this.refresh();
+      this.heroes.refresh();
       this.reality.refresh();
       this.speedrun.refresh();
       this.measure();

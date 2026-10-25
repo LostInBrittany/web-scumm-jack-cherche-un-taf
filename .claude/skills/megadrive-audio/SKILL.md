@@ -4,7 +4,7 @@ description: Make a game's music and sound effects with the Mega Drive audio pip
 ---
 # Mega Drive audio
 
-The whole workflow, the rules and the spec reference are in `docs/en/AUDIO.md` (vendor-neutral: read it first, it is
+The whole workflow, the rules and the spec reference are in `wiki/en/create.music.md` (vendor-neutral: read it first, it is
 the only source of truth). In short:
 
 1. Check the source may be used (yours, public domain, or a licence that allows derived works) and say where it

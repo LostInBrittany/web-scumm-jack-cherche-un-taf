@@ -15,7 +15,8 @@ export function say(
 ): Promise<void> {
   app.endSpeech();
   if (o.fast) return Promise.resolve();
-  const char = app.game.characters[who];
+  // Through the engine: the variant that applies gives the name, the colour stays the character's.
+  const char = app.engine.character(who);
   app.live.textContent = `${char?.name ?? who}: ${text}`;
   const color = char?.color ?? '#fff';
   const inCall = !!app.call?.ids.includes(who);
@@ -62,7 +63,7 @@ export function say(
 export function transcribe(app: App, who: Id, text: string, color: string) {
   const t = app.transcript;
   if (!t) return;
-  const char = app.game.characters[who];
+  const char = app.engine.character(who);
   const line = el('div', 'line', `<b style="color:${color}">${esc(char?.name ?? who)} :</b>${esc(text)}`);
   t.querySelector('.hint')?.before(line);
   t.scrollTop = t.scrollHeight;
@@ -72,7 +73,7 @@ export function openTranscript(app: App, who: Id | undefined, question: string) 
   app.closeTranscript();
   const t = el('div', 'transcript');
   if (who) {
-    const c = app.game.characters[who];
+    const c = app.engine.character(who);
     t.append(
       el('div', 'who', `${c?.portrait ? `<img src="${app.bank.img(c.portrait)}" alt="">` : ''}${esc(c?.name ?? who)}`),
     );
@@ -118,7 +119,7 @@ export function endSpeech(app: App) {
 
 export function choose(
   app: App,
-  options: { text: string; seen?: boolean; global?: boolean }[],
+  options: { text: string; seen?: boolean; global?: boolean; img?: Id }[],
   who?: Id,
 ): Promise<number> {
   app.closeTranscript();
@@ -129,13 +130,13 @@ export function choose(
   app.side.classList.remove('off');
   const box = el('div', 'choices');
   if (who) {
-    const c = app.game.characters[who];
+    const c = app.engine.character(who);
     box.append(
       el('div', 'who', `${c?.portrait ? `<img src="${app.bank.img(c.portrait)}" alt="">` : ''}${esc(c?.name ?? who)}`),
     );
   }
   box.setAttribute('role', 'group');
-  box.setAttribute('aria-label', who ? (app.game.characters[who]?.name ?? who) : app.game.ui.mapTitle);
+  box.setAttribute('aria-label', who ? (app.engine.character(who)?.name ?? who) : app.game.ui.mapTitle);
   roving(box, '.choice');
   app.side.insertBefore(box, app.toolsEl);
   queueMicrotask(() => box.querySelector<HTMLElement>('.choice')?.focus({ preventScroll: true }));
@@ -155,10 +156,17 @@ export function choose(
       }
       res(i);
     };
+    // Options with an image are cards (4.3.0): a grid before the text lines, in their own order; the index picked is
+    // still the option's. The card's name is its label (the image is decoration: `alt=""`).
+    const cards = options.some((o) => o.img) ? el('div', 'cards') : null;
+    if (cards) box.append(cards);
     options.forEach((o, i) => {
-      const b = el('button', 'choice' + (o.seen ? ' read' : '') + (o.global ? ' gl' : ''), '• ' + esc(o.text));
+      const cls = 'choice' + (o.seen ? ' read' : '') + (o.global ? ' gl' : '');
+      const b = o.img
+        ? el('button', `${cls} card`, `<img src="${app.bank.img(o.img)}" alt=""><span>${esc(o.text)}</span>`)
+        : el('button', cls, '• ' + esc(o.text));
       b.onclick = () => void app.presenter.intent({ kind: 'pick', choice: i });
-      box.append(b);
+      (o.img && cards ? cards : box).append(b);
     });
   });
 }
@@ -170,7 +178,7 @@ export async function phone(app: App, whoIn: Id | Id[], ringing: boolean) {
     return;
   }
   app.hangUp();
-  const chars = ids.map((id) => app.game.characters[id]);
+  const chars = ids.map((id) => app.engine.character(id));
   const color = chars[0]?.color ?? '#fff';
   const card = el('div', 'overlay');
   Object.assign(card.style, {

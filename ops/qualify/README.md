@@ -1,6 +1,6 @@
 # The Bridge's qualification profile (4.1.18)
 
-A reproducible deployment of the reference Bridge in the topology `docs/en/REALITY-OPS.md` calls distributed: an
+A reproducible deployment of the reference Bridge in the topology `wiki/en/bridge.install-run.md` calls distributed: an
 HTTPS proxy, three Bridge instances, one Postgres, two tenants. It is the profile `npm run ops:qualify` drives in CI
 and the one the human pass `bridge-postgres-https` runs behind a real domain for 24 to 48 hours. It is an example an
 operator can carry elsewhere, not a promise that Docker Compose is secure everywhere, and not a hosted service.
@@ -11,10 +11,10 @@ client ──HTTPS──▶ proxy (Caddy) ──▶ bridge-1 ─┐
                    :8444-8446 one each bridge-3 ─┘
 ```
 
-- **Built from the candidate's tarball** (`web-scumm-bridge-<version>.tgz`), never from a checkout: the image is the
+- **Built from the candidate's tarball** (`quest-n-click-bridge-<version>.tgz`), never from a checkout: the image is the
   package, its production dependencies and the Postgres peer.
 - **Nothing resolved at build time** (4.1.19): the image installs its dependencies, `pg` and OpenTelemetry's API
-  included, with `npm ci` from a lock kept in the repository (`scripts/locks/web-scumm-bridge-image.json`, made by
+  included, with `npm ci` from a lock kept in the repository (`scripts/locks/quest-n-click-bridge-image.json`, made by
   `npm run locks` from the root lock). The candidate builds it **once** (`scripts/bridge-image.mjs build`) and saves it
   with three identities: its config digest (what runs), its OCI manifest digest and the SHA-256 of the saved archive
   (what was carried). `--image-from=<dir>` loads that archive and checks them instead of building; the release

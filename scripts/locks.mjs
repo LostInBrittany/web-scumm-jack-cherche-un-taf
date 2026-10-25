@@ -21,10 +21,10 @@ const rootLock = JSON.parse(readFileSync(join(ROOT, 'package-lock.json'), 'utf8'
  * not install. Each is pinned here: `npm run locks` that moves one fails its check until this list is changed too.
  */
 const OUTSIDE_ROOT = {
-  'web-scumm-connectors:node_modules/buildcheck': '0.0.7',
-  'web-scumm-connectors:node_modules/ssh2/node_modules/cpu-features': '0.0.10',
-  'web-scumm-connectors:node_modules/ssh2/node_modules/nan': '2.29.0',
-  'web-scumm-bridge-image:node_modules/@opentelemetry/api': '1.9.1',
+  '@quest-n-click/connectors:node_modules/buildcheck': '0.0.7',
+  '@quest-n-click/connectors:node_modules/ssh2/node_modules/cpu-features': '0.0.10',
+  '@quest-n-click/connectors:node_modules/ssh2/node_modules/nan': '2.29.0',
+  'quest-n-click-bridge-image:node_modules/@opentelemetry/api': '1.9.1',
 };
 
 /** What is wrong with a versioned lock: against its manifest, then a version the root lock resolves otherwise. */

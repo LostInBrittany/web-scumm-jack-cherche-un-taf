@@ -25,7 +25,7 @@ export function objectivesMenu(app: App, _d: HTMLElement, m: HTMLElement) {
     const li = el(
       'li',
       `objective${ok ? ' done' : ''}${o.optional ? ' optional' : ''}`,
-      `<span>${ok ? '✓' : '○'}</span> ${esc(o.title)}`,
+      `<span>${ok ? '✓' : '○'}</span> ${esc(app.engine.text(o.title))}`,
     );
     li.dataset.objective = id;
     li.style.paddingLeft = `${depth * 1.2}em`;

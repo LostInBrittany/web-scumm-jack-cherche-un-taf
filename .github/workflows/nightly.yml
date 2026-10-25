@@ -13,8 +13,12 @@ on:
 permissions:
   contents: read
 jobs:
-  # The four npm names (4.1.20 PR 3b, D34: squatting accepted until 4.2): still free, or ours. Never gating: a name
-  # taken by someone else is said as a warning and in the summary, for the maintainer to act before 4.2.
+  # The npm names (4.1.20 PR 3b, D34: squatting accepted until 4.2): still free, or ours. Never gating: a name
+  # taken by someone else is said as a warning and in the summary, for the maintainers to act. Since 4.5.2 (D53) the
+  # packages are the organisation's scoped ones, ours when an owner of the organisation publishes them; the unscoped
+  # names of 4.2.5 to 4.5.1 are pointers, an owner's and deprecated toward the scoped ones, except
+  # create-quest-n-click, a relay (an owner's, never deprecated: `npx create-quest-n-click` runs @quest-n-click/create);
+  # the former names (D47) are watched as before, since a reader may still look for them.
   npm-names:
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -22,16 +26,43 @@ jobs:
     steps:
       - shell: bash
         run: |
-          for p in web-scumm create-web-scumm web-scumm-bridge web-scumm-connectors web-scumm-studio-server; do
-            # The maintainer's npm user exactly (`wanoo <mail>`), never a prefix; a 404 is free, any other error said.
+          # The organisation's owners' npm users exactly (`lostinbrittany <mail>`), never a prefix: OWNERS in
+          # tools/release/preflight.mjs (npm shows an organisation's members to its members only, and CI has no
+          # token).
+          OWNERS='"(lostinbrittany|wanoo)( <|")'
+          for p in @quest-n-click/engine @quest-n-click/create @quest-n-click/bridge @quest-n-click/connectors @quest-n-click/studio-server web-scumm create-web-scumm web-scumm-bridge web-scumm-connectors web-scumm-studio-server; do
+            # A 404 is free, any other error said.
             if who=$(npm view "$p" maintainers --json 2>/tmp/npm-err); then
-              if echo "$who" | grep -Eq '"wanoo( <|")'; then echo "✔ $p: ours"; else echo "::warning title=npm name taken::$p is published by someone else: $who"; echo "- $p: TAKEN by $who" >> "$GITHUB_STEP_SUMMARY"; fi
+              if echo "$who" | grep -Eq "$OWNERS"; then echo "✔ $p: ours"; else echo "::warning title=npm name taken::$p is published by someone else: $who"; echo "- $p: TAKEN by $who" >> "$GITHUB_STEP_SUMMARY"; fi
             elif grep -q E404 /tmp/npm-err; then
               echo "✔ $p: still free"
             else
               echo "::warning title=npm name unknown::$p: npm view failed: $(tail -1 /tmp/npm-err)"
             fi
           done
+          # The pointers: an owner's and deprecated. Free is said (to reserve), never a failure.
+          for p in quest-n-click quest-n-click-bridge quest-n-click-connectors quest-n-click-studio-server; do
+            if view=$(npm view "$p" maintainers deprecated --json 2>/tmp/npm-err); then
+              if ! echo "$view" | grep -Eq "$OWNERS"; then echo "::warning title=npm name taken::$p is published by someone else: $view"; echo "- $p: TAKEN by $view" >> "$GITHUB_STEP_SUMMARY"
+              elif ! echo "$view" | grep -q '"deprecated"'; then echo "::warning title=npm pointer not deprecated::$p is ours but not deprecated (npm deprecate, D53)"; echo "- $p: ours, NOT DEPRECATED" >> "$GITHUB_STEP_SUMMARY"
+              else echo "✔ $p: ours, a deprecated pointer"; fi
+            elif grep -q E404 /tmp/npm-err; then
+              echo "::notice title=npm pointer free::$p is not reserved yet (D53)"; echo "- $p: free, to reserve as a pointer" >> "$GITHUB_STEP_SUMMARY"
+            else
+              echo "::warning title=npm name unknown::$p: npm view failed: $(tail -1 /tmp/npm-err)"
+            fi
+          done
+          # The relay: an owner's, not deprecated.
+          p=create-quest-n-click
+          if view=$(npm view "$p" maintainers deprecated --json 2>/tmp/npm-err); then
+            if ! echo "$view" | grep -Eq "$OWNERS"; then echo "::warning title=npm name taken::$p is published by someone else: $view"; echo "- $p: TAKEN by $view" >> "$GITHUB_STEP_SUMMARY"
+            elif echo "$view" | grep -q '"deprecated"'; then echo "::warning title=npm relay deprecated::$p is the relay to @quest-n-click/create and must not be deprecated (D53)"; echo "- $p: relay DEPRECATED" >> "$GITHUB_STEP_SUMMARY"
+            else echo "✔ $p: ours, the relay"; fi
+          elif grep -q E404 /tmp/npm-err; then
+            echo "::notice title=npm relay free::$p is not published yet (the relay, D53)"; echo "- $p: free, to publish as the relay" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning title=npm name unknown::$p: npm view failed: $(tail -1 /tmp/npm-err)"
+          fi
   # The heavy solver tests (4.1.3): the abstraction audits, the canonical owner, the memo and the ownership proofs, the
   # reference chapter's proof. Minutes each on a shared runner, so they run here every night, not on every push.
   # 4.1.17: one file after the other (`--no-file-parallelism`), so the four partition workers have the cores and the

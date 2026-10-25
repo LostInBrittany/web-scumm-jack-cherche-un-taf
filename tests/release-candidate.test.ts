@@ -80,7 +80,7 @@ describe('the workflows that judge a candidate', () => {
   const jobs = (text: string) => [...text.matchAll(/^ {2}([a-z][a-z0-9-]*):$/gm)].map((m) => m[1]);
 
   it('run every shard of every gated set from the one generated matrix, never a list of their own (4.1.20)', () => {
-    for (const name of ['candidate', 'nightly', 'ci', 'release']) {
+    for (const name of ['candidate', 'nightly', 'ci']) {
       const text = wf(name);
       expect(text, name).not.toMatch(/^ {8}set: \[/m);
       expect(text, name).not.toMatch(/--set=all/);
@@ -97,24 +97,26 @@ describe('the workflows that judge a candidate', () => {
       );
     }
     expect(wf('nightly')).toContain('continue-on-error: ${{ !matrix.gated }}');
-    for (const name of ['candidate', 'ci', 'release'])
+    for (const name of ['candidate', 'ci'])
       expect(wf(name), name).not.toContain('continue-on-error: ${{ !matrix.gated }}');
   });
 
-  it('judge a candidate and a release only once every set is merged', () => {
+  it('release.yml runs no mutation set (4.5.3, #291): the candidate the tag names ran them on the same SHA', () => {
+    const release = wf('release');
+    expect(jobs(release.slice(release.indexOf('\njobs:\n')))).toEqual([
+      'release',
+      'npm-stage',
+      'docs-publish',
+      'site-revalidate',
+    ]);
+    expect(release).not.toMatch(/mutation-shards|test:mutation|mutate\.ts/);
+  });
+
+  it('judge a candidate only once every set is merged; the release job waits for no job', () => {
     const gate = wf('candidate').slice(wf('candidate').indexOf('\n  candidate-gate:'));
     expect(gate.slice(0, gate.indexOf('\n    if:'))).toMatch(/needs: \[[^\]]*mutation-plan, mutation, mutation-merge/);
     const release = wf('release').slice(wf('release').indexOf('\n  release:'));
-    expect(release.slice(0, 200)).toContain('needs: [mutation-plan, mutation, mutation-merge]');
-  });
-
-  it('release.yml judges a tag on the matrix its own commit generates, and refuses a commit that generates none', () => {
-    const plan = wf('release').slice(
-      wf('release').indexOf('\n  mutation-plan:'),
-      wf('release').indexOf('\n  mutation:'),
-    );
-    expect(plan).toContain('ref: ${{ github.event.workflow_run.head_sha }}');
-    expect(plan).toMatch(/if \[ ! -f tools\/mutation-shards\.ts \]; then\n\s+echo "::error::[^"]+"\n\s+exit 1/);
+    expect(release.slice(0, release.indexOf('\n    steps:'))).not.toMatch(/^ {4}needs:/m);
   });
 
   it('never let a pipe hide a failure: every step piped into tee runs under `shell: bash` (pipefail)', () => {
@@ -178,5 +180,12 @@ describe('the workflows that judge a candidate', () => {
 
   it('stay quiet on a pull request without full-ci (no target, no gate, no red check)', () => {
     expect(wf('candidate')).toContain("if: always() && needs.target.result != 'skipped'");
+  });
+
+  it('starts on a pull request only when full-ci is added, never on its pushes (4.5.3)', () => {
+    const w = wf('candidate');
+    expect(w).toMatch(/^ {2}pull_request:\n {4}types: \[labeled\]\n/m);
+    expect(w).not.toMatch(/synchronize/);
+    expect(w).toContain("if: github.event_name == 'workflow_dispatch' || github.event.label.name == 'full-ci'");
   });
 });

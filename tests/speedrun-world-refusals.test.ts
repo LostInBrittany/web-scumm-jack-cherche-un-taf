@@ -200,6 +200,17 @@ describe('the world', () => {
     unknown.variant = rehash(fixed.variant, { algorithm: 'other-1' });
     expect(await codeOf(unknown)).toBe('world-shape');
   });
+  // 4.3.0 (the reread of the exemptions): a world that cannot be hashed (a number JSON reads as Infinity, two keys
+  // equal once NFC-composed) is a world-shape refusal of the run, not a crash of the verifier.
+  it('refuses a world that cannot be hashed as world-shape, not as a crash', async () => {
+    const text = exportEnvelope(fixed as never);
+    const huge = text.replace(/"assignments":\{/, '"assignments":{"x":1e400,');
+    expect(huge).not.toBe(text);
+    expect(await verifyRun(huge, ctx())).toMatchObject({ verdict: 'invalid-replay', code: 'world-shape' });
+    const twins = clone(fixed);
+    twins.variant = { ...fixed.variant, assignments: { ...fixed.variant.assignments, 'e\u0301': 1, '\u00e9': 2 } };
+    expect(await verifyRun(twins, ctx())).toMatchObject({ verdict: 'invalid-replay', code: 'world-shape' });
+  });
   it('a Fixed category draws its run from its own seed: another run seed is refused', async () => {
     const env = clone(fixed);
     env.runSeed = 'fixed:remix-fixed';

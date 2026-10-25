@@ -227,6 +227,7 @@ export function deviceFamily(ua: string, touchPoints = 0): DeviceFamily {
 
 /** The file a tester sends: the session, the journal, the game and its save version, its device family (3.7.1). */
 export interface SessionFile {
+  // A format identifier from web-scumm, kept so existing sessions still load (D47).
   kind: 'web-scumm-session';
   game: Id;
   v: number;

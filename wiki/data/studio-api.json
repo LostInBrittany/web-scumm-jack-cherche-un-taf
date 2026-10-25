@@ -1,0 +1,695 @@
+{
+  "format": "quest-n-click-docs-studio-api",
+  "version": 1,
+  "groups": [
+    {
+      "id": "game",
+      "title": {
+        "en": "The game and its rooms",
+        "fr": "Le jeu et ses lieux"
+      },
+      "intro": {
+        "en": "Read the game, read a room, and write a room's layout, texts, entities and structured values. Every write is one operation of the game's journal, guarded on the game as it would be after it.",
+        "fr": "Lire le jeu, lire un lieu, et écrire le layout, les textes, les entités et les valeurs structurées d'un lieu. Chaque écriture est une opération du journal du jeu, gardée sur le jeu tel qu'il serait après elle."
+      }
+    },
+    {
+      "id": "history",
+      "title": {
+        "en": "Revisions and undo",
+        "fr": "Révisions et annulation"
+      },
+      "intro": {
+        "en": "What changed between two revisions of the journal, the rooms it names drawn at both, and the undo and redo of the Studio's own edits.",
+        "fr": "Ce qui a changé entre deux révisions du journal, les lieux qu'il nomme dessinés aux deux, et l'annulation et le rétablissement des modifications du Studio."
+      }
+    },
+    {
+      "id": "story",
+      "title": {
+        "en": "Storyboard, scenario map and notes",
+        "fr": "Storyboard, carte du scénario et notes"
+      },
+      "intro": {
+        "en": "The storyboard (`storyboard.json`), the groupings of the scenario map (`groupings.json`) and the shared notes (`notes.json`) of the game folder.",
+        "fr": "Le storyboard (`storyboard.json`), les regroupements de la carte du scénario (`groupings.json`) et les notes partagées (`notes.json`) du dossier du jeu."
+      }
+    },
+    {
+      "id": "checks",
+      "title": {
+        "en": "Checks and views",
+        "fr": "Vérifications et vues"
+      },
+      "intro": {
+        "en": "The validator, the solver, the lint, the playtests, the coverage of the storyboard, the profiler, the world map, the puzzle graph and the game's IR: read-only, the game reloaded on each call. On the Studio Server, `validate`, `solve`, `lint` and `playtests` run on the processing worker.",
+        "fr": "Le validateur, le solveur, le lint, les playtests, la couverture du storyboard, le profileur, la carte du monde, le graphe des énigmes et l'IR du jeu : en lecture seule, le jeu rechargé à chaque appel. Sur le Studio Server, `validate`, `solve`, `lint` et `playtests` tournent sur l'application de traitement."
+      }
+    },
+    {
+      "id": "voices",
+      "title": {
+        "en": "Voices and heroes",
+        "fr": "Voix et héros"
+      },
+      "intro": {
+        "en": "The voice table of each language (`voices.json`) and the hero × language matrix.",
+        "fr": "La table des voix de chaque langue (`voices.json`) et la matrice héros × langue."
+      }
+    },
+    {
+      "id": "feed",
+      "title": {
+        "en": "Change feed and screenshots",
+        "fr": "Flux des changements et captures"
+      },
+      "intro": {
+        "en": "The dev server's server-sent events and the room screenshots it renders.",
+        "fr": "Les évènements envoyés par le serveur de dev et les captures de lieux qu'il rend."
+      }
+    },
+    {
+      "id": "assets",
+      "title": {
+        "en": "Assets tab",
+        "fr": "Onglet Assets"
+      },
+      "intro": {
+        "en": "Every image and sound of the game with where it is used, the art prompts per sheet, and the uploads. Nothing is ever deleted: a replaced file is first kept as `<name>_v<N>.<ext>` beside it. Since 4.2.1 every upload is one operation of the journal: the backups, the new files and the cells a tool cut are written together or not at all. A JSON body is 96 MiB at most (413 above). The Studio Server serves its own Assets routes (`studio-server/src/server/hosted-assets.ts`), not described here.",
+        "fr": "Chaque image et chaque son du jeu avec l'endroit où il sert, les prompts d'image par planche, et les envois. Rien n'est jamais supprimé : un fichier remplacé est d'abord gardé en `<nom>_v<N>.<ext>` à côté. Depuis 4.2.1 chaque envoi est une opération du journal : les sauvegardes, les nouveaux fichiers et les cases qu'un outil a découpées sont écrits ensemble ou pas du tout. Un corps JSON fait 96 Mio au plus (413 au-delà). Le Studio Server sert ses propres routes Assets (`studio-server/src/server/hosted-assets.ts`), non décrites ici."
+      }
+    },
+    {
+      "id": "assistant",
+      "title": {
+        "en": "Assistant",
+        "fr": "Assistant"
+      },
+      "intro": {
+        "en": "The Studio's Assistant on the dev server: a conversation relayed to a chat model, and a task for an MCP-connected agent.",
+        "fr": "L'Assistant du Studio sur le serveur de dev : une conversation relayée vers un modèle de chat, et une tâche pour un agent connecté en MCP."
+      }
+    }
+  ],
+  "routes": [
+    {
+      "method": "GET",
+      "path": "/game",
+      "group": "game",
+      "server": "table",
+      "result": {
+        "en": "`{ id, title, hero, rooms: [{ id, name, decor }], characters: { id: { name, color, portrait } }, items: { id: { name, icon } }, verbs, checkpoints, images, sfx }`, read from the game module (with its `objectives` since 4.1.12). `images` is the asset manifest, id → `[w, h]`, thumbnails at `/assets/img/<id>.webp`; `sfx` the ids of `audio.sfx`.",
+        "fr": "`{ id, title, hero, rooms: [{ id, name, decor }], characters: { id: { name, color, portrait } }, items: { id: { name, icon } }, verbs, checkpoints, images, sfx }`, lu depuis le module du jeu (avec ses `objectives` depuis 4.1.12). `images` est le manifeste des assets, id → `[w, h]`, vignettes à `/assets/img/<id>.webp` ; `sfx` les ids de `audio.sfx`."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/room/:id",
+      "group": "game",
+      "server": "table",
+      "result": {
+        "en": "`{ def: RoomDef, layout: Layout, texts: TextRef[], file }`, with `TextRef = { path, value, file, line, kind, who? }` for every text literal of the room file (see [Texts](#texts)). 404 for an unknown room.",
+        "fr": "`{ def: RoomDef, layout: Layout, texts: TextRef[], file }`, avec `TextRef = { path, value, file, line, kind, who? }` pour chaque littéral de texte du fichier du lieu (voir [Textes](#texts)). 404 pour un lieu inconnu."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/room/:id/layout",
+      "group": "game",
+      "server": "table",
+      "body": {
+        "en": "the whole `Layout` object.",
+        "fr": "l'objet `Layout` entier."
+      },
+      "result": {
+        "en": "`{ ok }`: `layout/<id>.json` written.",
+        "fr": "`{ ok }` : `layout/<id>.json` écrit."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/room/:id/text",
+      "group": "game",
+      "server": "table",
+      "body": {
+        "en": "`{ path, value }`, `value` a string or `null`.",
+        "fr": "`{ path, value }`, `value` une chaîne ou `null`."
+      },
+      "result": {
+        "en": "`{ ok, line, changed }`: the string literal at `path` replaced in `rooms/<id>.ts`; `changed: false` when the value was already there (nothing is written). `value: null` deletes a list line (or a whole `look.<id>`); a path ending in `[+]` appends a line (`look.piano[+]`, `hints[2].lines[+]`, `on[3].do[+]`). A path that is not a text (an id, an image, a flag, a condition) is refused; `value` that is neither a string nor null is a 400. Guarded since 4.2.1: 422 when the edit would add validation errors.",
+        "fr": "`{ ok, line, changed }` : le littéral de chaîne à `path` remplacé dans `rooms/<id>.ts` ; `changed: false` quand la valeur était déjà là (rien n'est écrit). `value: null` supprime une ligne de liste (ou tout un `look.<id>`) ; un chemin finissant par `[+]` ajoute une ligne (`look.piano[+]`, `hints[2].lines[+]`, `on[3].do[+]`). Un chemin qui n'est pas un texte (un id, une image, un drapeau, une condition) est refusé ; une `value` ni chaîne ni null donne un 400. Gardée depuis 4.2.1 : 422 quand la modification ajouterait des erreurs de validation."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/room/:id/add",
+      "group": "game",
+      "server": "table",
+      "body": {
+        "en": "`{ kind: 'prop' | 'hotspot' | 'actor', id, name?, img?, char?, at: [x, y], look? }`.",
+        "fr": "`{ kind: 'prop' | 'hotspot' | 'actor', id, name?, img?, char?, at: [x, y], look? }`."
+      },
+      "result": {
+        "en": "`{ ok, line, changed }`: the entry inserted in the room file (its section created if absent), the optional first look line, and a place in the layout (prop: foot at `at`, height 60; hotspot: a 60 × 60 box centred on `at`; actor: feet at `at`), as one operation undone in one step. `name` is required for props and hotspots; 409 when the id exists; `kind`, `id` and `at` are checked first (`` `kind` must be prop, hotspot or actor ``, `` `at` must be [x, y] ``).",
+        "fr": "`{ ok, line, changed }` : l'entrée insérée dans le fichier du lieu (sa section créée si absente), la première ligne de Regarder facultative, et une place dans le layout (accessoire : pied à `at`, hauteur 60 ; zone cliquable : une boîte 60 × 60 centrée sur `at` ; acteur : pieds à `at`), en une seule opération annulée en une fois. `name` est obligatoire pour les accessoires et les zones cliquables ; 409 quand l'id existe ; `kind`, `id` et `at` sont vérifiés d'abord (`` `kind` must be prop, hotspot or actor ``, `` `at` must be [x, y] ``)."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/room/:id/value",
+      "group": "game",
+      "server": "table",
+      "since": "3.4",
+      "body": {
+        "en": "`{ path, value?, dry? }`.",
+        "fr": "`{ path, value?, dry? }`."
+      },
+      "result": {
+        "en": "`{ ok, line, changed, diff, dry? }`: a structured value (a reaction `on[3]` or `on[<length>]` to add one, a condition `on[3].if`, a command list `on[3].do` or `onEnter`, the room's `stage` or `renderer`) written as code at `path` in the file's style; `value` absent removes the path; `dry: true` returns the diff only. 422 `{ error, errors, diff }` when the write would add validation errors: since 4.2.1 nothing is written, the guard judges the game as it would be.",
+        "fr": "`{ ok, line, changed, diff, dry? }` : une valeur structurée (une réaction `on[3]` ou `on[<longueur>]` pour en ajouter une, une condition `on[3].if`, une liste de commandes `on[3].do` ou `onEnter`, le `stage` ou le `renderer` du lieu) écrite en code à `path` dans le style du fichier ; `value` absente retire le chemin ; `dry: true` ne renvoie que le diff. 422 `{ error, errors, diff }` quand l'écriture ajouterait des erreurs de validation : depuis 4.2.1 rien n'est écrit, la garde juge le jeu tel qu'il serait."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/room/@game/value",
+      "group": "game",
+      "server": "table",
+      "since": "4.1.12",
+      "body": {
+        "en": "`{ path, value?, dry? }`.",
+        "fr": "`{ path, value?, dry? }`."
+      },
+      "result": {
+        "en": "The same for the game file's `defineGame({...})`, objectives only: `objectives`, `objectives.<id>` (`{ title, done, optional?, parent? }`) or one of its fields; any other path is a 400. Validated the same way, so an objective whose `done` can never hold is refused.",
+        "fr": "La même chose pour le `defineGame({...})` du fichier du jeu, objectifs seulement : `objectives`, `objectives.<id>` (`{ title, done, optional?, parent? }`) ou un de ses champs ; tout autre chemin est un 400. Validée de la même façon : un objectif dont le `done` ne peut jamais être vrai est refusé."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/diff/:from..:to",
+      "group": "history",
+      "server": "table",
+      "since": "4.2.3",
+      "result": {
+        "en": "What changed between two revisions of the journal, by what the game names: `{ files: [{ path, change: added|removed|changed, ids?: { added, removed, changed: [{ id, fields }] }, values?: { added, removed, changed }, opaque?, cut? }] }`; 2,000 revisions at most. The Check tab's \"Changes between revisions\". Each revision is 1 to 12 digits.",
+        "fr": "Ce qui a changé entre deux révisions du journal, par ce que le jeu nomme : `{ files: [{ path, change: added|removed|changed, ids?: { added, removed, changed: [{ id, fields }] }, values?: { added, removed, changed }, opaque?, cut? }] }` ; 2 000 révisions au plus. « Changes between revisions » dans l'onglet Check. Chaque révision fait 1 à 12 chiffres."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/diff/:from..:to/captures",
+      "group": "history",
+      "server": "table",
+      "since": "4.4.0",
+      "result": {
+        "en": "Local Studio only: each room the diff names, drawn at both revisions: `{ from, to, size: [960, 600], rooms: [{ room, why, before, after, box?, same? }], cut?, ms }`. A side is `{ file, url }` (a PNG data URL and its file under `.cache/studio/`) or `{ missing }` (why it is not drawn: the revision does not build, the room is not there); `box` `[x, y, w, h]` where they differ, `same` when nowhere. 501 `{ unavailable, reason }` on a hosted Studio or without Playwright.",
+        "fr": "Studio local seulement : chaque lieu que le diff nomme, dessiné aux deux révisions : `{ from, to, size: [960, 600], rooms: [{ room, why, before, after, box?, same? }], cut?, ms }`. Un côté est `{ file, url }` (une data URL PNG et son fichier sous `.cache/studio/`) ou `{ missing }` (pourquoi il n'est pas dessiné : la révision ne se construit pas, le lieu n'y est pas) ; `box` `[x, y, l, h]` où ils diffèrent, `same` quand nulle part. 501 `{ unavailable, reason }` sur un Studio hébergé ou sans Playwright."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/undo",
+      "group": "history",
+      "server": "table",
+      "since": "3.4",
+      "result": {
+        "en": "`{ ok, file, what }`, or `{ ok: false, reason }` when there is nothing to undo; 409 when one of the operation's files changed since (an AI, an editor, git, another author). Itself one operation of the journal. On a shared Studio (4.2.2) each member undoes their own latest operation, and a span another member holds is a 423.",
+        "fr": "`{ ok, file, what }`, ou `{ ok: false, reason }` quand il n'y a rien à annuler ; 409 quand un des fichiers de l'opération a changé depuis (une IA, un éditeur, git, un autre auteur). Elle-même une opération du journal. Sur un Studio partagé (4.2.2) chaque membre annule sa propre dernière opération, et une portée tenue par un autre membre donne un 423."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/redo",
+      "group": "history",
+      "server": "table",
+      "since": "3.4",
+      "result": {
+        "en": "`{ ok, file, what }`, or `{ ok: false, reason }` when there is nothing to redo; 409 when one of the operation's files changed since (an AI, an editor, git, another author). Itself one operation of the journal. On a shared Studio (4.2.2) each member redoes their own latest operation, and a span another member holds is a 423.",
+        "fr": "`{ ok, file, what }`, ou `{ ok: false, reason }` quand il n'y a rien à rétablir ; 409 quand un des fichiers de l'opération a changé depuis (une IA, un éditeur, git, un autre auteur). Elle-même une opération du journal. Sur un Studio partagé (4.2.2) chaque membre rétablit sa propre dernière opération, et une portée tenue par un autre membre donne un 423."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/history",
+      "group": "history",
+      "server": "table",
+      "since": "3.4",
+      "result": {
+        "en": "`{ undo: [what], redo: [what] }`: what an undo and a redo would take back, latest last.",
+        "fr": "`{ undo: [what], redo: [what] }` : ce qu'une annulation et un rétablissement reprendraient, le plus récent en dernier."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/storyboard",
+      "group": "story",
+      "server": "table",
+      "result": {
+        "en": "`storyboard.json`, `{ boards: [] }` when it is absent.",
+        "fr": "`storyboard.json`, `{ boards: [] }` s'il est absent."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/storyboard",
+      "group": "story",
+      "server": "table",
+      "body": {
+        "en": "`{ boards: [...] }`.",
+        "fr": "`{ boards: [...] }`."
+      },
+      "result": {
+        "en": "`{ ok, changed }`: an unchanged storyboard is not rewritten, a changed one is written compactly (what fits on 120 columns stays on one line).",
+        "fr": "`{ ok, changed }` : un storyboard inchangé n'est pas réécrit, un storyboard modifié est écrit de façon compacte (ce qui tient sur 120 colonnes reste sur une ligne)."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/storyboard/markdown",
+      "group": "story",
+      "server": "table",
+      "result": {
+        "en": "`{ ok, file, bytes, boards, panels }`: `games/<id>/storyboard.md` written from the saved `storyboard.json` (the same text as `npm run page:storyboard -- --md`); 404 without a `storyboard.json`.",
+        "fr": "`{ ok, file, bytes, boards, panels }` : `games/<id>/storyboard.md` écrit à partir du `storyboard.json` enregistré (le même texte que `npm run page:storyboard -- --md`) ; 404 sans `storyboard.json`."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/groupings",
+      "group": "story",
+      "server": "table",
+      "since": "4.2.3",
+      "result": {
+        "en": "The groupings file, `{ groupings: [{ id, kind: chapter|puzzle|character, title, refs }] }`.",
+        "fr": "Le fichier des regroupements, `{ groupings: [{ id, kind: chapter|puzzle|character, title, refs }] }`."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/groupings",
+      "group": "story",
+      "server": "table",
+      "since": "4.2.3",
+      "body": {
+        "en": "`{ groupings: [...] }`.",
+        "fr": "`{ groupings: [...] }`."
+      },
+      "result": {
+        "en": "Writes the groupings file, checked: ids unique and lowercase, kinds known, references without spaces, 500 at most of each.",
+        "fr": "Écrit le fichier des regroupements, vérifié : ids uniques et en minuscules, sortes connues, références sans espace, 500 au plus de chaque."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/map",
+      "group": "story",
+      "server": "table",
+      "since": "4.2.3",
+      "result": {
+        "en": "The scenario map derived from the groupings and the IR: `{ groupings: [{ …, refs: [{ ref, kind, at? }] }], ungrouped: { <kind>: [refs] } }`.",
+        "fr": "La carte du scénario dérivée des regroupements et de l'IR : `{ groupings: [{ …, refs: [{ ref, kind, at? }] }], ungrouped: { <sorte>: [refs] } }`."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/notes",
+      "group": "story",
+      "server": "table",
+      "result": {
+        "en": "`{ entries: Note[] }`, with `Note = { id, about, author, text, at, edited? }`.",
+        "fr": "`{ entries: Note[] }`, avec `Note = { id, about, author, text, at, edited? }`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/notes",
+      "group": "story",
+      "server": "table",
+      "body": {
+        "en": "`{ about?, author?, text, task? }`.",
+        "fr": "`{ about?, author?, text, task? }`."
+      },
+      "result": {
+        "en": "The new `Note`, appended to `notes.json` (created on first write); `author` defaults to `you`, `at` is an ISO date. `task: true` marks a request for an MCP-connected agent.",
+        "fr": "La nouvelle `Note`, ajoutée à `notes.json` (créé à la première écriture) ; `author` vaut `you` par défaut, `at` est une date ISO. `task: true` marque une demande pour un agent connecté en MCP."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/notes/:id",
+      "group": "story",
+      "server": "table",
+      "body": {
+        "en": "`{ text, about? }`.",
+        "fr": "`{ text, about? }`."
+      },
+      "result": {
+        "en": "The updated `Note`: text trimmed, `edited` set to now; `at`, `author` and the order unchanged. 400 for an empty text (or an `about` that is not a string), 404 for an unknown id.",
+        "fr": "La `Note` mise à jour : texte débarrassé des espaces superflus, `edited` réglé à maintenant ; `at`, `author` et l'ordre inchangés. 400 pour un texte vide (ou un `about` qui n'est pas une chaîne), 404 pour un id inconnu."
+      }
+    },
+    {
+      "method": "DELETE",
+      "path": "/notes/:id",
+      "group": "story",
+      "server": "table",
+      "result": {
+        "en": "`{ ok }`: the note removed from `notes.json`; 404 for an unknown id.",
+        "fr": "`{ ok }` : la note retirée de `notes.json` ; 404 pour un id inconnu."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/validate",
+      "group": "checks",
+      "server": "table",
+      "result": {
+        "en": "`{ ok, errors: string[], warnings: string[], ms }`.",
+        "fr": "`{ ok, errors: string[], warnings: string[], ms }`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/report",
+      "group": "checks",
+      "server": "table",
+      "result": {
+        "en": "The content profiler: `{ report, markdown, ms }`, what each room, item and character amounts to and what is thin (`src/engine/tools/report.ts`, the MCP tool `content_report`).",
+        "fr": "Le profileur de contenu : `{ report, markdown, ms }`, ce que représente chaque lieu, objet et personnage et ce qui est maigre (`src/engine/tools/report.ts`, l'outil MCP `content_report`)."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/graph",
+      "group": "checks",
+      "server": "table",
+      "result": {
+        "en": "The world map: `{ graph, svg, dot }`, the rooms and the ways between them (`src/engine/tools/graph.ts`, the MCP tool `world_graph`).",
+        "fr": "La carte du monde : `{ graph, svg, dot }`, les lieux et les passages entre eux (`src/engine/tools/graph.ts`, l'outil MCP `world_graph`)."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/puzzle",
+      "group": "checks",
+      "server": "table",
+      "body": {
+        "en": "`{ id? }`.",
+        "fr": "`{ id? }`."
+      },
+      "result": {
+        "en": "The puzzle graph: `{ graph, svg, dot, markdown, classes, id? }`, what every rule needs and changes; `markdown` is the overview, or with `id` the card of that item, flag or prop; `classes` says why the solver keeps each node (critical, world, visible or dead). The MCP tool `puzzle_graph`.",
+        "fr": "Le graphe des énigmes : `{ graph, svg, dot, markdown, classes, id? }`, ce dont chaque règle a besoin et ce qu'elle change ; `markdown` est la vue d'ensemble, ou avec `id` la fiche de cet objet, drapeau ou accessoire ; `classes` dit pourquoi le solveur garde chaque nœud (critical, world, visible ou dead). L'outil MCP `puzzle_graph`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/coverage",
+      "group": "checks",
+      "server": "table",
+      "result": {
+        "en": "`{ coverage, markdown, ms }`: the saved storyboard checked against the content (`src/engine/tools/coverage.ts`: per board and panel, each room, speaker, line, topic, sound and action ok / partial / missing / unknown).",
+        "fr": "`{ coverage, markdown, ms }` : le storyboard enregistré confronté au contenu (`src/engine/tools/coverage.ts` : par board et par case, chaque lieu, locuteur, réplique, sujet, son et action ok / partial / missing / unknown)."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/playtests",
+      "group": "checks",
+      "server": "table",
+      "result": {
+        "en": "`{ report, markdown, files, ms }`: the playtests of `games/<id>/playtests/` replayed and summed up (`src/engine/tools/playtests.ts`).",
+        "fr": "`{ report, markdown, files, ms }` : les playtests de `games/<id>/playtests/` rejoués et cumulés (`src/engine/tools/playtests.ts`)."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/lint",
+      "group": "checks",
+      "server": "table",
+      "body": {
+        "en": "`{ prove? }`.",
+        "fr": "`{ prove? }`."
+      },
+      "result": {
+        "en": "`{ lint, markdown, mode, ms }`: the content lint after a solver run (`src/engine/tools/lint.ts`; `prove`: the exhaustive search first).",
+        "fr": "`{ lint, markdown, mode, ms }` : le lint de contenu après une passe du solveur (`src/engine/tools/lint.ts` ; `prove` : la recherche exhaustive d'abord)."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/solve",
+      "group": "checks",
+      "server": "table",
+      "body": {
+        "en": "`{ from?: checkpoint, prove? }`.",
+        "fr": "`{ from?: checkpoint, prove? }`."
+      },
+      "result": {
+        "en": "`{ finished, states, truncated, path, roomsReached, unlockedReached, flagsReached, itemsNeverUsed, unusedItems, deadEnds: [{ room, inventory, path }], errors, from, ms, profile }`; `profile` is the `SolveProfile` of `src/engine/tools/solve.ts`. 400 for an unknown checkpoint. 20,000 states at most; `prove` runs the exhaustive search instead of the witness. On the Studio Server it runs on the worker, under a time limit.",
+        "fr": "`{ finished, states, truncated, path, roomsReached, unlockedReached, flagsReached, itemsNeverUsed, unusedItems, deadEnds: [{ room, inventory, path }], errors, from, ms, profile }` ; `profile` est le `SolveProfile` de `src/engine/tools/solve.ts`. 400 pour un checkpoint inconnu. 20 000 états au plus ; `prove` lance la recherche exhaustive au lieu du témoin. Sur le Studio Server il tourne sur l'application de traitement, sous une limite de temps."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/ir",
+      "group": "checks",
+      "server": "table",
+      "since": "4.1.12",
+      "result": {
+        "en": "The game's IR ([DSL reference](create.dsl.md#game-as-data)): its logic as data with the `file:line` of each id (`provenance`) and the trusted extensions' hash; the same JSON as `npm run ir -- --json`.",
+        "fr": "L'IR du jeu ([référence du DSL](create.dsl.md#game-as-data)) : sa logique en données avec le `fichier:ligne` de chaque id (`provenance`) et l'empreinte des extensions de confiance ; le même JSON que `npm run ir -- --json`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/screenshot",
+      "group": "feed",
+      "server": "table",
+      "body": {
+        "en": "`{ room, checkpoint? }`.",
+        "fr": "`{ room, checkpoint? }`."
+      },
+      "result": {
+        "en": "`{ file, url }`: a PNG of the room (the editor's overlays hidden) under `.cache/studio/<game>-<room>[-<checkpoint>].png`, served at `url` (`GET screenshots/<name>.png`). 400 without `room`; 501 `{ unavailable: true, reason, error }` when Playwright or its Chromium is missing.",
+        "fr": "`{ file, url }` : un PNG du lieu (les surcouches de l'éditeur masquées) sous `.cache/studio/<game>-<room>[-<checkpoint>].png`, servi à `url` (`GET screenshots/<name>.png`). 400 sans `room` ; 501 `{ unavailable: true, reason, error }` si Playwright ou son Chromium manque."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/screenshots/:name",
+      "group": "feed",
+      "server": "dev-server",
+      "file": "tools/studio/plugin.ts",
+      "match": "/^\\/screenshots\\/([\\w.-]+\\.png)$/",
+      "result": {
+        "en": "The PNG a screenshot wrote (`image/png`, not cached); 404 `no such screenshot`. `name` is letters, digits, `.`, `_` and `-`, ending in `.png`.",
+        "fr": "Le PNG qu'une capture a écrit (`image/png`, sans cache) ; 404 `no such screenshot`. `name` est fait de lettres, chiffres, `.`, `_` et `-`, et finit par `.png`."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/events",
+      "group": "feed",
+      "server": "dev-server",
+      "file": "tools/studio/plugin.ts",
+      "match": "path === '/events'",
+      "result": {
+        "en": "Server-sent events: `{ type: 'hello', game }` on connection, then `{ type: 'changed', file }` when a file of the game folder changes on disk (`file` relative to it, e.g. `rooms/house.ts`; dotfiles, editor backups and `private/` are ignored; 150 ms debounce per file); a `: ping` comment every 25 s.",
+        "fr": "Évènements envoyés par le serveur (SSE) : `{ type: 'hello', game }` à la connexion, puis `{ type: 'changed', file }` quand un fichier du dossier du jeu change sur le disque (`file` relatif à ce dossier, par exemple `rooms/house.ts` ; les dotfiles, les sauvegardes d'éditeur et `private/` sont ignorés ; anti-rebond de 150 ms par fichier) ; un commentaire `: ping` toutes les 25 s."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/voices[/:lang]",
+      "group": "voices",
+      "server": "table",
+      "since": "3.4",
+      "result": {
+        "en": "The voice table of a language (the game's own by default; an unknown language falls back to it): `{ lang, langs, statuses, rows }`.",
+        "fr": "La table des voix d'une langue (celle du jeu par défaut ; une langue inconnue y revient) : `{ lang, langs, statuses, rows }`."
+      }
+    },
+    {
+      "method": "PUT",
+      "path": "/voices/:lang/:id",
+      "group": "voices",
+      "server": "table",
+      "since": "3.4",
+      "body": {
+        "en": "`{ status?, note?, actor? }` (`null` counts as absent).",
+        "fr": "`{ status?, note?, actor? }` (`null` compte comme absent)."
+      },
+      "result": {
+        "en": "`{ ok }`, the row written into `voices.json` (status `draft`, empty note and actor by default). The id is the line's, URL-encoded by the client: a clip of a line with switches is keyed `<id>~<flag>=<value>` (4.3.0, `=` sent as `%3D`); 404 when the game has no such line; a field that is not a string is a 400.",
+        "fr": "`{ ok }`, la ligne écrite dans `voices.json` (statut `draft`, note et acteur vides par défaut). L'id est celui de la réplique, encodé dans l'URL par le client : un clip d'une réplique à aiguillages a pour clé `<id>~<flag>=<value>` (4.3.0, `=` envoyé en `%3D`) ; 404 quand le jeu n'a pas cette réplique ; un champ qui n'est pas une chaîne donne un 400."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/voices/:lang/csv",
+      "group": "voices",
+      "server": "table",
+      "since": "3.4",
+      "result": {
+        "en": "`{ lang, csv }`: the voice table as CSV.",
+        "fr": "`{ lang, csv }` : la table des voix en CSV."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/hero-matrix",
+      "group": "voices",
+      "server": "table",
+      "since": "4.4.0",
+      "result": {
+        "en": "The hero × language matrix (`src/engine/tools/hero-matrix.ts`), read-only: `{ langs, flags, columns, rows, truncated? }`, each row's `cells[column][language]` `{ text, want, clip?, file?, fallback?, missing?, borrowed?, unlisted? }` and its `untranslated`, `agreement`, `problem`.",
+        "fr": "La matrice héros × langue (`src/engine/tools/hero-matrix.ts`), en lecture seule : `{ langs, flags, columns, rows, truncated? }`, les `cells[colonne][langue]` de chaque ligne `{ text, want, clip?, file?, fallback?, missing?, borrowed?, unlisted? }` et ses `untranslated`, `agreement`, `problem`."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/assets",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "['GET', '/', () => assets.list()]",
+      "result": {
+        "en": "`{ sheets: [{ id, kind: 'sprites' | 'furniture' | 'talk', character?, grid, promptKind?, cells: [{ id, file, w, h, used, ids, prepared, asset?, backups, mtime, missing? }] }], decors: [{ name, rooms, …cell }], sounds: { music, sfx: [{ id, kind, file, used, prepared, asset?, backups }] }, missing, unprepared, prompts: { sheets: [{ id, kind, markdown, missingMarkdown? }], style } }`.",
+        "fr": "`{ sheets: [{ id, kind: 'sprites' | 'furniture' | 'talk', character?, grid, promptKind?, cells: [{ id, file, w, h, used, ids, prepared, asset?, backups, mtime, missing? }] }], decors: [{ name, rooms, …cell }], sounds: { music, sfx: [{ id, kind, file, used, prepared, asset?, backups }] }, missing, unprepared, prompts: { sheets: [{ id, kind, markdown, missingMarkdown? }], style } }`."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/assets/file/:path",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "path.startsWith('/file/')",
+      "result": {
+        "en": "A source file of `art/` or `audio/`, its path relative to the game folder; anything else is a 404 `no such file`.",
+        "fr": "Un fichier source de `art/` ou `audio/`, son chemin relatif au dossier du jeu ; tout autre chemin est un 404 `no such file`."
+      }
+    },
+    {
+      "method": "GET",
+      "path": "/assets/prompts",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "['GET', '/prompts'",
+      "result": {
+        "en": "`{ markdown }`: the whole `npm run prompts` document; `?missing=1` gives `npm run prompts -- --missing`'s.",
+        "fr": "`{ markdown }` : tout le document de `npm run prompts` ; `?missing=1` donne celui de `npm run prompts -- --missing`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/assets/sheet",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "['POST', '/sheet'",
+      "body": {
+        "en": "`{ sheetId, grid?: '6x4', cells?: 'r1c1,r2c3', data }`, `data` in base64 or a data URL.",
+        "fr": "`{ sheetId, grid?: '6x4', cells?: 'r1c1,r2c3', data }`, `data` en base64 ou en data URL."
+      },
+      "result": {
+        "en": "`{ ok, file, output, written, backups, cells }`: the sheet saved as `private/sheets/<sheetId>-<time>.<ext>` and cut with `tools/cut-sheet.py` into `art/<sheetId>/`. 409 `{ conflicts }` when cells of that sheet exist and `cells` does not name them; a named cell that exists is first kept as `<cell>_v<N>.png`.",
+        "fr": "`{ ok, file, output, written, backups, cells }` : la planche enregistrée en `private/sheets/<sheetId>-<heure>.<ext>` et découpée par `tools/cut-sheet.py` dans `art/<sheetId>/`. 409 `{ conflicts }` quand des cases de cette planche existent et que `cells` ne les nomme pas ; une case nommée qui existe est d'abord gardée en `<case>_v<N>.png`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/assets/cell",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "['POST', '/cell'",
+      "body": {
+        "en": "`{ sheetId, cell, data, key?: 'auto' | 'always' | 'never' }`.",
+        "fr": "`{ sheetId, cell, data, key?: 'auto' | 'always' | 'never' }`."
+      },
+      "result": {
+        "en": "`{ ok, file, backup?, keyed: 'keyed' | 'kept' | 'opaque', cell }`: `art/<sheetId>/<cell>.png` replaced (or added), the old file kept as `<cell>_v<N>.png`; a flat background is keyed with the cutter's rule.",
+        "fr": "`{ ok, file, backup?, keyed: 'keyed' | 'kept' | 'opaque', cell }` : `art/<sheetId>/<case>.png` remplacé (ou ajouté), l'ancien fichier gardé en `<case>_v<N>.png` ; un fond uni est détouré avec la règle du découpeur."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/assets/sound",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "['POST', '/sound'",
+      "body": {
+        "en": "`{ kind: 'music' | 'sfx', file, data }`.",
+        "fr": "`{ kind: 'music' | 'sfx', file, data }`."
+      },
+      "result": {
+        "en": "`{ ok, file, backup? }`: written to `audio/<kind>/<file>` (any format ffmpeg reads), the old file kept as a backup.",
+        "fr": "`{ ok, file, backup? }` : écrit dans `audio/<kind>/<file>` (tout format que lit ffmpeg), l'ancien fichier gardé en sauvegarde."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/assets/decor",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "['POST', '/decor'",
+      "body": {
+        "en": "`{ name, data }`, a PNG or a JPEG.",
+        "fr": "`{ name, data }`, un PNG ou un JPEG."
+      },
+      "result": {
+        "en": "`{ ok, file, backup? }`: written to `art/decor/<name>.<ext>`, the old picture kept as `<name>_v<N>.<ext>`.",
+        "fr": "`{ ok, file, backup? }` : écrit dans `art/decor/<name>.<ext>`, l'ancienne image gardée en `<name>_v<N>.<ext>`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/assets/prepare",
+      "group": "assets",
+      "server": "dev-server",
+      "file": "tools/studio/assets.ts",
+      "match": "['POST', '/prepare'",
+      "result": {
+        "en": "Runs `npm run assets`: `{ ok, code, output }`. With `?stream=1`, the output as plain text while it runs, ending with `[exit <code>]`.",
+        "fr": "Lance `npm run assets` : `{ ok, code, output }`. Avec `?stream=1`, la sortie en texte brut pendant l'exécution, terminée par `[exit <code>]`."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/assistant/chat",
+      "group": "assistant",
+      "server": "dev-server",
+      "file": "tools/studio/assistant.ts",
+      "match": "path !== '/chat'",
+      "body": {
+        "en": "`{ provider: { kind, baseUrl, model, apiKey? }, messages: [{ role: 'user' | 'assistant', content }], context? }`.",
+        "fr": "`{ provider: { kind, baseUrl, model, apiKey? }, messages: [{ role: 'user' | 'assistant', content }], context? }`."
+      },
+      "result": {
+        "en": "Server-sent events of the conversation: `{ type: 'text', delta }`, `{ type: 'tool_call', id, name, args }`, `{ type: 'tool_result', id, name, result, isError? }`, `{ type: 'done', usage?, wrote?, stopped? }`, `{ type: 'error', message }`. The model's tool calls run on the game through the MCP tools' registry ([MCP tools](studio.mcp-tools.md)). The API key comes with each request and lives in memory for that request only, never on disk nor in a log. 400 for a bad provider or conversation: `kind` must be `openai`, `anthropic` or `ollama`; `baseUrl` an http(s) URL without credentials, one of the known providers' origins or an Ollama on the loopback, otherwise refused unless `WEB_SCUMM_ALLOW_CUSTOM_PROVIDER=1`, and then HTTPS to a public host only; `model` required; the last message the user's.",
+        "fr": "Évènements envoyés par le serveur pour la conversation : `{ type: 'text', delta }`, `{ type: 'tool_call', id, name, args }`, `{ type: 'tool_result', id, name, result, isError? }`, `{ type: 'done', usage?, wrote?, stopped? }`, `{ type: 'error', message }`. Les appels d'outils du modèle s'exécutent sur le jeu par le registre des outils MCP ([outils MCP](studio.mcp-tools.md)). La clé d'API arrive avec chaque requête et ne vit en mémoire que le temps de celle-ci, jamais sur disque ni dans un journal. 400 pour un fournisseur ou une conversation invalide : `kind` vaut `openai`, `anthropic` ou `ollama` ; `baseUrl` est une URL http(s) sans identifiants, l'origine d'un fournisseur connu ou un Ollama sur la boucle locale, sinon refusée sauf `WEB_SCUMM_ALLOW_CUSTOM_PROVIDER=1`, et alors en HTTPS vers un hôte public seulement ; `model` obligatoire ; le dernier message est celui de l'utilisateur."
+      }
+    },
+    {
+      "method": "POST",
+      "path": "/assistant/task",
+      "group": "assistant",
+      "server": "dev-server",
+      "file": "tools/studio/assistant.ts",
+      "match": "path !== '/task'",
+      "body": {
+        "en": "`{ text, about? }`.",
+        "fr": "`{ text, about? }`."
+      },
+      "result": {
+        "en": "The new note, tagged `task: true`, author `you`: a request for an MCP-connected agent, no key needed. 400 without `text`.",
+        "fr": "La nouvelle note, marquée `task: true`, auteur `you` : une demande pour un agent connecté en MCP, sans clé. 400 sans `text`."
+      }
+    }
+  ]
+}

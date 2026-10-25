@@ -13,6 +13,7 @@ import { inAllowlist } from '../../../bridge/src/allowlist';
 import type { SqlDb } from '../../../bridge/src/store-sql';
 import { operationContext, type Studio } from '../ops/core';
 import { isStudioError, StudioError } from '../ops/errors';
+import { isSpanName } from '../ops/spans';
 import type { Comments } from './comments';
 import type { GitSync } from './git';
 import { MCP_METADATA_PATHS, type McpEndpoint } from './mcp';
@@ -148,12 +149,8 @@ export interface StudioServerOptions {
   metrics?: Metrics;
 }
 
-/** The spans a client may name: the leases' own names (`*` only through /exclusive). */
-const SPAN =
-  /^(room:[\w-]{1,64}|lang:[\w-]{1,16}|game|items|cast|rules|story|voices|assets|notes|meta|playtests|reality)$/;
-
 function spanList(v: unknown): string[] {
-  if (!Array.isArray(v) || !v.length || v.length > 64 || !v.every((x) => typeof x === 'string' && SPAN.test(x)))
+  if (!Array.isArray(v) || !v.length || v.length > 64 || !v.every((x) => typeof x === 'string' && isSpanName(x)))
     throw new StudioError('`spans` is a list of span names (room:<id>, lang:<code>, game, items, …)');
   return v as string[];
 }
@@ -172,7 +169,7 @@ function fencesOf(req: IncomingMessage): Record<string, number> | undefined {
     !v ||
     typeof v !== 'object' ||
     Array.isArray(v) ||
-    !Object.entries(v).every(([k, n]) => SPAN.test(k) && Number.isInteger(n))
+    !Object.entries(v).every(([k, n]) => isSpanName(k) && Number.isInteger(n))
   )
     throw new StudioError('x-studio-fences is a JSON object of span → fence');
   return v as Record<string, number>;
@@ -628,7 +625,7 @@ export function studioServer(o: StudioServerOptions): StudioHttpServer {
             await o.leases.release(who.userId, ['*']);
             return send(res, 200, { ok: true });
           }
-          if (typeof b.span !== 'string' || !SPAN.test(b.span)) throw new StudioError('`span` names one span');
+          if (typeof b.span !== 'string' || !isSpanName(b.span)) throw new StudioError('`span` names one span');
           const r = await o.leases.takeover(who, b.span);
           await o.auth!.audit?.(who.userId, 'lease-takeover', { span: b.span, previous: r.previous?.holder ?? null });
           return send(res, 200, { fence: r.fence, previous: r.previous ?? null });

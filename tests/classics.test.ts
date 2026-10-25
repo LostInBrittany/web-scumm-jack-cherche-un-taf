@@ -1,5 +1,9 @@
-// The classic mechanics (docs/en/CLASSICS.md) written with the DSL as is: the engine plays them, the solver proves them.
+// The classic mechanics (the wiki's `create.classics`, wiki/en|fr/create.classics.md, since 4.5.0) written with the
+// DSL as is: the engine plays them, the solver proves them, and the page describes each one in
+// both languages.
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { splitSections } from '../tools/wiki/docs';
 import { Engine } from '@engine/core/engine';
 import { FakePresenter, MemoryStore } from '@engine/core/ports';
 import type { GameDef, Layout } from '@engine/core/types';
@@ -142,5 +146,15 @@ describe('haggling with Stan', () => {
     const r = await solve(stan(), stanLayouts, { maxStates: 2000 });
     expect(r.finished).toBe(true);
     expect(r.path.filter((s) => s.includes('too much'))).toHaveLength(3);
+  });
+});
+
+describe('the page that describes them', () => {
+  it('has a section for each classic proven here, in English and in French', () => {
+    const proven = ['insult-sword-fighting', 'grog-mug', 'tree-in-the-past', 'nurse-on-patrol', 'haggling'];
+    for (const lang of ['en', 'fr']) {
+      const ids = splitSections(readFileSync(`wiki/${lang}/create.classics.md`, 'utf8')).map((s) => s.id);
+      expect(ids, lang).toEqual(expect.arrayContaining(proven));
+    }
   });
 });

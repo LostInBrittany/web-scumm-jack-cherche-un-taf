@@ -4,11 +4,12 @@ import { execFile } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { buildPrompts } from '../prompts';
+import { legacyDoc, resolveDocs } from '../wiki/docs-load';
 import type { Studio } from '../../studio-server/src/ops/core';
 import { errorResult, jsonResult, textResult, type ToolBackend, type ToolResult } from './tools';
 
 export interface CoreBackendOptions {
-  /** Repository root (docs, vitest). */
+  /** Repository root, or the installed package's (docs, vitest). */
   root: string;
   /** The dev server the screenshots go through. */
   devUrl: string;
@@ -52,7 +53,10 @@ export function coreBackend(studio: Studio, o: CoreBackendOptions): ToolBackend 
     lint: (prove) => studio.lint(prove),
     solve: (from, prove, reality) => studio.solve(from, undefined, prove ? 'prove' : 'witness', reality),
     author: o.author,
-    readDoc: async (name) => readFileSync(join(o.root, 'docs', 'en', `${name}.md`), 'utf8'),
+    // In a package, its docs-bundle/ (the eight legacy pages and the wiki's ready pages); in the repository, wiki/,
+    // the eight pages rebuilt from it (4.5.0, docs/dev/PLAN-4.5-WIKI.md §4.3.2 and §4.3.4).
+    readDoc: async (name) => legacyDoc(o.root, name),
+    docs: async () => resolveDocs(o.root),
     assetPrompts: async (missing) => {
       const mod = await studio.loadGame();
       return buildPrompts(mod, { gameId: studio.gameId, gameDir: studio.gameDir, root: o.root, missing });

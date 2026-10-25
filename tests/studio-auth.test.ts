@@ -429,6 +429,20 @@ describe('logout and the CLI', () => {
     expect((await fetch(`${base}/api/game`, { headers: { authorization: `Bearer ${t}` } })).status).toBe(200);
   }, 30_000);
 
+  it("a refused device login says the provider's code and reason (4.4.0)", async () => {
+    op.deviceAnswer = {
+      status: 400,
+      body: { error: 'not_allowed', error_description: 'Offline tokens not allowed for the user or client' },
+    };
+    try {
+      await expect(
+        deviceLogin(base, { file: join(tmp, 'refused.json'), allowInsecure: true, tell: () => {} }),
+      ).rejects.toThrow('the login was refused: not_allowed (Offline tokens not allowed for the user or client)');
+    } finally {
+      op.deviceAnswer = undefined;
+    }
+  }, 30_000);
+
   it('the CLI refuses to send its tokens to a server over plain http', async () => {
     await expect(accessToken('http://studio.example', { file: join(tmp, 'none.json') })).rejects.toThrow(/https/);
   });

@@ -9,6 +9,9 @@ export const SERVER_MARKERS = [
   'bridge/src',
   'ssh2',
   'imapflow',
+  'quest-n-click-connector',
+  'quest-n-click-bridge',
+  // Their names before 4.2.5 (D47): the connectors' User-Agent and SSH ident still say it (a wire identifier).
   'web-scumm-connector',
   'web-scumm-bridge',
   'mime-worker',

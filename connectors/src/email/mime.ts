@@ -116,7 +116,9 @@ const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"'
 export function htmlToText(html: string): string {
   let out = '';
   let i = 0;
-  const lower = html.toLowerCase();
+  // ASCII only, as HTML's tag names are: `toLowerCase` may lengthen a character (İ is two code units in lower case),
+  // and `lower` is read at `html`'s indexes.
+  const lower = html.replace(/[A-Z]/g, (c) => String.fromCharCode(c.charCodeAt(0) + 32));
   while (i < html.length) {
     const lt = html.indexOf('<', i);
     if (lt < 0) {

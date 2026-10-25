@@ -18,3 +18,19 @@ export const isStudioError = (e: unknown): e is StudioError =>
   Number.isInteger((e as { status?: unknown }).status) &&
   (e as StudioError).status >= 400 &&
   (e as StudioError).status < 600;
+
+/**
+ * The game's own code did not load (4.3.0: a game still importing the former name's `web-scumm/…`, D47): a property of
+ * the game at that revision, unlike a worker that refused, timed out or left no result. The guard takes it for a head's
+ * baseline; anything else propagates.
+ */
+export class GameDoesNotLoad extends StudioError {
+  readonly gameDoesNotLoad = true;
+  constructor(why: string, status = 500) {
+    super(`the game does not load: ${why}`, status);
+  }
+}
+
+/** A GameDoesNotLoad from any copy of this module. */
+export const isGameDoesNotLoad = (e: unknown): e is GameDoesNotLoad =>
+  isStudioError(e) && (e as { gameDoesNotLoad?: unknown }).gameDoesNotLoad === true;

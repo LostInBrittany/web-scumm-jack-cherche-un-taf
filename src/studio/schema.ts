@@ -173,7 +173,14 @@ export const CMD_SPECS: Record<CmdKey, CmdSpec> = {
       label: 'option',
       of: {
         k: 'object',
-        fields: { id: opt(id()), text: { k: 'text' }, if: opt({ k: 'cond' }), once: opt({ k: 'bool' }), do: cmds },
+        fields: {
+          id: opt(id()),
+          text: { k: 'text' },
+          img: opt(id('image')),
+          if: opt({ k: 'cond' }),
+          once: opt({ k: 'bool' }),
+          do: cmds,
+        },
       },
     },
   },

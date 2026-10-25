@@ -2,7 +2,7 @@
 // processing worker (ADR 0028) runs it in a child process on a snapshot. One function, so both judge the same way.
 import { join } from 'node:path';
 import { validate as validateGame } from '../../../src/engine/tools/validate';
-import { loadAssets, loadLayouts } from '../../../src/engine/tools/load';
+import { loadAssets, loadLayouts, loadLocales } from '../../../src/engine/tools/load';
 import type { GameModule } from '../../../tools/game';
 import type { ValidateResult } from '../../../tools/studio/types';
 
@@ -26,6 +26,7 @@ export async function validateDir(
   const { errors, warnings } = validateGame(mod.game, layouts, {
     assets,
     commands: mod.commands,
+    locales: loadLocales(join(d, 'locales')),
     minigameIds: minigames ? Object.keys(minigames) : undefined,
     minigameParams: minigames
       ? Object.fromEntries(Object.entries(minigames).map(([k, m]) => [k, m.required ?? []]))

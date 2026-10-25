@@ -10,7 +10,10 @@ afterAll(() => rmSync(DIR, { recursive: true, force: true }));
 
 describe('docs:truth', () => {
   it('the shipped documents agree with the code', () => {
-    expect(documents().length).toBeGreaterThan(40);
+    // The READMEs, CONTRIBUTING, SECURITY and the wiki's pages in both languages (4.5.0), never docs/en|fr.
+    expect(documents().length).toBeGreaterThan(400);
+    expect(documents()).toContain('wiki/fr/reference.npm-scripts.md');
+    expect(documents().filter((d) => /^docs\//.test(d))).toEqual([]);
     expect(check()).toEqual([]);
     expect(facts()).toMatchObject({ saveSchema: 4, wsrunSchema: 2 });
   });
@@ -21,7 +24,7 @@ describe('docs:truth', () => {
       page,
       [
         'Saves are envelopes `{ format, schema: 3, gameId }`.',
-        'Run `npm run no-such-script` first, then `npm run -s mcp`.',
+        'Run `npm run no-such-script` first, then `npm run -s mcp`, `npm run -s <script>`, `npm run field:*`.',
         'See `tools/no-such-tool.ts`.',
       ].join('\n'),
     );

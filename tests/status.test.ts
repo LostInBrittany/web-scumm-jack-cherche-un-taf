@@ -7,6 +7,7 @@ import { solve } from '@engine/tools/solve';
 import { proveChapters } from '@engine/tools/chapters';
 import { exitOf, solveHeadline, worstStatus } from '@engine/tools/status';
 import { createStudio, importInChild } from '../studio-server/src/ops/core';
+import { heroes, heroesLayouts } from './fixtures/heroes';
 
 const ROOT = resolve(__dirname, '..');
 
@@ -20,6 +21,28 @@ describe('the one status', () => {
     expect(
       solveHeadline({ status: 'truncated', mode: 'prove', states: 7, softlockCount: 0, broken: [], errors: [] }),
     ).toMatch(/^truncated: .*nothing is proved/);
+  });
+
+  it('one winning path is not a proof: only the robot can finish, witness says solved, --prove says softlocks', async () => {
+    const g = heroes();
+    const door = g.rooms[0]!.on!.find((r) => r.verb === 'use')!;
+    door.if = { flag: 'form', eq: 'robot' };
+    const witness = await solve(structuredClone(g), heroesLayouts, {});
+    expect([witness.status, witness.finished]).toEqual(['solved', true]);
+    expect(witness.headline).toMatch(/^solved: the ending is reached on one path .*only --prove checks every state/);
+    const proof = await solve(structuredClone(g), heroesLayouts, { mode: 'prove' });
+    expect([proof.status, proof.finished, proof.exit]).toEqual(['softlocks', true, 1]);
+    expect(proof.headline).not.toMatch(/prove|solved/);
+    // "stays reachable from every one" (a proof) is said by a solved proof only.
+    const said = (status: 'solved' | 'softlocks' | 'truncated', mode: 'witness' | 'prove') =>
+      solveHeadline({ status, mode, states: 9, softlockCount: 2, broken: [], errors: [] });
+    expect(said('solved', 'prove')).toMatch(/stays reachable from every one/);
+    for (const [st, m] of [
+      ['solved', 'witness'],
+      ['softlocks', 'prove'],
+      ['truncated', 'prove'],
+    ] as const)
+      expect(said(st, m)).not.toMatch(/stays reachable from every one/);
   });
 
   it('a broken invariant is the status, not only the exit code', async () => {

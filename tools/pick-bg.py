@@ -5,7 +5,7 @@
 Give it what you have of the characters: their current sheets, their cut sprites (games/<id>/art/<sheet>/), or the
 reference they are drawn after. A sheet's own flat background is left out (the colour of its border). Prints the
 candidates from the farthest to the closest: use the first one as "sheetBackground" in the game's site.json
-(docs/en/PROMPTS.md, "Choosing the sheet background").
+(wiki/en/create.images.md#sheet-background).
 
 The distance that matters is to the closest colour of the drawing: shadows are hue-shifted toward purple by the
 prompts' COLOR RULES, so an orange character has pinkish shadows, and a magenta background eats them.
@@ -22,6 +22,10 @@ def colours(path):
     rgb, alpha = a[..., :3], a[..., 3]
     keep = alpha > 0
     border = np.concatenate([rgb[0], rgb[-1], rgb[:, 0], rgb[:, -1]])
+    seen = np.concatenate([alpha[0], alpha[-1], alpha[:, 0], alpha[:, -1]]) > 0
+    border = border[seen]  # what is under a transparent pixel (black, usually) is no background colour
+    if not len(border):  # a cut sprite or a transparent sheet: there is no flat background to leave out
+        return rgb[keep]
     bg = np.median(border, axis=0)
     if (np.sqrt(((border - bg) ** 2).sum(-1)) < 30).mean() > 0.9:  # a flat-background sheet: leave its background out
         keep &= np.sqrt(((rgb - bg) ** 2).sum(-1)) > 60

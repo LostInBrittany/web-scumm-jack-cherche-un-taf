@@ -5924,3 +5924,2203 @@ is merged, and its own yes to sign)
 
 → next: Claude (this PR's candidate, `v4.2.2` signed on it, `ship verify`, the two pass issues; then the 4.2.3 plan for
 the maintainer to merge, and its own yes to sign)
+
+## #218 · 2026-10-19 · Claude · proposal · 4.2.2: the gated mutation sets read again before the tag
+
+- The 4.2.2 candidate's `mutation (core)` found one survivor not named: `src/engine/core/save.ts:315`, the slot's
+  revision (ADR 0026, PR 2b) never copied. Pull requests do not run the gated sets, so it waited for the candidate.
+  Killed by `tests/critical-save.test.ts` ("keeps the revision a slot was made in").
+- `studio-ops` and `studio-auth`, whose files 4.2.2 changed too (`journal.ts`, `play.ts`), measured on main before the
+  next candidate: `studio-auth` clean (566 of 579 killed, 13 named as before); `studio-ops` had 16 survivors not named,
+  all in `Journal.filesAt`, `effectsAt` and `opAt` (4.2.2 PR 3b). 15 killed by `tests/studio-journal-mutants.test.ts`
+  ("a past revision read back": the order by path, the default `keep`, a file made later absent, the cache read and
+  filled, an unknown revision); one named equivalent (the sort's `<` as `<=`: a Map's keys are never equal).
+
+→ next: Claude (a new candidate, then `v4.2.2`)
+
+
+## #219 · 2026-10-19 · Claude · proposal · 4.2.3: the detailed plan (draft for the maintainer)
+
+- `docs/dev/PLAN-4.2.3-COORDINATION.md` (French, the source): what 4.2.2 leaves open (the archive's worker cannot
+  `prepare`, sprite sheets and uploads local, the restore drill only in CI, the preview threshold measured locally,
+  `studio-workshop` measured), ten guarantees with their limits and tests (H1–H10: the scenario map, anchored comments,
+  the semantic diff, the remote MCP, the Git push and import, the engine upgrade, the archive's worker preparing, the
+  asset tools hosted with progress and cancellation, the reference deployment run, the revision read and the 409 with
+  its diff), what stays open after 4.2.3 and why, its departures from the master plan's §9 (merging it amends them), the PRs in order, exit criteria, six decisions
+  asked of the maintainer (the name, the second OIDC provider, deploy key or GitHub App, the diff's captures hosted,
+  the yes to sign `v4.2.3`, the spike's Clever resources) and the risks.
+- Merged at the maintainer's request (« Merge #164 for me, as is »); its §4 answered in D44 (the name "Coordination",
+  GitLab, a deploy key, the diff's captures local, the spike's resources kept); the yes to sign `v4.2.3` given
+  (« Yes, sign v4.2.3 », D37, D44).
+
+→ next: Claude (4.2.3 PR 0, then the plan's order)
+
+
+## #220 · 2026-10-19 · Claude · proposal · 4.2.3 PR 0: a worker from the archives prepares (H7)
+
+- `scripts/pack.mjs` ships `ops/studio/worker-requirements.lock` in the engine's package (where `prepare.ts` lives).
+- `prepare.ts`: `pythonPathOf(env, cwd)`, `WORKER_PYTHON_PATH` else `.python` in the worker's folder; the worker
+  (`main.ts`) and the local Studio (`local.ts`) pass it to the child with the PATH; before, `PYTHONPATH` was the engine's
+  folder, which an install from the archives is not (`node_modules/web-scumm`).
+- `scripts/studio-install-smoke.mjs`: the lock in the installed package, byte for byte the repository's; with
+  `--python` (the candidate's job, now with CPython 3.13), installed as the hook does (`--require-hashes`, wheels only)
+  and its packages imported from that folder. A real `prepare` from the archives stays the `studio-assets-hosted` pass;
+  CI's real `prepare` runs from the repository (`studio-hosted`).
+- STUDIO-SERVER (en, fr): the hook for a worker from the archives, the lock's platform said.
+- Tests: `tests/studio-prepared.test.ts` (`pythonPathOf`).
+
+→ next: Claude (4.2.3 PR 1: the revision read, H10)
+
+
+## #221 · 2026-10-19 · Claude · proposal · 4.2.3 PR 1: the revision read, and the 409 that says what changed (H10)
+
+- **The journal** (`ops/journal.ts`): an operation's `readAt`; a file of its effects another author wrote after it (the
+  operations since that name it, found by a `LIKE` on their effects, then checked) is a 409 whose body
+  says `path`, `readAt`, `head`, and the file's text at each (`before`, `now`: null when absent, binary, longer than
+  256 KiB, not UTF-8, or not kept). `blobAt(path, rev)`: a file's content hash at a revision (the first later
+  operation's `before`, else the head's).
+- **The server** (`http.ts`, `core.ts`): `x-studio-base` (a revision, else 400) into the operation's context; a write's
+  answer carries `x-studio-revision`, the revision after it.
+- **The Studio** (`src/studio/api.ts`): the revision each resource was last read at by its editor, by its read path; a
+  write sends the longest read path's revision. Only an editor's read moves it: not a write's answer (the server never
+  counts the member's own writes, so a replayed answer cannot make them conflict with themselves), not a read made for
+  something else (`room(id, { track: false })`, the Assets tab's overlay); no base for a derived file
+  (`storyboard/markdown`). The Voices tab reads again when `voices.json` changes. The 409 dialog (`spans.ts`) shows the
+  changed lines with two lines of context (`line-diff.ts`, an LCS bounded at 2,000 lines, in typed rows) and offers
+  "Apply my edit on the latest version" (sent again from the head's revision, computed again by the server on the
+  file as it is), or for a whole document (a layout, the storyboard) "Replace with my version (drops their change)".
+- **Limits**: a write is checked against the revision of the resource its editor read, for every file it writes (a
+  file outside what the editor showed can refuse it too, never the reverse), per file (two notes are one file); the room
+  view's placement (the in-game editor) is checked against what the Rooms tab read, while the view may show an older
+  preview for a moment; a client that sends no `x-studio-base` (a script, the MCP until PR 5) is not checked this way. The merge is the edit applied again, not a three-way merge of
+  texts: two edits of the same field keep the later one, after the member saw the earlier.
+- **Mutation** (`studio-ops`, gated): `journal.ts` 159 of 165 killed locally, 6 named (one new, equivalent: the
+  condition that spares a head read when no revision was read).
+- **After the second reading**: a client's own writes exempt (`x-studio-client`, one per tab or CLI/MCP session, kept in
+  `studio_ops.client`, migration 0011; the same member's other tab or agent still counts; no NUL sentinel, which Postgres
+  refuses; `!` as the LIKE escape, whatever Postgres's string settings), (a replayed answer, a dry run or a write's answer no longer move the
+  base past changes the editor never loaded), side reads untracked, whole documents said, derived files without base,
+  the voices read again, the journal's scan bounded by a `LIKE`, the diff in typed rows.
+- Tests: `tests/studio-journal-mutants.test.ts` (the revision read, own writes, LIKE patterns, JSON-escaped paths),
+  `tests/dom/studio-api-base.test.ts` (the client: the base sent, moved by an editor's read only, none for a derived
+  file, the head on retry, a whole document said), `tests/studio-collab.test.ts` (two members over
+  HTTP, the 409, the edit applied on the head, a write's own revision), `tests/studio-line-diff.test.ts`,
+  `tests/dom/studio-hosted-screens.test.ts` (the dialog).
+
+→ next: Claude (4.2.3 PR 2: the scenario map, H1)
+
+
+## #222 · 2026-10-19 · Claude · proposal · 4.2.3 PR 2: the scenario map (H1)
+
+- `tools/studio/scenario-map.ts`: the groupings' shape and check (`groupingsProblems`: ids unique, lowercase; kinds
+  chapter, puzzle, character; titles of 1–200 characters; references without spaces; 500 at most of each; no unknown
+  field) and the map (`scenarioMap(ir, groupings)`: each reference with its kind and `file:line` from the IR's
+  provenance, or `unknown`; what no grouping names, by kind; sorted by grouping id, the same bytes for the same IR).
+- `studio-server/src/ops/core.ts`: `getGroupings`, `setGroupings` (writes `groupings.json` alone, refuses a bad file,
+  no write when unchanged), `map`; routes GET/PUT `groupings`, GET `map`; `ops/spans.ts`: `groupings.json` is the span
+  `groupings`.
+- The Studio: the Map tab (`src/studio/map-tab.ts`), the groupings by kind, their references, what is left; a
+  grouping added, edited (its id fixed), deleted through the whole file (the base of H10 applies; a 409 on it says the file is replaced whole).
+- Limits: the map says what the content declares; a link written by code (an id the IR does not know) is "not
+  declared". No map in demo mode (the browser has no groupings file).
+- **After the second reading**: only the IR's own keys resolve (`constructor` is "not declared"); a key both a rule
+  and an entity carry takes the kind whose line the provenance gives (rooms, rules, scripts, entities, in
+  `provenanceOf`'s order); a hand-edited `groupings.json` is read for what it can (`readableGroupings`: the readable
+  groupings mapped, the others said in the tab, `skipped`); a new grouping never replaces another of its id, an edited
+  one keeps its place; titles without control characters or bidirectional overrides, a reference named once, no
+  unknown key in the file; a reviewer's tab is read only; the tab reads again when `groupings.json` or a `.ts` changes,
+  and `groupings.json` no longer schedules the Check tab.
+- Docs: STUDIO (the tab, the routes), STUDIO-SERVER (the span), en and fr.
+- Tests: `tests/studio-scenario-map.test.ts` (H1: adding then deleting a grouping leaves every content file's hash the
+  same; two derivations, the same bytes; "not declared"; a bad file refused, nothing written; the span; the check and
+  the kinds), `tests/dom/studio-map-tab.test.ts`.
+
+→ next: Claude (4.2.3 PR 3: anchored comments, H2)
+
+
+## #223 · 2026-10-19 · Claude · proposal · 4.2.3 PR 10: the survivors of `studio-workshop` read, the set gated
+
+- 104 survivors measured on run 39192014232 (backup, ship, gc, health, previews, builds, prepared), each killed or
+  named.
+- `tests/studio-workshop-backup-mutants.test.ts`: the digest's canonical form (keys sorted, arrays kept), what
+  `checkBackup` refuses, the blobs each table's rows name (a build's files, never its snapshot), the rows' order, the
+  Postgres catalogue queries on a fake (one read-only transaction), one `has` per blob, shipping past 500, the RPO to
+  the millisecond, `close` stopping the retry, the replay's stops (unreadable, another line, a revision moved in
+  between), the collection's boundaries.
+- `tests/studio-workshop-health-mutants.test.ts`: a kept failure without a culprit names none, a run asked for as the
+  last one ends is not lost, `close`, failures counted per revision and given up at the fifth, the verdict kept while
+  the next revision cannot be judged and dropped in another epoch, each change emitted once, a bisection asked for
+  judging nothing twice, from revision 0, under the journal's epoch, throwing what is no unknown verdict.
+- `tests/studio-workshop-previews-mutants.test.ts`: `assetDirs`, `findAsset` passing a folder over, each byte range,
+  an empty file, a HEAD without body, a path outside the prepared assets, `servedPath`; the previews' rerun, failure
+  kept, restart, build time, manifest read once, nothing before the first look; a build's verdict and a build served
+  after a restart.
+- `tests/studio-workshop-prepared-mutants.test.ts`: the prepared sets' folders at start and between runs.
+- 10 named (equivalent, one unreachable): the three `wanted = false` initial values, `close`'s `clearTimeout` guard,
+  `schedule` after `close`, `judge`'s past-the-head guard, the rows' `<=`, the range's `start >= size`, `rebuilt`'s
+  `'null'`, `builds.handle`'s null path.
+- `studio-workshop` moves from `MEASURED` to `GATED`; MUTANTS.md row and table, the workflow's description.
+- No source changed; no bug found.
+
+→ next: Claude (4.2.3 PR 11: the gates, `ci/423-gates`)
+
+
+## #224 · 2026-10-19 · Claude · proposal · 4.2.3 PR 5: the remote MCP (H4, ADR 0029)
+
+- `studio-server/src/server/mcp.ts`: `/mcp`, MCP's Streamable HTTP transport, stateless (POST only, JSON answers; GET and
+  DELETE 405); policy B only (a 401 carries `WWW-Authenticate: Bearer resource_metadata=…`, an invalid token
+  `error="invalid_token"` too; the cookie is refused; a reviewer at least); `/.well-known/oauth-protected-resource`
+  (and `/mcp` appended) names the resource, the OIDC provider, the header method. Wired in `http.ts` (after the game's
+  origin, before `/api`) and `main.ts` (with OIDC only).
+- `tools/studio/http-backend.ts`: the tools' backend over `/api` with a Bearer token asked per request, an operation id
+  per write, a refusal said with its status (`ApiRefusal`). `/mcp` uses it on the loopback with the caller's token: the
+  API's own checks, not a copy.
+- `tools/mcp/tools-server.ts`: one MCP server definition (`toolsFor(backend)`, the two resources over the backend) for
+  the stdio server over the core, the stdio server over a hosted Studio (`npm run mcp -- --server <url>`, the CLI's
+  token from `login`), and `/mcp`.
+- Limits: an agent sends no revision it read (H10's check does not apply to it; the guard does); screenshots, tests,
+  documents and asset prompts are not offered remotely; a client without MCP's authorization discovery uses a token from
+  `studio-server token` or the stdio server.
+- **After the second reading**: the loopback goes to the address and port the request came in on (IPv6, a specific
+  interface), with the Studio's `Host` (`node:http`, which fetch cannot set); a batch is refused (400); the tools are
+  given up when the client goes away, and after 5 min; `solve` with a reality policy is refused (501), not answered
+  without it; a malformed header is `invalid_request`; the remote instructions name no local tool; the audience a
+  discovering client's token must carry, the short life of a pasted token, the loopback's refusal counting and the SDK
+  in the server process are said (ADR, MCP, threat model).
+- Docs: ADR 0029; MCP ("A hosted Studio"), STUDIO-SERVER (en, fr); the threat model's row.
+- Tests: `tests/studio-mcp-remote.test.ts` (the metadata; a 401 with where to authorize, a token of another audience,
+  the cookie, a non-member, a GET; an MCP SDK client listing and calling the tools, a write in the journal as the
+  member; a reviewer's write 403, another member's span 423, a member removed refused at the next request),
+  `tests/studio-http-backend.test.ts` (each tool's route, the token per request, the operation id, a refusal).
+
+→ next: Claude (4.2.3 PR 6: Git, H5)
+
+
+## #225 · 2026-10-19 · Claude · proposal · 4.2.3 PR 6: the game in Git (H5, D44)
+
+- `studio-server/src/server/git.ts` (`GitSync`): a bare clone in `workDir/git`, fetched each time; a push builds one
+  commit of the revisions since `git_pushed` (the head's files in `path`, a line per operation, a `Co-authored-by`
+  per author) and pushes it, never forced; refused (409) when the branch moved since `git_commit` or exists unseen;
+  nothing new, nothing pushed. An import reads the branch or a commit and writes the game as it is there in one
+  operation under the exclusive lease (5,000 files, 64 MiB at most), and records the commit when it is the branch's
+  tip. Git's environment: PATH, HOME in the work folder,
+  no prompt, no system or user configuration, the deploy key in a 0600 file for one command.
+- Config `git` (remote without credentials, branch, path, committer) and the secret `STUDIO_GIT_KEY`; routes GET
+  `/api/git` (a reviewer), POST `/api/git/push` and `/api/git/import` (an owner); the Play tab's Git panel
+  (`src/studio/git-panel.ts`); the exclusive lease helper shared with prepare (`main.ts`).
+- **After the second reading**: no working tree ever checked out (a bare clone): a push builds its tree in an index of
+  its own from the tip's tree and the head's objects (written in one `hash-object --stdin-paths` from this server's
+  bytes), commits with `commit-tree`; an import lists the commit's tree and reads its blobs; a link or a submodule, the
+  game's folder itself included, refuses an import (422) and a push; the repository's dotted paths are kept by a push
+  and skipped by an import, ignore rules play no part; a failed push is a 409 only when the remote says the branch
+  moved, else a 502 with git's words (a first push that failed leaves nothing in the way); a `Co-authored-by` email
+  only when the provider verified it, else `users.noreply.<the Studio's host>`; the commit message's lines made plain;
+  an import's ref is a branch of the remote or a commit's hash, never the clone's own refs; `git.knownHosts` for a
+  strict host check (else trusted on first use, said); the deploy key's path quoted and a leftover removed at start;
+  the config checks the branch as GitSync does, a remote starting with `-` refused; the panel asks twice before an
+  import.
+- **Round two**: the game's `private/` (and `node_modules/`) never pushed, never deleted by an import; a push's refusal
+  read from its porcelain status line (moved: 409; a protected branch, a key, the network: 502 with git's words); the
+  index told in NUL-terminated records (a path taken as it is); a file the repository has as executable kept so; the
+  configured remote applied each time; the scratch copy removed whatever happens; a co-author's name made plain, accents
+  dropped rather than broken; an all-hex branch name taken as the branch; `git.path` without pathspec magic or empty
+  segments.
+- Limits: one repository per instance; an import replaces what the Studio had not pushed; an import of a commit that
+  is not the branch's tip makes the head that commit's game, and the next push goes on the tip; a file outside `path` is never touched; LFS and submodules are not read.
+- Docs: STUDIO-SERVER "The game in Git" (en, fr); the threat model's row.
+- Tests: `tests/studio-git.test.ts` (a bare repository; the hard cases; round two: `private/` both ways, a quoted path, an executable kept, a refusal 502, a race 409; a push with two authors, nothing new, a second push on the
+  first, a file removed; a moved branch refused and left as it was; an import as one revision then a push on it, the
+  rest of the repository kept; a bad ref, an unknown branch, a commit without the game; the routes),
+  `tests/dom/studio-git-panel.test.ts`.
+
+→ next: Claude (4.2.3 PR 7: sprite sheets and uploads hosted, H8)
+
+
+## #226 · 2026-10-19 · Claude · proposal · 4.2.3 PR 8: the engine's upgrade of a hosted game (H6)
+
+- `studio-server/src/worker/migrate.ts`: `migrateIn(dir, game)`, the migration of a snapshot's game as
+  `web-scumm migrate` does it (`tools/ids/plan.ts`, the planning of `npm run ids -- --write --map` taken out of
+  `tools/ids.ts`, which now prints it), plus the three lines UPGRADING left to the author (`addSchema3ToGameSource` in
+  `tools/ids/codemod.ts`); `migratedShape` bounds the answer (1,000 files, 8 MiB, packable plain paths). A worker job
+  kind `migrate` (`child.ts`, `job.ts`, `main.ts`), `remoteExecutor.migrate`, `localMigrate`; `overlaySnapshot`.
+- `studio-server/src/server/engine-upgrade.ts`: `EngineUpgrade`, under the owner's exclusive lease (`*`, the helper
+  `prepare` used, now shared in `main.ts`), one at a time: the head packed, the worker's migration, the migrated
+  snapshot judged by the health's `judgeBy` (validator, then solver; `judge` now built once in `main.ts`), a 422 with
+  `errors` and `skipped` when it fails or is unknown, else one guarded, undoable `writeFiles` with each file's `from`.
+  Route `POST /api/engine/migrate`, owner only, hosted only (404 otherwise). A local Studio has no route: it runs
+  `web-scumm migrate`. No button in the Studio's page yet.
+- Fixture `tests/fixtures/game-4.1/`: the template at schema 2 (no `schemaVersion`, no ids), its manifest listing the
+  starter images so that it validates.
+- Tests `tests/studio-engine-upgrade.test.ts` (real worker child): one revision, schema 3 and ids written, health green,
+  nothing to do the second time; a game built by code refused, head intact, lease given back; the solver's failure and
+  its unknown verdict refused (injected judge), 429 for a second run; taken back by personal undo and by a backup's
+  restore to the head and the health of before; the answer's shape; the route (404, 403 for a dev, POST only).
+- STUDIO-SERVER (en, fr) "Upgrading the engine of a hosted game"; a threat-model row.
+
+**After the second reading**
+
+- The answer bounded to the migration's files: `migratedShape(v, existing)` accepts only `rooms/*.ts`, `rules.ts`,
+  `items.ts`, `game.ts`, `locales/*.json` (each one the snapshot has) and the two id maps; the 200 answer lists the
+  `paths` written; a threat-model line (the game's code shapes the answer; the Studio bounds it).
+- The exclusive lease renewed every 30 s while the operation runs (`exclusiveRunner` in `leases.ts`, used by prepare
+  and the upgrade).
+- Two exclusive operations of the same owner: a per-member count, only the last one out releases `*`.
+- The revision: `writeFiles` gives the paths it changed, not its revision; the head read after it stays, said to be
+  under the exclusive lease.
+- `game.ts`'s three lines all or none (a shorthand or a computed `saveVersion` skips the three, said), so a second run
+  cannot append `idsMigration` twice; a game whose `defineGame` is not in `game.ts` is refused (documented).
+- STUDIO-SERVER (en, fr): the playtests are neither migrated nor judged.
+- Coverage: `exclusiveRunner`'s renewal failure (with and without a log) and its count's edges (two runs starting
+  together, a take refused), and `remoteExecutor.migrate` against a fake worker (an answer, the game failing, the
+  deadline, an answer naming a file the migration never writes or the game does not have, no result, a job refused).
+
+→ next: Claude (4.2.3 PR 9: the reference deployment, H9)
+
+
+## #227 · 2026-10-19 · Claude · proposal · 4.2.3 PR 3: comments anchored on stable ids (H2)
+
+- `studio-server/src/server/comments.ts` (`Comments`) and migration 0012 (`studio_comments`, kept by the backup):
+  a comment's anchor (a stable id: letters, digits, `. : @ - _`; '' for the game), its revision, a thread one level
+  deep (a reply takes its thread's anchor), resolved as a thread; `orphan` when the anchor is not among what the game
+  names (the IR's provenance, the storyboard's boards and panels, read once per revision; when the game does not load,
+  no comment is said orphan); its author alone changes its text, a reviewer resolves their own threads, a dev any; the
+  notes of `notes.json` imported once each (`source` unique), free text kept at the head of the text.
+- Routes GET/POST `/api/comments`, PUT `/api/comments/<id>` (a reviewer's: `roleFor`), POST
+  `/api/comments/import-notes` (an owner's); the Notes tab's Comments panel (`src/studio/comments-panel.ts`).
+- Departures from the plan: comments are kept in the Studio's database rather than a game file, so a reviewer writes
+  no game file; `ids --lines` as an exclusive operation is carried to 4.3 (neither this PR nor PR 8 makes it; a line's
+  id is not an anchor). A local Studio keeps its notes.
+- **After the second reading**: what a comment can be anchored on is read from the IR itself (`anchorsOf`: an id made by
+  code included), once per revision, shared by the requests that wait for it, a game that does not load remembered as
+  such (no comment said orphan, never an older revision's set); a reviewer resolves only threads they began, not
+  through their reply to another's; 2,000 open comments at most each (429), a list of the newest 2,000; a new comment
+  is a 201; an empty name falls back to the email.
+- Docs: STUDIO-SERVER "Comments" (en, fr).
+- Tests: `tests/studio-comments.test.ts` (anchors, threads, orphans, a game that cannot be read, refusals, who changes
+  and resolves, every note imported once), `tests/studio-collab.test.ts` (a reviewer comments, 200, and writes the
+  game, 403; the import an owner's), `tests/dom/studio-comments-panel.test.ts`.
+
+→ next: Claude (4.2.3 PR 4: the semantic diff, H3)
+
+
+## #228 · 2026-10-19 · Claude · proposal · 4.2.3 PR 4: the semantic diff (H3)
+
+- `tools/studio/semantic-diff.ts`: a source parsed (the compiler API, never run): every object literal with
+  `id: '<text>'` compared by its id, its other fields by their text, an object inside a field that has an id of its own
+  shown as that id (a change is said once, by the object that owns it); a JSON compared by the paths of its leaves;
+  anything else, or a side that is not text, "file changed" (`opaque`); a list cut at 500 (`cut`).
+- `core.diff(from, to)` and GET `/api/diff/<from>..<to>` (a reviewer's): the files the operations between the revisions
+  wrote, each compared at both sides through the journal (`blobAt`); a file written back is no change; 2,000 revisions
+  at most; a content the journal did not keep (a local journal's adopted files) is opaque. The Check tab's panel
+  (`src/studio/diff-panel.ts`).
+- Limits: the ids are the ones written in the sources (an id made by code is not seen); a file without ids (code that
+  is not content, an image), or a change outside every id, is "file changed"; JSON arrays are compared by index.
+  Between builds is between their revisions. No before/after captures in 4.2.3, local or hosted (D45, carried to 4.3).
+- **After the second reading**: an id written twice in one file is told by occurrence (`daily#2`); a `.ts` change that
+  touches no id is "file changed"; each file's sides read from the operations of the range (the first one's before,
+  the last one's after: no history scan), 500 files at most (`cut`); the game's `private/` left out; the panel checks
+  the two revisions and says the captures are not made; D45 recorded.
+- Tests: `tests/studio-semantic-diff.test.ts` (a source's ids and fields, a JSON's paths, added, removed, opaque, cut;
+  over a journal, a written-back file no change, bad ranges refused), `tests/dom/studio-diff-panel.test.ts`.
+
+→ next: Claude (4.2.3 PR 7: sprite sheets and uploads hosted, H8)
+
+
+## #229 · 2026-10-19 · Claude · proposal · 4.2.3 PR 11: the gates
+
+- **Passes** (`tools/field/schema.ts`, `docs/dev/surfaces.json`): `studio-mcp-remote` and `studio-oidc-generic`, asked
+  from 4.2.3 (`PASS_SINCE`), bound to the engine's and the Studio Server's archives, after `studio-hosted`; a 4.2.2
+  release is not asked them (`tests/field-kit.test.ts`, `tests/field-carry.test.ts`).
+
+→ next: Claude (the reference deployment, then the release)
+
+
+## #230 · 2026-10-19 · Claude · proposal · 4.2.3 PR 7: the sheets' cutting and the uploads hosted, prepare followed and cancelled (H8)
+
+- **Jobs** (`studio-server/src/server/jobs.ts`): one at a time, four waiting (429 past them); states `queued`,
+  `running` (steps `packing`, `on the worker`, `writing`), `done`, `failed`, `cancelled`, emitted in order to the live
+  stream (`job` events, `hello.jobs`) and read by `GET /api/jobs/<id>`. `POST /api/jobs/<id>/cancel` (its author or an
+  owner): a waiting job never runs, a running one is aborted; its write starts only through `commit()`, past which a
+  cancel is a 409, so a job is cancelled with no operation or done with its one operation.
+- **The worker** (`worker/main.ts`): a job whose Studio closed its request is not run, or its child is killed with its
+  group (`runChild`'s `signal`); nothing is written at the result URL. `remote-executor.ts` passes the job's signal to
+  its fetch. New kind `cut` (`worker/cut.ts`, the child): a sheet cut or a cell keyed from a version 2 snapshot of the
+  image (`upload/source.<ext>`), the sheet's cells and `site.json` (`snapshot.ts` `packCut`); its answer is refused
+  unless every file is a cell of that sheet (`cutShape`).
+- **The cut shared** (`tools/studio/cut.ts`): the dev server's copy-and-compare and its keying script moved out of
+  `tools/studio/assets.ts`, which now checks an upload in `planSheet` / `planCell` before any cut, and takes where the
+  prepared set is (`publicAssets`).
+- **Hosted routes** (`http.ts`, `hosted-assets.ts`): `GET /api/assets`, `/assets/prompts`, `/assets/file/*` (a
+  reviewer's; files served `nosniff` and `sandbox`); `POST /api/assets/sound|decor` (bounded: 10 MiB once decoded,
+  the body by its length first: 413; typed by magic, a sound's extension agreeing: 415; one operation under the
+  instance's write lock); `POST /api/assets/sheet|cell` and `/assets/prepare`: checked at once (400, 409 with the
+  conflicts, 413, 415), then 202 with the job, run under the member's exclusive lease (`exclusive` in `main.ts`,
+  shared with prepare). `PreparedAssets.prepare` takes the job's control: its signal to the worker, `commit()` before
+  any blob, row or manifest. Deviation: the uploaded sheet is not kept on a hosted Studio (`private/` has no span).
+- **The page**: the Assets tab is shown on a hosted Studio; `assets-io.ts` follows a 202 to its end (`jobs.ts`: the
+  `studio-job` events `hosted.ts` passes on, a poll every 3 s, a panel with Cancel); Prepare in the Assets tab and in
+  the Play tab is a job.
+- Docs: STUDIO-SERVER (en, fr: what is hosted, the bounds, the jobs and the cancel), STUDIO (en, fr: the tab hosted),
+  the Studio Server's threat model (an upload as an attack, a long job holding the project).
+- Tests: `tests/studio-assets-hosted.test.ts` (413 and 415 with nothing written; an upload one revision; a cut done:
+  one revision, the states on the live stream in order, the lease back; a cut cancelled on the worker: no revision,
+  the lease back; a recut's backups in the same operation; a waiting job cancelled; a refused answer; prepare
+  cancelled and done; no cancel once writing nor by another member; the worker's child killed on a cancel; a real
+  cut in the worker's child, skipped without Pillow and numpy); `tests/studio-server.test.ts` (prepare as a job);
+  `tests/dom/studio-jobs.test.ts` (the panel, Cancel, a 202 followed to its result or its refusal).
+  `scripts/e2e-studio-hosted.ts` wires the hosted Assets tab (not run locally).
+
+**After the second reading**
+
+- S1: `prepareOn` (`prepared.ts`), used by `main.ts` and the e2e stack: the job's signal always reaches the worker's
+  prepare (`main.ts` dropped it); tested.
+- S2: `serveFile` (`http.ts`): the file opened before its headers, sent by `pipeline`, a file gone meanwhile a 404 and
+  never a crash; `filePath` follows links and refuses one out of `art/` or `audio/`; tested.
+- L1: `createAssets(…, { confine })`, set on a hosted Studio: the listing reads no source outside the game folder;
+  `imageSize` reads the first 64 KiB only.
+- L2: `cutShape` accepts only the cells asked (`cutTargets`: those named, else the grid's), each a PNG once decoded;
+  tested.
+- L3: `followJob` (`src/studio/jobs.ts`): a job the server no longer knows (404, a restart) ends as failed, saying so;
+  tested.
+- `Jobs.start`: 429 from the fifth waiting job (`>=`), so four wait as documented.
+- The threat model's upload row: magic bytes do not stop a polyglot; serving as image or audio with `nosniff` and a
+  sandbox CSP does.
+- The CHANGELOG fragment says, for scripts, that `/api/assets/prepare` is now 202 and a job to poll.
+- `origin/main` merged in (4.2.3 PR 2, the scenario map), no conflict.
+
+**After CI**
+
+- The worker child's cancel test is skipped on Windows (process groups and their signals are POSIX).
+- `tests/studio-remote-executor.test.ts`: `cut` and `prepare` against a fake worker over HTTP and a bucket in memory
+  (the cells, a deadline 504, a failure 422, an answer out of shape 422, a refused job, no result, a cancel while the
+  worker runs, once it answered, and before it is sent; the staging left empty), for the coverage floor of
+  `remote-executor.ts`.
+
+→ next: Claude (the next 4.2.3 PR)
+
+
+## #231 · 2026-10-19 · Claude · proposal · 4.2.3 PR 9a: the reference deployment's code (H9: metrics, backups to the bucket, runbook)
+
+- `studio-server/src/server/metrics.ts`: `GET /metrics` (Prometheus text 0.0.4) behind `STUDIO_METRICS_TOKEN` (added to
+  `SECRET_NAMES`; 32 characters at least, refused at start otherwise): 404 without it, 401 with a missing or wrong
+  Bearer (`WWW-Authenticate: Bearer`), compared in constant time (sha256 of both, `timingSafeEqual`); routed after the
+  game's origin, before the Studio's page and `/api`. Measured without changing behaviour: the journal's `apply`
+  wrapped on the instance (the same promise returned; `journal.ts`, a mutation set, untouched), by outcome
+  (`confirmed`, `replayed`, `refused`, `failed`); the remote executor's jobs (an optional `metrics` observer: in flight,
+  then duration by kind and outcome; a cached answer is no job); the 423s and answers by status class from the
+  request's `finish`; the previews' and the health's durations and the logged failures read from the log lines the
+  server already writes; at each scrape the revision, the RPO (the shipper's `rpoMs`) and the service lease. A gauge
+  whose read fails is left out of that scrape, never a false 0. OpenTelemetry: not in 4.2.3.
+- `studio-server/src/ops/backup-bucket.ts` (a new file, so `backup.ts` and its mutation set stay as PR 10 reads them):
+  `backup --to-bucket [--keep n]` writes `backups/<UTC date, - for :>-r<revision>.json` through the S3 client, then
+  deletes the older backups it wrote past the n most recent (never another key, never the one just written). `backup
+  <file>` refuses a flag as its file.
+- `clevercloud/cron.json` (03:17 UTC daily) and `ops/studio/backup-cron.sh` (`#!/bin/bash -l`; nothing unless
+  `STUDIO_BACKUP_CRON=1`, nothing off instance 0, `STUDIO_BACKUP_KEEP` default 14): Clever runs a repository's crons
+  on every app deployed from it, the worker included, hence the opt-in.
+- Docs: STUDIO-SERVER (en, fr) "Running it: the reference deployment": the overlapping redeploy and the engine upgrade
+  (service lease, worker first, rollback), the metrics and what to alert on, the daily backup, the restore drill onto a
+  fresh add-on; the two variables; `docs/dev/QUALIF-4.2.3-REFERENCE.md`, the report's template (every value "à
+  mesurer"); the threat model's row (metrics behind a secret, what they reveal).
+- Tests: `tests/studio-metrics.test.ts` (401 without or with a wrong token, the comparison through `timingSafeEqual`,
+  404 without a token configured, 404 on the game's origin; values after an operation, a refused one, a 423, a preview,
+  a logged failure; nothing of the project in the text; a job in flight, then its duration by outcome, a cached answer
+  not counted; the backup's key, `--keep` deleting only its own older backups).
+- Left for the run (Claude with the maintainer): the deployment itself, the alerts wired to a person, the real drill and
+  the numbers of the report.
+
+- **After the second reading**: a 300 s bucket (the longest wait for the worker); a wait given up on its deadline counted
+  as a timeout; the backup cron runs only where Clever says it is instance 0; the threat model says the token's entropy
+  protects it, not the throttle; STUDIO-SERVER (en, fr) says what another OpenID provider (GitLab) serves and does not
+  (the CLI and the MCP need JWT access tokens; no back-channel logout: a session ends at its next refresh).
+
+→ next: Claude (the reference deployment run, the release)
+
+
+## #232 · 2026-10-19 · Claude · proposal · 4.2.3: the reference deployment's two server findings fixed
+
+- The reference deployment on Clever Cloud (PR 9, phase A) found two bugs, both on main:
+  - `studio-server/src/server/main.ts`: `rest.filter((_, i) => i !== at && i !== at + 1)` with `at = -1` (no
+    `--config`) dropped argument 0. Now `withoutConfig(rest)` (config.ts), tested with and without the flag. It broke
+    the daily backup's cron as shipped (reproduced on the instance).
+  - `ops/ship.ts` `Shipper`: shipped at start and on the instance's own `confirmed` events only; a CLI import against
+    the same database stayed unshipped (RPO 190 s, until a restart). `Shipper.watch(ms)` ships every 30 s too, cleared
+    by `close()`; tested with writes the shipper is never told about.
+
+→ next: the reference deployment's phase B (the restore drill with writes after the backup, the overlapping redeploy)
+on the release's main.
+
+
+## #233 · 2026-10-19 · Claude · proposal · 4.2.3: the prepared assets' start no longer races a Prepare
+
+- `studio-server/src/server/prepared.ts` `write()`: after its blobs are read, a set older than the one served (a Prepare
+  that ended while the start was writing) is dropped instead of served. Found by the second reading of PR 7, low
+  severity (an instance's first minutes, and a Prepare in them). `tests/studio-workshop-prepared-mutants.test.ts`: a
+  two-file set whose second read is held while a Prepare ends; it fails without the fix (the old set served, the new
+  folder deleted).
+
+→ next: the 4.2.3 release.
+
+## #234 · 2026-10-19 · Claude · proposal · 4.2.3 PR 9b: the reference deployment, run and measured
+
+- `docs/dev/QUALIF-4.2.3-REFERENCE.md` filled in (§1 to §8) from the run on the maintainer's test org (two XS Node
+  apps, PostgreSQL DEV, Cellar S, managed Keycloak 26.7.4): phase A at 52e68932, then the upgrade by overlapping
+  redeploy to c66fbf56 (main with #180), the cron script run by hand on instance 0 with `--keep`'s second pass, two
+  restore drills on fresh add-ons linked to nothing (the second with writes after the backup, replayed to the
+  production head), and the previews' times over paced writes. Every number with its command; what was not done says
+  why.
+- Measured on the redeploy: the old instance `STOPPING` about 2 min, no `stopping` line, the service lease taken 2 min
+  56 s after the new instance listened (writes 503 with `Retry-After: 2` for 2 min 25 s, each retried write applied
+  once, the revision continuous); during the overlap, one write waited 20 s on the starting instance's reconcile (409)
+  then hit PostgreSQL's connection limit on the DEV plan (500 "too many connections"), and was applied once on its
+  next try.
+- Docs: STUDIO-SERVER (en, fr) for the gaps the run found (managed Keycloak's first login and realm import,
+  `realm.json`'s local values, `APP_FOLDER`, `--` before a PEM value, `clever link` then `deploy --alias`, the shell
+  of `clever ssh`, `clever logs` bounded by hand, `/metrics` a 401 on the game's origin, the redeploy's cost, the
+  `/readyz` alert at 5 min, the drill compared through the API). No code changed.
+
+→ next: the alerts wired to a person and a collector for `/metrics` (§2), and the 03:17 UTC cron line observed on a
+following morning.
+
+
+## #235 · 2026-10-19 · Claude · proposal · 4.2.3: the service lease handed over at a deploy
+
+- The reference deployment's §5 (PR 9b): the new instance listening at 19:34:52, `lease-taken` at 19:37:49, writes 503
+  for 2 min 23 s; the old instance `STOPPING` for 3.5 min, renewing, no `stopping` line. And a write on the old one
+  waited 20 s for the journal's lease (the new instance's 30 s repair held it), then got a 409 without Retry-After.
+- `service-lease.ts`: a waiting instance writes an ask (row 2: instance, the database's clock at its first try, until);
+  the holder, when the ask is live and newer than itself, expires its row (the fence still grows) and stops writing; the
+  asker takes it at its next try (2 s). An older ask is ignored; an expired one too. Residual: an asker that dies
+  before taking makes the holder give the lease back again until its ask expires (30 s).
+- `journal.ts`: the per-operation lease's wait gives up as 503 (Retry-After 2 at the HTTP layer; the Studio retries
+  with the same operation id). `main.ts`: the repair only on the instance holding the service lease, at once when it takes it, then every 30 s.
+  Residual: the instance that gave the lease up is no longer repaired; a read still reaching it may show a folder
+  behind the head (Clever sends it no new requests once it is `STOPPING`).
+- Second reading: the old test expecting 409 updated; the instance that gave the lease back taking it again first
+  (found, fixed, tested); the asker's death bound; the lost answer; the cancelled deploy's ask.
+- Tests: `tests/studio-server.test.ts` (the handoff, the fence growing, an older instance never taking it back, an
+  expired ask), `tests/studio-journal-mutants.test.ts` (the 503).
+
+→ next: redeploy on the reference deployment to measure the handoff; then the release.
+
+
+## #236 · 2026-10-19 · Claude · proposal · 4.2.3: the exclusive lease's runner pinned for `studio-auth`
+
+- Measured before the 4.2.3 candidate (run 39311491188), `studio-auth` had 19 unexplained survivors, all in
+  `exclusiveRunner` (`studio-server/src/server/leases.ts`, PR 8): its behaviour was tested only through the engine's
+  upgrade and prepare, outside the set's tests. `tests/studio-exclusive-mutants.test.ts`, in the set: without a
+  claimant; taken and given back, or not when held before (another's `*`, another span of theirs); on a failure; two of
+  the member's at once (one look, given back by the last); renewed while it runs, a failed renewal logged.
+
+→ next: the set measured again on the branch, then the release.
+
+
+## #237 · 2026-10-19 · Claude · proposal · 4.2.3: `studio-workshop`'s three new survivors read
+
+- Measured on main before the candidate (run 39314614393): three survivors in the lines #180 and #181 added. Two are
+  killed: a shipper closed ships nothing more (`tests/studio-backup.test.ts`); an older set with no file, dropped after a
+  Prepare ended while the start looked, fails nothing (`tests/studio-workshop-prepared-mutants.test.ts`, the start's
+  look held). One is equivalent and named in `docs/dev/mutants.json`: `Shipper.close` clearing a null timer.
+
+→ next: the set measured again on the branch, then the release.
+
+
+## #238 · 2026-10-19 · Claude · proposal · 4.2.3: the job's lifetime allows the clocks' skew
+
+- Found by the reference deployment (phase C, PR #190): from one restart on, `health-failed` and `preview-failed` with
+  "the processing worker refused the job (403)"; 20 jobs signed on the studio's VM, 10 refused as expired.
+  `remote-executor.ts` signs `exp = Date.now() + MAX_JOB_MS`; `worker/job.ts` refused `exp - now > MAX_JOB_MS`.
+- `job.ts`: `CLOCK_SKEW_MS` (30 s) allowed beyond `MAX_JOB_MS`; the two refusals said apart ("has expired", "lives
+  longer than a job may"). `worker/main.ts`: `worker-job-refused` logged with its reason. `remote-executor.ts`: the
+  worker's reason in the error, 200 characters at most. Tests: `tests/studio-job-clock.test.ts` (to the millisecond on
+  both bounds), `tests/studio-remote-executor.test.ts` (the reason, bounded).
+
+- Second reading: the worker's error body read up to 4 KiB only (the worker is not trusted: ADR 0028), tested with an
+  8 KB body; ADR 0028 and the threat model say the 30 s of skew. The reason reaches members' verdict text as plain text.
+
+→ next: deployed on the reference deployment, then the release.
+
+## #239 · 2026-10-19 · Claude · proposal · 4.2.3: the lease handoff measured on the reference deployment
+
+- Three studio deploys at origin/main `dd66b38d` (#183) on the test org, with the PR 9b probe (`/readyz` every 1 s, a
+  note every 3 s retried with the same `X-Studio-Op`, the instances every 5 s): from `c66fbf56` (no handover) the lease
+  came 2 min 33 s after listening, writes 503 for 2 min 27 s, two 409s and a 500 from the old code; then two
+  `clever restart`s of the same commit: `lease-lost` on the old instance and `lease-taken` 6.0 s and 10.1 s after
+  listening, writes 503 for 16 s and 10 s (Clever routing to the old instance until the deploy ends), one write per
+  restart waiting 10 to 20 s on the starting instance's journal check (now a 503), no 409 or 500, nothing applied twice.
+- Found: the worker refuses jobs on a clock skew of a few milliseconds. `remote-executor.ts` sets `exp` to exactly
+  `Date.now() + MAX_JOB_MS` and `worker/job.ts` refuses `exp - now > MAX_JOB_MS`; on the third deploy's VM, 10 of 20
+  probe jobs (signed on the studio VM, an invalid `dest` so none could run) got 403 "the job has expired", and the
+  health and previews failed intermittently. Not fixed here: a clock margin is needed, and the 403's reason is logged
+  nowhere.
+- Docs: QUALIF §2, §5 bis, §7, §8; STUDIO-SERVER (en, fr) deploy cost and `/readyz` alert. No code changed.
+
+→ next: a clock margin for the job's expiry (and the 403's reason logged), then the reference deployment's worker on
+the same commit.
+
+## #240 · 2026-10-20 · Claude · release · 4.2.3 "Coordination": the team organised, agents and Git on the hosted Studio
+
+- **What ships**: the plan's §2 for 4.2.3 (`docs/dev/PLAN-4.2.3-COORDINATION.md`), merged as #164, #168–#183, #185, #189,
+  #190 and #192 (LOG #219–#239), with #165 (LOG #218, the gated sets read again before `v4.2.2`'s tag, its note filed here):
+  - the plan, D44 and D45;
+  - a worker from the archives preparing assets (H7, PR 0);
+  - the revision read and the 409 that says what changed (H10, PR 1);
+  - the scenario map (H1, PR 2) and anchored comments (H2, PR 3);
+  - the semantic diff (H3, PR 4);
+  - the remote MCP (H4, PR 5, ADR 0029);
+  - the game in Git (H5, PR 6);
+  - the Assets tab hosted, with jobs followed and cancelled (H8, PR 7);
+  - the engine's upgrade of a hosted game (H6, PR 8);
+  - the reference deployment's code: metrics, backups to the bucket, the runbook (H9, PR 9a);
+  - `studio-workshop`'s survivors read, the set gated (PR 10);
+  - the passes `studio-mcp-remote` and `studio-oidc-generic` (PR 11);
+  - the two fixes the reference deployment found (#180) and the prepared start's race (#181);
+  - the reference deployment run and measured (H9, PR 9b: #182, #190);
+  - what that run found, fixed: the service lease handed over at a deploy (#183), a job's lifetime allowing the
+    clocks' skew (#192);
+  - the gated sets measured on main before the candidate, their new survivors killed or named (#185, #189).
+- **The maintainer's answers**:
+  - « Merge #164 for me, as is » (D44: the name "Coordination", GitLab for `studio-oidc-generic`, a deploy key, the
+    diff's captures local, the spike's Clever resources kept);
+  - « Yes, sign v4.2.3 » (19 Oct, D44), the yes for `v4.2.3` only (D37), signed on its own green candidate run; a later
+    tag gets its own.
+- **Experimental (D18)**: six Studio passes open after this release (`studio-hosted` #149, `studio-collab` #150,
+  `studio-preview` #166, `studio-assets-hosted` #167, and 4.2.3's `studio-mcp-remote` and `studio-oidc-generic`,
+  opened with the release); 4.2.0's thirteen (#75–#87) stay open. SUPPORT "4.2.3" says, surface by surface, what stays
+  experimental at the end of the 4.2.x line and what stays open (plan §3, §5).
+- **Where 4.2.3 departs from its plan, said**:
+  - **No captures in the diff, local or hosted** (D45): the semantic diff reads the sources; no capture of a past
+    revision exists on a local Studio either. Carried to 4.3, with Chromium's qualification on the worker. The Check
+    tab says so. H3's "between two builds" is between their revisions.
+  - **The reference deployment (H9)** ran on Clever Cloud's test organisation (`docs/dev/QUALIF-4.2.3-REFERENCE.md`,
+    #182 and #190), not under a production load; every figure there is a measure with its command, or says it is not.
+    - Phase A found two server bugs, fixed in #180: without `--config`, the Studio Server's commands dropped their
+      first argument (the daily backup's cron as shipped ran nothing; `invite` read its flags loosely), and an
+      operation confirmed by another process (a CLI import) was not shipped until the next write or a restart (RPO
+      190 s).
+    - **The real restore drill** (plan §3's criterion, met): onto a new PostgreSQL add-on, from a backup at revision 63
+      followed by two writes, `restore --replay` took **59.7 s** (593 rows, none dropped), reached revision 65, the
+      production head: **0 operations lost** of 2. A first drill without writes after the backup took 28.7 s.
+    - The daily backup run by hand as the cron runs it (no `--config`): 1.87 s, 254 kB; `--keep`'s second pass removed
+      only the oldest. The 03:17 UTC run itself is not observed in the report.
+    - **The preview**: p50 34.1 s, **p95 43.8 s** from a write to a playable preview on the smallest plan (the worker's
+      job about 6 s of it; the D42 target of 5 s is not met there); revisions are skipped, not queued, past about one
+      edit every 35 s. A fresh rebuild of a published build: 44.3 s, byte-identical.
+    - **The overlapping redeploy**: Clever keeps the old instance renewing for minutes with no SIGTERM, so writes were
+      refused about 2.5 min at each deploy and a write could get a 409. Fixed before the release (#183): the new
+      instance asks for the lease, the old gives it back at its next renewal; measured (#190) at 6.0 and 10.1 s to take
+      it, writes 503 for 10 to 16 s, none lost, no 409 nor 500. The first deploy onto 4.2.3, from a version without the
+      handover, still waits about 2.5 min.
+    - **A job's clock**: the same measure found the worker refusing about half the jobs on a few milliseconds of skew
+      between the two machines (health and previews failing). Fixed before the release (#192): 30 s of skew allowed,
+      the refusal logged and said. Verified on the reference deployment at `20db1fe2` (worker then studio): in
+      the 10 min after the handover, 191 writes, 106 judgements and 23 previews, **0 jobs refused** (265 run on the
+      worker); the handover took 4.0 s, `/readyz` 503 for about 2 s, one write retried once (503), none lost; the
+      preview p50 29.5 s, p95 40.6 s.
+    - Not done: a metrics collector and an alert to a person (the runbook writes the alerts), reading the production
+      database during the drill (compared through the API instead), processing without outbound network, OpenTelemetry.
+  - **The prepared start's race** (#181): an instance's start could serve an older prepared set over the one a Prepare
+    had just served, and delete the newer one's folder. Found by PR 7's second reading, fixed before the release.
+  - **Comments (H2)** are kept in the Studio's database (migration 0012, kept by the backup), not in a game file, so a
+    reviewer writes no game file; a local Studio keeps its notes. `ids --lines` as an exclusive operation is carried to
+    4.3 (a line's id is not an anchor).
+  - **The engine's upgrade (H6)** is a route (`POST /api/engine/migrate`, an owner's), without a button in the Studio's
+    page yet; the playtests are neither migrated nor judged.
+  - **The Assets tab hosted (H8)**: the uploaded sheet itself is not kept on a hosted Studio (`private/` has no span).
+    `POST /api/assets/prepare` answers 202 with a job (said for scripts in the CHANGELOG and UPGRADING §36).
+  - **The revision read (H10)**: a client that sends no `x-studio-base` (a script, the MCP's agents) is not checked
+    this way; the merge offered is the edit applied again on the head, not a three-way merge.
+  - **The remote MCP (H4)**: screenshots, tests, documents and asset prompts are not offered remotely; a client without
+    MCP's authorization discovery uses a pasted token or the stdio server.
+  - **Git (H5)**: a deploy key, one repository per instance (D44); its tests use a local bare repository, and no pass
+    names a hosted forge; LFS and submodules are not read.
+  - **The gates (PR 11)** added the two passes but no CI job of its own: the map, comments, diff, remote MCP, Git and
+    the engine upgrade are proven by the unit suites (SQLite, the `check` job), not by `studio-hosted` (Postgres, S3,
+    Keycloak); the second OIDC provider is a person's pass only.
+  - **H9's options**: OpenTelemetry is not in 4.2.3; the alerts are written in the runbook, and wiring them to a
+    person is part of the run; processing without outbound network is not offered.
+- **The version**: 4.2.3; the golden save `demo-4.2.3.json`; the reference run recorded again; the CHANGELOG
+  assembled from 22 fragments, the plan's and #165's entries each with a CHANGELOG line written beside them; UPGRADING
+  §36, SUPPORT "4.2.3", ROADMAP, README, TOOLS, STUDIO-SERVER's status (en, fr; its runbook sections untouched here);
+  the threat model's title; `docs/dev/passes/4.2.3.md` (nineteen passes).
+
+→ next: Claude (the merge, the candidate on main, `v4.2.3` signed on it, `ship verify`, the two pass issues); then 4.2.4,
+the contributors' pull requests (#187, #191, #194) at the maintainer's request
+
+## #241 · 2026-10-19 · Claude · proposal · 4.2.4: the sprite sheets' background, transparent or chosen (#186)
+
+- Found while making "Jack cherche un taf" (12 characters, pixel art): the fixed `#2B2E45` keyed out a vampire's black
+  cape and a blob's dark eyes; magenta instead ate the purple-shifted shadows of an orange pumpkin; and the generator
+  painted the pumpkin's carved mouth and eyes in the background colour, which the flood fill took for background where
+  they touched the edge. Whatever colour is fixed, some character has it in its palette or its shadows.
+- `tools/prompts.ts`: `readSheetBackground(gameDir)` (`transparent`, or `#RRGGBB` upper-cased; `BG` when absent, and
+  with a warning when invalid, where `artStyle` falls back silently) and the `sheetBackground` option. The BACKGROUND
+  line, the style block's note, the furniture LAYOUT line and the EMPTY cells follow it; `BG` stays exported as the
+  default. Without the setting the output is byte-identical (checked on demo, signals and reference, cel and pixel,
+  with and without `--missing`).
+- `tools/cut-sheet.py`, grid mode: an RGBA sheet whose pixels are more than 20% (near) transparent, alpha below 8, is
+  cut on its alpha (`alpha < 128` is background, wherever it is), and each cell keeps the source's soft edge
+  (`min(mask, alpha)`). A sheet on a semi-transparent haze (a flat colour at alpha 200) has no such pixels: it is cut
+  by colour like a flat sheet (a first threshold, 20% below alpha 250, merged its 24 figures into one). A flat sheet,
+  native size or resized, cel or pixel, cuts to the same bytes as before.
+- `tools/pick-bg.py`: the border median that finds a sheet's own flat background counts only the border pixels with
+  alpha above 0, and nothing is left out when the border is fully transparent (a cut sprite: black under alpha 0,
+  which used to drop every dark colour of the drawing).
+- `tools/check-alpha.py` and `tools/pick-bg.py`, ported from the game's own `art-tools/`. `tools/talk-kit.py` keeps
+  its `#2B2E45` backdrop: `talk-apply.py` pastes the mouths back through the validated sprite's alpha and keys nothing.
+- Tests: `tests/prompts.test.ts` (the default still `#2B2E45` in every line, a colour replacing it everywhere, the
+  transparent wording in every kind of sheet, `site.json` read and validated), `tests/pixel.test.ts` (a transparent
+  copy of the synthetic sheet cuts to the same cells, a figure painted `#2B2E45` on it stays whole, the verdicts of
+  check-alpha, cyan for an orange figure from pick-bg with a sheet's own background left out, a haze sheet cut into its
+  24 figures, a dark navy cut sprite whose navy pick-bg counts).
+
+→ next: removing the fringe of a flat colour in the cutter itself, if it is wanted (the game's script is written for
+magenta, and it is the delicate part).
+
+
+## #242 · 2026-10-19 · Claude · proposal · 4.2.4: an exit gone through on a single tap (#188)
+
+- `GameDef.input.exitOnTap` (a new `input` block, presentation) and `ExitDef.onTap: 'go' | 'walk'` (presentation):
+  `core/ir-fields.ts` classes both, `core/fingerprint.ts` hashes both with the presentation, the IR leaves them out.
+- `dom/input.ts` `actOnTarget`: a single tap with no verb on an exit that goes on tap (`tapVerb`: the exit's `onTap`,
+  else the game's switch; the generated hotspot of an exit is read through its exit) walks to the approach point as
+  before, then acts with `defaultVerb` on arrival. The walk stays a plain walk (the engine is not busy), so a tap
+  elsewhere redirects the hero: `App.taps` counts the taps on the scene, and the act runs only if none came, no verb
+  or item was picked, the engine's state is the same object (a save loaded, a new game or a checkpoint replaces it)
+  and its room is the one the tap was made in. A double tap during the walk acts once, as before.
+- The Studio: the sheet of an exit's hotspot has a "single tap" select (the game's setting, go through, walk there),
+  written to `exits.<id>.onTap` through the guarded write.
+- Tests: `tests/dom/exit-on-tap.test.ts` (without the switch it only walks; with it the room changes; `walk` keeps an
+  exit walk-only, `go` works without the switch; Look still looks; a tap elsewhere, a room change or a save loaded
+  during the walk cancels, each failing without its guard; a double tap acts once; the validator's checks),
+  `tests/dom/studio-rooms-sheet.test.ts` (the select).
+- The validator (`tools/validate/player.ts`, split out of `tools/validate.ts` with the save and settings menus' texts,
+  1,113 → 1,096 lines, its cap in `tests/file-size.test.ts` lowered to match): `input` an object, `input.exitOnTap` a
+  boolean, an exit's `onTap` `go` or `walk`.
+- D46 (`docs/dev/DECISIONS.md`): the maintainer allowed the two fields in 4.2.4; D40's freeze of the content format
+  admits optional presentation-only fields that need no schema, save or IR change. `docs/dev/DSL-STABILITY.md` says it.
+- The first visit's JavaScript: 133 KB → 134 KB gzipped in `tests/quality-baseline.json` and the READMEs (+110
+  bytes for `tapVerb` and the tap count in `dom/input.ts`: main measured 133.45 KB, this crosses the rounding to 134).
+- Left as is: the sentence line still says "Walk to <exit>" before a tap that goes through, as the classics did.
+
+→ next: the maintainer's review; Jack cherche un taf turns the switch on.
+
+
+## #243 · 2026-10-20 · Claude · release · 4.2.4: the contributor's four (Horacio, LostInBrittany)
+
+- **What ships**: four pull requests from an outside contributor, Horacio (LostInBrittany), each found while making
+  his game "Jack cherche un taf", reviewed, completed on its branch and merged, with their fragments (LOG #241, #242):
+  - #194 (#193): `face: 'hero'` turns a character toward the hero; the hero was not found among hotspots, props and
+    actors, so the character turned right wherever the hero stood;
+  - #187 (#186): `sheetBackground` in `site.json`, the sprite sheets generated on a transparent background or a
+    chosen `#RRGGBB` colour (default `#2B2E45`, the same prompts as before), cut on their alpha;
+    `tools/check-alpha.py` and `tools/pick-bg.py` to choose;
+  - #191 (#188): `input.exitOnTap` and an exit's `onTap`, an exit gone through on a single tap, off by default;
+  - #199 (#198): `actorGap`, the hero's distance to a character it walks up to following their heights and the depth
+    scale, 44 units when unset.
+- **The maintainer's answers**:
+  - « Yes, in 4.2.4 (Recommended) » to #191's two optional content fields against D40's freeze: D46, a 4.2.x may add
+    an optional, presentation-only content field that needs no schema, save envelope or IR change and leaves a game
+    without it identical; `actorGap` is the third such field, under the same decision;
+  - « Yes, sign v4.2.4 » (20 Oct), the yes for `v4.2.4` only (D37), signed on its own green candidate run; a later tag
+    gets its own;
+  - « ok il y a 4 PR, continue et release la 4.2.4 »: this release.
+- **What was added on the contributor's branches, and why** (each change with a test that fails without it):
+  - every branch: main merged after `v4.2.3`, its fragment labelled 4.2.4, the READMEs' figures and the baseline
+    regenerated;
+  - #187: a sheet on a semi-transparent haze is cut by colour, not on its alpha (the first threshold, 20% of pixels
+    below alpha 250, merged a 6×4 haze sheet's 24 figures into one; now 20% below alpha 8), and a cell keeps the
+    source's soft edge; `pick-bg.py` counts a cut sprite's dark colours (its transparent border, black under alpha 0,
+    dropped every dark colour of the drawing);
+  - #191: the act on arrival also needs the same engine state and room (a save loaded, a new game, a checkpoint or a
+    room change during the walk used to let it act); the validator checks `input`, `input.exitOnTap` and `onTap`
+    (`tools/validate/player.ts`, split out of `tools/validate.ts` to stay under its size cap); D46 written in
+    DECISIONS and DSL-STABILITY; the first visit's JavaScript recorded at 134 KB (+110 bytes, a deliberate growth);
+  - #199: a guest measured at the hero's drawn height (the view draws it so), an actor's height in the view's order;
+    anything but a positive finite `actorGap` keeps the 44 (a negative put the hero on the far side, Infinity off the
+    stage); `actorGap` carried in the presentation fingerprint, which `ir-fields.ts` classed it in but
+    `presentationOf` left out; the validator checks it (a positive number); DSL-STABILITY under D46; the API pages
+    regenerated;
+  - this release: #199's fragment said `### Added`, a heading the CHANGELOG does not use; filed under `### Changes`.
+- **What stays open**:
+  - #186: removing a flat colour's fringe in the cutter itself (the game's own script, written for magenta);
+    `talk-kit.py` keeps its `#2B2E45` backdrop (it keys nothing);
+  - #188: the sentence line still says "Walk to <exit>" before a tap that goes through; no Studio form for
+    `input.exitOnTap` (the Studio writes only `objectives` in the game file); the demo and the reference game do not
+    turn it on;
+  - the passes: none added; the nineteen of 4.2.3 stay open (`studio-hosted` #149, `studio-collab` #150,
+    `studio-preview` #166, `studio-assets-hosted` #167, `studio-mcp-remote` #196, `studio-oidc-generic` #197, and
+    4.2.0's thirteen, #75–#87), made on the 4.2.4 candidate or carried to it (D38);
+  - 4.2.3's open list (SUPPORT "4.2.3": the diff's captures, `ids --lines`, the health with lint and the playtests,
+    the Assistant hosted, a signed backup, npm publishing) is unchanged.
+- **The version**: 4.2.4; the golden save `demo-4.2.4.json`; the reference run recorded again (only its engine version
+  and the hashes that follow from it moved); the CHANGELOG assembled from 4 fragments, two of them with a LOG part
+  (#193's and #198's have none, so this entry says what they did); UPGRADING §37, SUPPORT "4.2.4", ROADMAP, README
+  (en, fr); `docs/dev/passes/4.2.4.md` (nineteen passes, none new).
+
+→ next: Claude (the merge, the candidate on main, `v4.2.4` signed on it, `ship verify`)
+
+## #244 · 2026-10-20 · Claude · proposal · 4.2.5: web-scumm becomes quest'n'click
+
+- **Asked** (20 October, D47): rename the project quest'n'click, keep the trace of web-scumm in the README, a redirect,
+  "ne pas perdre les gens qui étaient déjà sur le sujet"; the slug `quest-n-click`; the old names still working through
+  4.2.x, gone in 4.3; Horacio's #202 left to 4.3.
+- **Done**:
+  - every occurrence of the old name inventoried (about 430 files) and classed: a name people see or install is
+    renamed; an identifier written in a file, a store, a header or a signature is a format and kept byte for byte; a
+    historical record (CHANGELOG, LOG, plans, passes, baselines, ADRs) is left as written;
+  - the docs (en, fr): the READMEs with the new logo and a "Formerly web-scumm" note (old Pages address not
+    redirected), every guide's names, commands and URLs, UPGRADING §38, SUPPORT "4.2.5" (the aliases deprecated through
+    4.2.x), D47 with the maintainer's words;
+  - the packages, their commands and the release's files under the new names, the old ones as aliases (the same files,
+    the old package name), the old commands with a notice, both import names resolved; past releases' names and
+    attestation identity kept for the tools that fetch and verify them.
+- **What stays open**: the Clever applications' names (the reference deployment) and the private game (D8), not
+  touched; npm publishing, which will take the new names; the local folder, renamed by the maintainer.
+  The sample games' own credits and title-screen line (demo, reference) still say web-scumm: they enter the
+  presentation fingerprint the reference run is sealed with, so they move with the 4.2.5 release commit, which records
+  that run again. The README's quick start stays on v4.2.4's archive (`web-scumm-4.2.4.tgz`, under the new repository's
+  URL) until that commit too. The Bridge's qualification files are renamed (image, lock, compose project), so the
+  surfaces of the passes that read them change: those passes are not carried from 4.2.4.
+
+→ next: the maintainer (the review of the pull request; the folder renamed), then the 4.2.5 release
+
+## #245 · 2026-10-20 · Claude · release · 4.2.5 "quest'n'click": the new name
+
+- **What ships**: the rename of #209 (LOG #244, D47): web-scumm, named in homage to SCUMM, becomes quest'n'click, so
+  its name sparks no needless debate. The display name quest'n'click; the packages and commands `quest-n-click`,
+  `create-quest-n-click`, `quest-n-click-bridge`, `quest-n-click-connectors`, `quest-n-click-studio-server`, with
+  full-copy `web-scumm…` alias archives through 4.2.x (the old commands run after a one-line notice, the old imports
+  resolve); the formats unchanged (`web-scumm-save`, `web-scumm-session`, `.wsrun`, `web-scumm-remix-1`, the stores'
+  and headers' names, `WEB_SCUMM_*`); the release's files named `quest-n-click-…` from 4.2.5
+  (`tools/release/artifacts.mjs` picks the name by version, so v4.1.20–v4.2.4 are still judged by their published
+  names); the attestations signed as `wanoo/quest-n-click` from 4.2.5, `wanoo/web-scumm` before; the old Pages address
+  redirected through `wanoo/wanoo.github.io`, whose page also retires the old service worker (LOG #244 still says "not
+  redirected": its second reading in #209 changed that, the READMEs and UPGRADING §38 say it redirects).
+- **The maintainer's words** (20 October, in French, as D47 quotes them): « l'idée pour moi c'est maintenant de
+  renommer ce projet en quest and click » ; « changement du repos, mise à jour du RIDMI pour garder la trace de
+  WebSkum, histoire que s'il y a des gens qui viennent rechercher, etc., et avoir un lien de redirection. Bref, ne pas
+  perdre les gens qui étaient déjà sur le sujet » ; « dire qu'initialement ça s'appelait WebSkum et que c'était un
+  hommage au SCUM, mais dans la réalité, pas envie de perdre du temps sur des débats stériles » ; « je veux que tu
+  renommes le repos […], le répertoire sur mon ordinateur, les références, faire un truc clean » (dictated: WebSkum,
+  SCUM and RIDMI stand for WebSCUMM, SCUMM and README).
+- **The maintainer's answers**:
+  - « quest-n-click (Recommended) » for the slug; « Old names still work (Recommended) » for compatibility, the aliases
+    through 4.2.x, removed in 4.3; « 4.3 is ok » for Horacio's #202;
+  - « Yes, create the redirect (Recommended) »: the page in `wanoo/wanoo.github.io` that sends the old Pages address,
+    its deep links and the old installed app to `wanoo.github.io/quest-n-click`;
+  - « Yes, sign v4.2.5 » (20 Oct), the yes for `v4.2.5` only (D37), signed on its own green candidate run; a later tag
+    gets its own.
+- **What this release commit adds**: the sample games' credits (the Pantry Key: "A quest'n'click sample game", "Sound
+  effects: generated by quest'n'click"; the Night Market: its credits and its title-screen line "The reference chapter
+  of quest'n'click"), en and fr, left by #209 because they enter the presentation fingerprint; so the reference run is
+  recorded again (its engine version, the engine and presentation fingerprints and the hashes that follow from them
+  moved; its 49 steps and its times did not). No test pins those strings, and no visual reference shows the credits.
+  The README's quick start installs `releases/download/v4.2.5/quest-n-click-4.2.5.tgz` with `npx quest-n-click`, and
+  says the old archive and command still work; the template (`games/_template`, `cli/create.mjs`) already said
+  quest'n'click.
+- **What stays open**:
+  - the aliases: removed in 4.3 (`scripts/pack.mjs`, the notices, both import names, the `web-scumm` package names in
+    the Studio Server and the Bridge's lookups);
+  - npm publishing, which will take the new names;
+  - the Clever spike applications, still named `web-scumm-spike-*` (the reference deployment);
+  - the field passes whose surfaces changed name: the Bridge's image files and lock are renamed
+    (`quest-n-click-bridge-image.*`), so the passes that read them (`bridge-postgres-https`, `runs-real-players`,
+    `mystery-deployed`, `connectors-real-security`) do not carry over and must run again on the 4.2.5 candidate, as do
+    the Studio's six (their archives renamed) and `archive-human-install` (the README's install section changed); the
+    nineteen stay open (#75–#87, #149, #150, #166, #167, #196, #197);
+  - Horacio's #202, for 4.3;
+  - the "kept, not sure they are formats" list of #209 (the MCP resource URIs `webscumm://…`, the Keycloak examples'
+    realm, the Studio's default committer, the OpenTelemetry meter…), for 4.3 to decide.
+- **The version**: 4.2.5; the golden save `demo-4.2.5.json`; the reference run recorded again; the CHANGELOG assembled
+  from 1 fragment with its LOG part (#244); UPGRADING §38 (the attestations' identity and the sample credits added),
+  ROADMAP, README (en, fr; "v4.2.5 (quest'n'click)"); SUPPORT "4.2.5" already written by #209;
+  `docs/dev/passes/4.2.5.md` (nineteen passes, none new, none carried).
+
+→ next: Claude (the merge, the candidate on main, `v4.2.5` signed on it, `ship verify`)
+
+## #246 · 2026-10-20 · Claude · proposal · 4.3.0 "Hero Choice": the player chooses the hero, its look, its name and the words the others use
+
+- **The need and the plan**: the maintainer's next game lets the player choose the hero at New Game, male or female
+  there and any number of heroes in general. `docs/dev/PLAN-4.3-HERO-CHOICE.md` (its §2 the admission file: `players`
+  shows a switch button per hero, a Remix dimension is filled at boot where the hero belongs to a save, lines
+  duplicated under `if` double with every translation), ADR 0022 (the first DSL extension since the freeze, through
+  D33's gate), D49.
+- **The maintainer's answers (20 Oct, D49)**: the switch syntax `{form?m=him|f=her}` kept as written; the choice shows
+  portraits **and** text; the number of heroes is arbitrary (the fixture has three); one name per hero; voices
+  "eventually", so their lookup is designed now (`<id>~<flag>=<value>`) and built last.
+- **Step 2, a name per variant**: `CharacterDef.variants[].name`; `character()` merges it, `nameOf()` reads through
+  it (so `{name}` in a fallback), the DOM's speaker label, live region, transcript and talk header read it; an i18n
+  path `char:<id>/variants[<i>].name`. Tools keep the written name.
+- **Step 3, text switches**: `core/text-switch.ts`, a pure parser (`{hero}`; `{<flag>?<value>=<text>|…|*=<text>}`,
+  `String(value)` compared exactly, `*=` then the first text, no nesting, a malformed switch left as written);
+  `Engine.text` at every display site (lines, choices, looks, hints, toasts, captions, item and object names,
+  objective titles), after `fill()` and the translation. The validator (`validate/text-switches.ts`) reports a
+  malformed switch, one in a text shown as written, a flag no command sets, a value listed that nothing writes, a value
+  written that no switch covers; `npm run i18n -- status` lists translations that drop a choice their source makes.
+- **Step 4, portraits in a choice**: `Choice.img`, shown as cards with the option's text as the label; presentation
+  only (the logic fingerprint does not move), preloaded by the asset graph, checked by the validator.
+- **Step 5, the fixture and the docs**: `tests/fixtures/heroes.ts`, three heroes (the written look is the robot, two
+  variants make the knight and the witch, each named), an intro choice of portraits setting `form`, Grandma's lines
+  with switches and `{hero}`, a key under a rug, a French table with its own words in the braces (the agreement
+  `Prêt{form?witch=e|*=}`), a checkpoint per hero. `tests/hero-choice.test.ts`: validates clean; the proof finishes,
+  and with the door opening for one hero only it still finishes, for each of the three (every answer of the intro is
+  searched); a walkthrough per hero (the name, the switched lines, `{hero}` in a line and in an item's look, no brace
+  on screen); the French forms for each; a save loaded in a new engine keeps the witch; a checkpoint names its hero.
+  The lint: `hero-looks-default` (info, `src/engine/tools/lint-hero.ts`) when two or more values a `set` writes for a flag the
+  hero's variants read match none of them (one such value is the usual design: the written look is a hero too); and
+  the intro's `set` is no longer `action-dead` when what it sets is read by a variant or a switch. Docs (en, fr):
+  CONTENT_GUIDE "Choosing the hero" (its voices and Studio paragraphs included), CLASSICS (Maniac Mansion, "Choose your hero at the start"), TOOLS (the lint row),
+  UPGRADING §39 (a literal `{hero}` or `{word?…=…}` in a 4.2 text is now filled), DSL-STABILITY (the four admitted
+  elements).
+- **Step 6, voices by value**: `core/voice-key.ts` (`<id>~<flag>=<value>`, flags sorted, the plain id as the fallback,
+  no keyed lookup while a flag is unset), the engine's lookup in `audio.voices` and `voicesByLang`, the recording table
+  one row per value (`npm run voices`, the Studio's Voices tab), the validator's warning for a missing value's clip
+  (`validate/voices.ts`), AUDIO.md "Lines with text switches". The fixture voices Grandma's dust line once per hero
+  (`sneeze~form=knight|witch|robot`): each walkthrough hears its hero's clip; without the robot's, the validator warns
+  and the plain id plays.
+- **The Studio**: the Play tab's "Text switches" picker (the flag's value, `{hero}`'s name) and a preview line under a
+  switched text in the Rooms tab (`src/studio/hero-picker.ts`, STUDIO.md).
+- **Found by the fixture**: `npm run i18n -- status` listed a translation that adds a switch its source does not need
+  (French agreement on an English line with none). The comparison now reports only a choice the translation drops (a
+  flag, or a value neither listed nor covered by `*=`); an added switch or value is the translation's own.
+- **Checks**: `npm run -s tsc -- --noEmit`; `npx vitest run tests/hero-choice.test.ts tests/lint.test.ts`;
+  `npm run validate && npm run solve`; `npm run lint`; `npm run changes -- --check`; `npm run docs:truth`;
+  `npm run format:check`; `npm run lint:code`; knip; `npm run -s test:node`.
+
+- Second reading (4.3.0, D48): merged after 4.2.5, the decision renumbered D49 (D47 is the rename), UPGRADING §39
+  from 4.2.5. A variant's `name` is shown as written (the speech box, the transcript and the talk header read
+  `character().name`), so the validator now refuses a switch or `{hero}` there, as in a character's name (a test).
+  The hero chosen at New Game is tested through the real save file: the v4 envelope as JSON, and a v3 one, read
+  back with `parseSave` and continued.
+- After #205 (4.3.0): a verb's `key` is a text of the game, so a malformed one (`key: 1`) reached `parseText`, which
+  threw and stopped the validator before the key's own check; a text of the wrong type now holds nothing (a test).
+
+→ next: 4.3.0's release checklist (the version, the golden save, UPGRADING §39's install line, SUPPORT, ROADMAP)
+
+
+## #247 · 2026-10-20 · Claude · proposal · 4.3.0: a keyboard shortcut per verb (#203)
+
+- `VerbDef.key` (one character, presentation): `core/ir-fields.ts` says verbs' keys are presentation, the IR leaves
+  them out (its verbs keep id, label and join), `core/fingerprint.ts` hashes a verb's key with the presentation only
+  when it is set, so a game without keys keeps its fingerprint.
+- `dom/input.ts` `onKey` → `verbForKey`: the key, lower-cased, against the verbs' keys; nothing with Ctrl, Alt, Meta
+  or a held key, nor while the engine is busy, the verb bar is hidden, a line is on screen, a choice is asked, a
+  transcript is open, an `.overlay` or `.dim` is in the scene, or the focus is inside a dialog. Then `pickVerb`, as a
+  tap (a second press drops the verb).
+- `dom/app-shared.ts` `verbLabelHtml`: the label with the key's first occurrence in `<u>`, escaped; `dom/shell.ts`
+  uses it and sets `aria-keyshortcuts`.
+- `tools/i18n.ts`: `verb:<id>/key` is a text to translate, applied like the label; `localeStatus` does not count an
+  unchanged key as untranslated (Open's O is Ouvrir's).
+- The validator (`tools/validate/player.ts`): `verbKeyChecks` refuses a key that is not one character, Space and a key
+  shared in any case, and warns when the label lacks the letter; `localeVerbKeyChecks` runs it on each translation
+  (`<lang>: verbs.<id>.key`), called by `tools/validate.ts`.
+- Tests: `tests/dom/verb-keys.test.ts` (a key picks and drops its verb in any case; nothing without keys, with a
+  modifier, while typing, under the pause menu, during a choice, inside a dialog or while busy; the underline and
+  `aria-keyshortcuts`; the validator in the game and in a translation; the locale path and the status; the
+  fingerprint unchanged without keys).
+- Docs: CONTENT_GUIDE (en, fr) after the single tap; ENGINE's accessibility (en, fr); `docs/dev/DSL-STABILITY.md`
+  under D46.
+- Left as is: the demo sets no keys. Its English verbs Pick up, Push and Pull share P, U and L with Look at and Use,
+  so its letters are a content choice for its author.
+
+- Second reading (4.3.0): a single-letter shortcut must be one the player can turn off (WCAG 2.1.4, for voice input
+  and stray keys): `Settings.verbKeys` (on by default), a settings row shown only when a verb has a key, `ui.verbKeys`
+  (English default "Verb keys"; the demo's en and fr locales name it), and validator warnings for keys without a
+  settings menu or without that text. The credits rolled from the pause menu are a `.credits` box, not an overlay: a
+  key no longer picks a verb under them. Tests for both, failing without.
+
+→ next: merged into 4.3.0 (D48); Jack cherche un taf sets its verbs' keys.
+
+
+## #248 · 2026-10-20 · Claude · proposal · 4.3.0: a job heard once it has ended (#210)
+
+- `studio/jobs.ts` `followJob`: the job is followed by the live stream and by a poll every 3 s. Clearing the interval
+  at the end did not stop a poll already in flight, and `seen()` only dropped a non-final state after the end, so a
+  late `done` called `onChange` a second time and `assetsPanel` lost its "prepared from revision …" line. An `over`
+  flag now drops everything once the job has ended.
+- Seen in CI: the Firefox pass of `e2e:studio-hosted` timed out at step 6d (Prepare assets) on `main` (run
+  39407655126), `feature/430-hero-choice` (39429018780) and `feature/203-verb-keys` (39486048838), in `innerText` or
+  `waitFor` depending on when the overwrite landed.
+- Tests: `tests/dom/studio-jobs.test.ts` holds a poll in flight, ends the job by the stream, lets the poll answer
+  `done`, and checks that `onChange` heard `done` once.
+- Second reading (4.3.0): the Cancel button had the same late answer. Sent just before the end and refused after it
+  (409, the job has ended), its error was appended to the panel's last word. It is dropped once the job has ended; a
+  test holds the refusal until after the end.
+
+→ next: merged into 4.3.0 (D48).
+
+
+## #249 · 2026-10-21 · Claude · proposal · 4.3: main becomes the 4.3 line, the open pull requests go into it (D48)
+
+- After v4.2.5, « ok include all PR in gh into 4.3 »: D48 records it. The six open pull requests (#208, #211, #213,
+  #206, #205, #202) are read a second time, completed on their branches, and merged into main, smallest first.
+
+→ next: the six pull requests, then a 4.3.0 plan for what else 4.3 carries (the aliases' removal, the passes).
+
+
+## #250 · 2026-10-21 · Claude · proposal · 4.3.0: the web-scumm aliases removed (D47)
+
+- D47 kept the former names as full-copy aliases through 4.2.x, removed in 4.3; D48 makes main the 4.3 line. Removed:
+  the alias packing in `scripts/pack.mjs` (`aliasManifest`, `oldCommand`, `create-web-scumm`), the old `bin` entries
+  in `scripts/pack-manifests.mjs` and the three locks, `cli/web-scumm.mjs`, the alias SBOMs in `scripts/sbom.mjs`, the
+  `web-scumm/*` path in `tsconfig.json` and the `web-scumm` branch of the import alias in `vite.config.ts` and the
+  hosted preview build, the engine looked up as `web-scumm` by the Studio Server's launcher, the Bridge's version read
+  from a `web-scumm(-bridge)` package, `tools/bridge.ts`'s `web-scumm-bridge/cli` and `tools/dist.ts`'s exception.
+- Kept: `tools/release/artifacts.mjs` (`ALIASES_UNTIL`), so a release up to 4.2.5 is still judged with its aliases
+  (`ship verify v4.2.5`); the format identifiers; the provenance of releases up to v4.2.4 under `wanoo/web-scumm`;
+  the scripts that install old releases by their old names; the nightly's watch on the old npm names.
+- The pack no longer decides by version: main is the 4.3 line and a 4.2.x fix branches from `v4.2.5` (D48). A
+  candidate built from main before the version is 4.3.0 would miss the aliases its manifest still expects for 4.2.5;
+  only the 4.3.0 candidate proves the archives, SBOMs and release files agree. `tests/release-artifacts.test.ts`
+  holds the 4.3.0 candidate's packages and SBOMs to the five new names.
+- `tools/migrate-name.ts`: `quest-n-click migrate` renames, before it loads the game, the `web-scumm/…` imports of the
+  project's sources (both quote styles; a format identifier or a URL is left alone), `tsconfig.json`'s paths and
+  includes, `package.json`'s script commands and a former dependency the new one replaces; then runs again in a new
+  process that reads the renamed tsconfig. `--check` exits 1 while any is left.
+- The hosted engine upgrade (`studio-server/src/worker/migrate.ts`): the child renames the snapshot's imports before
+  loading the game; the Studio accepts a source outside the migration's files only as exactly `renameImports` of the
+  text it has. The guard's baseline of a head that does not load is that failure, so the upgrade can be written; its
+  Undo, which would put the old imports back, is refused.
+- Second reading (4.3.0): the hosted rename is the Studio's own step (`EngineUpgrade.renameFormer`: `renameImports` on
+  the head's texts, no game code), a revision of its own judged by the validator alone (the game loads after it, and
+  gains no error if it loaded before), never by the solver, so an unfinished game is not stuck; written without an
+  undo, so the owner's earlier history stays reachable; the schema's migration follows, its 422 saying the rename was
+  kept. The worker says a game whose code does not load apart from a failing job (`unloadable`, `GameDoesNotLoad`);
+  the guard takes only that for a head's baseline (then judges an edit by whether the game loads after it) and turns
+  a worker that cannot answer into a 503, never cached; an edit after which the game would no longer load is a 422.
+  `tools/migrate-name.ts` follows symbolic links inside the project and names those that lead out or nowhere, leaves a
+  `web-scumm` script beside a `quest-n-click` one and says so, keeps package.json's indentation and byte order mark.
+  `tools/mutate.ts` resolves `quest-n-click/…` only. UPGRADING's `grep`/`sed` covers every source extension, spaces in
+  names, `public` and hidden folders.
+- `scripts/external-consumer.mjs` and `scripts/upgrade-check.mjs` move an old game as its author would: uninstall
+  `web-scumm`, install `quest-n-click`, `npx quest-n-click migrate`, then the new commands; the external consumer also
+  fails when an alias archive or a `web-scumm…` command is still packed. `scripts/studio-install-smoke.mjs` and the CI's
+  connectors job check the old commands are gone.
+- Tests: `tests/former-name.test.ts` (rewritten: nothing of the aliases left, the rename's rules and a project
+  renamed on disk), `tests/studio-engine-upgrade.test.ts` (a game still under the former name upgraded as one
+  revision, its Undo refused; a rename-only answer accepted, a rename plus anything refused),
+  `tests/release-artifacts.test.ts`, `tests/reality-store-backup-mutants.test.ts`.
+- `tests/fixtures/game-4.1` keeps its `web-scumm/…` imports (a 4.1.x game as it was) and leaves the type check
+  (`tsconfig.json`'s `exclude`): nothing resolves them any more, and the tests rename them or let the upgrade do it.
+- Docs (en, fr): UPGRADING §39, README, PACKAGE, SUPPORT, API, TOOLS, STUDIO-SERVER.
+
+→ next: the 4.3.0 release PR bumps the version; its candidate is the first to pack and publish without the aliases.
+
+## #251 · 2026-10-21 · Claude · proposal · 4.3.0: the 158 mutation exemptions read again (28 killed, 2 fixed, the rest to 4.4.0)
+
+- Every entry of `docs/dev/mutants.json` was due at 4.3.0. Four reviewers read each one against origin/main 8f3d5d3d:
+  128 kept, 30 to kill. Each kill's test was written in a file the entry's mutation set runs, then checked by hand
+  to fail with the mutant applied and pass without it. 27 entries were removed; 131 remain, all with `revisit: 4.4.0`,
+  the reviewed `why`, and a `context` line (added to 0, 1, 4 and 29; idx 1's is `private chosen = false;`, so it no
+  longer also covers `digestOn = false`; idx 4's no longer covers the four other `&&` of reality-runtime.ts).
+- Killed, engine: `migrate.ts` step and active player renamed through a map key "undefined" (`critical-migrate`);
+  `reality-runtime.ts` `fast: false` timed on the run clock (`reality-engine`); `protocol.ts` b64url's own alphabet,
+  `fatal` UTF-8 header, non-extractable key (`reality-protocol`); `client.ts` the payload's padding at length ≡ 3
+  (`reality-client`); `daily.ts` `fatal` (`remix-tokens`).
+- Killed, Bridge: `lock.ts` an idle key forgotten (`bridge-mutants-tenant`); `store.ts` three lock attempts exactly
+  (`bridge-lock-races`), parseLine quoting JSON.parse (`bridge`); `runs.ts` an answer written after the worker exited
+  (`ended`, both mutants; new fake-worker mode `late`, `bridge-runs-worker`), a 429 with `retryAfterS: 0` has no
+  Retry-After (`bridge-runs-http`); `runs-store.ts` a claim whose UPDATE changes no row, `runs-limiter.ts` a purge
+  whose edge row is gone (`bridge-runs-store`, a SqlDb wrapper staging the other process); `store-postgres.ts`
+  giveBack under two concurrent releases (`reality-store-postgres-mutants`).
+- Killed, connectors: `email/connector.ts` tick's `stopping` guard after `start()` twice
+  (`connectors-email-edge-mutants`). Making `start()` idempotent was left out: a start that fails half-way would need
+  its own rollback, and the new guard's mutants their own tests.
+- Killed, Studio Server: `journal.ts` the lease deadline's exact millisecond (`studio-journal-mutants`, Date.now held);
+  `durable.ts` fsyncDir's catch and finally, four mutants (`studio-durable-mutants`, node:fs `openSync` mocked for the
+  directory only); `auth/store.ts` a logout with `sid: ''` (`studio-store-mutants`); `leases.ts` check and list
+  read-only under another process's write lock (`studio-leases-mutants`, a raw node:sqlite `BEGIN IMMEDIATE`);
+  `health.ts` schedule after close while a judgement is in flight (`studio-workshop-health-mutants`).
+- Fixed, kept: `badges/crypto.ts` `verifyEddsaJcs` refuses a key that is not Ed25519 (an RSA-512 key's 64-byte
+  signature verified); the length check's mutant is equivalent again. `bridge/src/config.ts` `checkLimits`: the
+  Bridge's limits are non-negative integers with known names; `bridge.ts`'s `oldest === undefined` guard is now
+  `unreachable`, proved by `tests/bridge.test.ts`. `remix/compile.ts` `loadVariant` turns canonicalJson's refusal into
+  a `world-shape` RemixSeedError (the reviewer asked for world-shape; done at the source rather than in the verifier,
+  so a real bug still answers `crash`); `verify.ts`'s `instanceof` mutant is equivalent again.
+- Sets touched: core, reality, runs, remix, speedrun, connectors-pure, connectors-edge, reality-store-postgres,
+  studio-ops, studio-auth, studio-workshop.
+- Second reading (4.3.0): `checkLimits` takes a least per limit, 1 for `streamPage` (0 looped `signals()` forever),
+  `bodyBytes` and `streamBufferBytes`, 0 for the others (0 there refuses visibly: no pairing, no stream, no cache);
+  UPGRADING §39 (en, fr) says the limits are checked, that a shared Bridge stops for every tenant, and how to list them
+  first, pinned against `checkLimits` by `tests/bridge.test.ts`. `verifyJws` takes RS256 from 2048 bits and ES256 on
+  P-256 only (an OB2 `publicKeyPem` of 512 bits could be factored), the badges refused end to end in
+  `tests/connectors-badges-edge-mutants.test.ts`, the guard's new mutants killed by hand. The verifier's `instanceof`
+  entry is killed after all (`tests/speedrun-verify-crash.test.ts`: a fault that is no RemixSeedError is
+  `inconclusive/crash`), so 130 entries remain. The `toRun(r)` entry covers claimNext's re-read only: `get` and
+  `summary` of an id not held are tested. The `late` worker test stays POSIX only: untried on Windows.
+
+→ next: the mutation sets run on the branch in CI; the remaining 130 are read again at 4.4.0.
+
+## #252 · 2026-10-21 · Claude · proposal · 4.3.0: a conversation saved after each topic (#218)
+
+- `core/interactions.ts` `talkLoop`: the topic menu runs until "Bye" inside one `Engine.run`, whose `finally` is the
+  autosave. A topic's `do` changed the state, but nothing reached the store before "Bye". Found in a game whose
+  character offers three trials as topics, each a minigame setting a flag: after trial 1 the autosave still lacked the
+  flag, and a player who lost the tab during trial 2 replayed trial 1. Reported and fixed by Horacio (LostInBrittany),
+  #219; the maintainer wanted it in 4.3.0, whose candidate was cancelled for it.
+- The fix: `eng.save()` after the topic's `do` and its `seen` key (and its `writes` entry), the point where the topic
+  is whole and the menu is about to come back. Like the save in a room's `enter`, it does not emit `saveMade`: the
+  journal's `saved()` stays at the action's end, so one action still journals one autosave. `Engine.save` checks the
+  objectives first: an objective completed by a flag or an item was already announced when it changed (the journal's
+  check); one that reads a topic's `seen`, a prop or an unlock is now announced at the topic, not at "Bye".
+- Second reading (4.3.0): the save after a topic kept half a `do` when the conversation was not the end of its action:
+  a rule `[{ lose: coin }, { talk: x }, { gain: ticket }]`, a talk in a cutscene, a talk in a topic's `do`. A page that
+  died at the menu came back with the coin gone and no ticket, the rest never run (the PR's own reason for not saving
+  after a `minigame`). `talkLoop` now takes `saveTopics`: true for the talk verb on a character with topics (the
+  conversation is the whole action) and for the `{ talk }` that is the last command of the rule being resolved
+  (`Engine.tailTalk`, set by `resolve` for that rule only, cleared in a `finally`); any other talk saves at the
+  action's end, as before. Tests in `tests/core.test.ts`: a rule ending with a talk saves each topic, a rule with a
+  command after its talk saves nothing until it ends; each fails when its `saveTopics` is forced the other way.
+- What a save holds: `GameState` has no open conversation. A save made at a topic loads like any other, in the room,
+  the topics seen marked, the conversation closed. A topic whose `do` ran `goto` saves the new room (as `enter`
+  already did), one that ran `end` or an ending saves `done` (they saved already). Determinism: the save writes the
+  store only, it changes no state, no session step and no replay; `save-v3`, `critical-save`, `critical-session`,
+  `critical-replay`, `replay`, `journal`, `speedrun-reference`, `reference-proof`, `solver-contract` and
+  `solver-oracle` pass unchanged. Cost: one verified IndexedDB write (or one localStorage write) per topic, chained
+  behind the previous one like every autosave, at the pace of a player's picks; the solver's `MemoryStore` clones
+  once more per topic.
+- Not done: a save after the `minigame` command itself. A topic is the unit a player sees end; a minigame sits in
+  the middle of a `do` (its `then`, the commands after it), and a save there would keep half a `do` that a reload
+  never finishes. A minigame run by a rule ends its action and was already saved.
+- Mutation sets: no gated source touched (`interactions.ts`, `engine.ts`, `command-handlers.ts` are in none);
+  `tests/core.test.ts`, which judges the `core` set, gains three tests.
+
+→ next: the 4.3.0 release (LOG #253).
+
+## #253 · 2026-10-21 · Claude · release · 4.3.0 "Hero Choice": the player chooses the hero
+
+- **What ships**: main as the 4.3 line (D48, LOG #249), with nine pull requests and their fragments (LOG #246–#252):
+  - #202 (#200), "Hero Choice" (D49, ADR 0022, LOG #246): the hero chosen at New Game among any number, a name per
+    character variant, text switches and `{hero}`, portraits in a choice (`Choice.img`), voices keyed by value, the
+    Studio's picker, the `hero-looks-default` lint;
+  - #205 (#203): a key per verb, which the player can turn off (LOG #247);
+  - #206 (#204): Galmuri11, a proportional pixel font, as the default interface font, DotGothic16 behind it;
+  - #211 (#210): a job heard no more once it has ended, a late poll or Cancel no longer overwriting its result
+    (LOG #248);
+  - #208 (#207): a naming convention for issues, pull requests and branches in CONTRIBUTING;
+  - #213: Pillow 13, the worker's lock with the new wheel's sha256;
+  - #217: the 158 mutation exemptions read again (LOG #251): the maintainer chose « Reread them all » ; four
+    readers checked every entry against the code, 28 are killed by a test, and the reading found and fixed a badge
+    key check (a weak or foreign key made a valid badge), the Bridge's limits (`streamPage: 0` looped forever) and a
+    run whose world cannot be hashed (now `world-shape`); 130 remain, each with its line, read again at 4.4.0;
+  - #215: the `web-scumm` aliases removed (D47, LOG #250), `npx quest-n-click migrate` renaming an old game's
+    imports, tsconfig paths and script commands, the hosted engine upgrade renaming a hosted game's imports first.
+  - #219 (#218): a conversation saved after each topic, when it is the rest of its action (LOG #252), folded into
+    this section after the first 4.3.0 candidate was cancelled for it;
+  Six of them, #202, #205, #206, #208, #211 and #219, are Horacio's (LostInBrittany), the outside contributor of
+  4.2.4.
+- **The maintainer's words**:
+  - « ok include all PR in gh into 4.3 » (after v4.2.5, D48): the six open pull requests, reviewed a second time,
+    completed on their branches and merged into main, smallest first; then #215;
+  - « also do a pass onto the issues to see what it can be close »: the triage found nothing to close beyond the five
+    issues closed by their pull requests (#200, #203, #204, #207, #210); the open issues are the nineteen field passes,
+    which stay open until the maintainer has made them (#75–#87, #149, #150, #166, #167, #196, #197);
+  - « yes sign v4.3.0 » (21 Oct), the yes for `v4.3.0` only (D37), signed on its own green candidate run; a later tag
+    gets its own.
+- **What was added on the contributor's branches, and why** (each change with a test that fails without it):
+  - every branch: main merged after `v4.2.5`, its fragment and docs labelled 4.3.0 (D48), the baseline and the first
+    visit recorded again (133 KB, then 134 KB with the verb keys, 135 KB with the text switches and the cards, each a
+    deliberate growth);
+  - #202: a variant's `name` is shown as written (the speech box, the transcript and the talk header read
+    `character().name`, not `Engine.text`), so braces reached the screen; the validator now refuses a switch or
+    `{hero}` there. The hero chosen at New Game tested through the real save file (the v4 envelope as JSON and a v3
+    one, read back with `parseSave` and continued). The decision renumbered D49 (D47 is the rename, D48 the line),
+    UPGRADING §39 from 4.2.5. After #205, a verb's `key` is a text of the game: a malformed one (`key: 1`) reached
+    `parseText`, which threw and stopped the validator; a text of the wrong type now holds no switch;
+  - #205: a single-letter shortcut must be one the player can turn off (WCAG 2.1.4, voice input and stray keys):
+    `Settings.verbKeys`, a settings row shown only when a verb has a key, `ui.verbKeys` named in the demo's and the
+    reference game's locales (en, fr), validator warnings for keys without a settings menu or without that text; the
+    credits rolled from the pause menu are a `.credits` box, not an overlay, so a key picked a verb under them;
+    `VerbDef.key` in DSL-STABILITY's 4.3.x row;
+  - #206: `tools/subset-font.py` refuses a Galmuri11 source whose sha256 is not the pinned v2.40.4 release's;
+    `tests/fonts.test.ts` (the fallback stack, the refusal); UPGRADING §39 says every game without `skin.fonts.ui`
+    changes look and how to keep DotGothic16;
+  - #208: the branch prefixes written in CONTRIBUTING, where the pull request template points, unquoted so
+    `docs:truth` does not read them as paths; a fragment;
+  - #211: the Cancel button had the same late answer (a 409 after the end appended to the panel's last word); dropped
+    once the job has ended, with a test holding the refusal past the end;
+  - #213 (Dependabot): the worker's lock remade for Pillow 13.0.0's manylinux wheel, its sha256 checked against PyPI,
+    since `tests/worker-python-lock.test.ts` and the `--require-hashes` install want it to follow `requirements.txt`.
+- **What this release commit adds**: `430-line` had only a LOG part, so a CHANGELOG line was written beside it (main
+  is the 4.3 line); UPGRADING §39 gets a paragraph on Pillow 13 (`pip install -r requirements.txt` again), otherwise
+  checked complete (the hero choice, the verb keys, the `web-scumm` names gone with `migrate` and the hosted upgrade,
+  `{hero}` in a 4.2 text, the font). The Studio Server's lock (`scripts/locks/quest-n-click-studio-server.json`)
+  names its optional peer `quest-n-click` as `4.3.x`, the manifest's range at this version: `scripts/pack.mjs`
+  refused the `4.2.x` the lock still said; edited by hand as #215 did (`npm run locks` would pull unrelated bumps),
+  `locks --check` passes. The reference run is recorded again: `ui.verbKeys` in the reference game's
+  locales moved its presentation fingerprint, with its engine version and the hashes that follow; its 49 steps, its
+  times and its final state did not.
+- **What stays open**:
+  - the field passes: the nineteen, none passed; none added for 4.3.0's new player surfaces (the hero choice's cards
+    on a phone, the verb keys and their setting with a real keyboard and a screen reader, Galmuri11 read on real
+    devices), which `tools/field/schema.ts` does not name; the existing passes see them in the demo's interface;
+  - npm publishing, which will take the new names;
+  - the Clever spike applications, still named `web-scumm-spike-*` (the reference deployment);
+  - `studio-server/src/ops/core.ts`, changed by #215, is in no mutation set (`studio-ops` holds journal, durable and
+    spans; `tools/mutate.ts` maps it to `all`, which needs `BRIDGE_PG_URL`);
+  - only the 4.3.0 candidate proves the pack, SBOMs, manifest and release files agree without the aliases, and that
+    `external-consumer` passes on Linux and Windows.
+- **The version**: 4.3.0; the golden save `demo-4.3.0.json`; the reference run recorded again; the CHANGELOG
+  assembled from 8 fragments, 5 with a LOG part (#246–#250); UPGRADING §39 (en, fr), SUPPORT "4.3.0", ROADMAP,
+  README (en, fr; "v4.3.0 (Hero Choice)", the install from `quest-n-click-4.3.0.tgz`);
+  `docs/dev/passes/4.3.0.md` (nineteen passes, none new, none carried).
+
+→ next: Claude (the merge, the candidate on main, `v4.3.0` signed on it, `ship verify`)
+
+## #254 · 2026-10-21 · Claude · proposal · 4.3.1: voices by value follow each language's text; one winning path is not a proof
+
+- An outside reading of v4.3.0 found both. Voices: `voiceTable` (the export) read the translated text, but
+  `voiceIds` (the import's known ids, CLI and Studio `setVoice`), `orphanClips` and `voiceValueChecks` derived the
+  `<id>~<flag>=<value>` keys from the source text. `voiceIds` now takes the game in the sheet's language,
+  `orphanClips` a `localized` game, and `validate` a `locales` option that `voiceValueChecks` applies per language of
+  `audio.voicesByLang`. The options are passed by every entry point: `tools/validate.ts`, `ops/validate-dir.ts` (the
+  Studio's guard and the worker) and `src/studio/api-browser.ts`; `tests/voice-locale.test.ts` checks the three say
+  the same, and five of its seven tests fail on 4.3.0. `langVoices` (core/voice-key.ts) is what boot.ts picks for a
+  language, so the test plays the clips a French page plays: each hero's, and the plain clip before the choice.
+- Kept as is: the i18n checks may still report a switch a translation drops, by their own policy; this patch only
+  stops the voice check from asking for clips there. `validateDir` still does not run `localeVerbKeyChecks` (a
+  translation's verb keys), which only the command line runs: a parity gap of its own, left for 4.4.0.
+- Mutation: a new set, `voices` (voice-key.ts, tools/voices.ts, validate/voices.ts, status.ts), gated from the start.
+  193 mutants, 186 killed (tests/voices-mutants.test.ts holds the CSV, import, clip-verdict and headline cases), 7
+  named equivalent in docs/dev/mutants.json. A second reading of the 9 first named found two `lineClips` entries wrong: a line whose
+  switches list only `*=` took the shortcut and went into the sheet with its braces; the shortcut is gone (the general
+  path renders a line without switches as it is), and the two entries with it.
+- Solve: `solveHeadline`'s witness sentence says "on one path" and "only --prove"; a prove `solved` alone says "stays
+  reachable from every one". `tests/status.test.ts` holds the reviewer's game (only the robot opens the door): witness
+  `solved`, prove `softlocks`, both `finished`.
+→ next: release 4.3.1 (candidate, signed tag on the maintainer's yes for `v4.3.1`), then 4.4.0: the 3-heroes ×
+2-languages example and the first human passes before the Studio's hero × language matrix.
+
+## #255 · 2026-10-21 · Claude · release · 4.3.1 "Voices by Language": a patch after an outside reading
+
+- **What ships**: #225 (LOG #254), the two defects an outside reading of v4.3.0 found: a translation's own text
+  switches lost between the voice export and the import, the orphans and the validator (each language's clips now
+  read from its own text, by the command line, `validateDir` and the in-browser Studio alike), and the guides' claim
+  that `npm run solve` proves every hero (it finds one path; `--prove` proves). Plus the bug the `voices` mutation
+  set's second reading found: a `*=`-only line's braces in the recording table.
+- **The plan's review** (the maintainer's, before any code): every validation entry point with a parity test; one
+  source for the solver's sentences, "proved" only for a `prove` that ends `solved`; the coverage floors
+  `max(floor, measure − 2)`, never lower; no survivor exempted to finish a release; SemVer strict, as since 4.2.
+- **Not in it**: the i18n check's policy on a dropped switch; `localeVerbKeyChecks` in `validateDir` (a parity gap of
+  its own, to 4.4.0).
+- **Passes**: none added, the nineteen open (`docs/dev/passes/4.3.1.md`).
+→ next: 4.4.0, in this order: a playable example with three heroes in two languages (browser tests, save and resume),
+the first people's passes early, the hosted preview measured in parallel, then the Studio's hero × language matrix
+shaped by what the passes show, captures in the semantic diff, npm publishing.
+
+## #256 · 2026-10-21 · Claude · proposal · 4.4.0: a hotspot that acts on a single tap, onTap: 'go' (#221)
+
+- `dom/input.ts` `tapVerb()`: a single tap with no verb picked acted only on exits (an exit's `onTap`, or the game's
+  `input.exitOnTap`, #188); on any other hotspot it only walked. Found in a game whose cellar has an endless aisle:
+  Use aisle says why one does not walk down it, but the player's first gesture, a single tap, walked the hero there in
+  silence.
+- `HotspotDef.onTap?: 'go' | 'walk'`, the exit's field on a plain hotspot: `go` returns the hotspot's `defaultVerb`
+  from `tapVerb()`, `walk` (the default) returns null as before. `input.exitOnTap` is not read for a plain hotspot:
+  it is about exits, and a game that sets it keeps its hotspots walk-only. A picked verb still wins.
+- Input only: `ir-fields.ts` classes it `presentation`, so the logic fingerprint, the solver and saves do not move.
+  The validator checks the value as it does an exit's (`tools/validate/player.ts`).
+- Tests: `tests/dom/hotspot-on-tap.test.ts` (go acts on arrival, no onTap only walks even with `exitOnTap`, walk only
+  walks, a picked verb wins, the validator). CONTENT_GUIDE in both languages, API.md regenerated.
+
+→ next: review.
+
+
+## #257 · 2026-10-21 · Claude · proposal · 4.4.0: one map pin for a city with several places, portrait lists and joins (#223)
+
+- Found in a game whose city has two destinations (the reception, an open space): two places drew two pins, on top
+  of each other at one `pos` (only the top one tappable, a journey drawn from the city to itself) or apart, as if the
+  city were two towns.
+- `PlaceDef.portrait?: Id | Id[]`: several faces side by side on one pin, overlapping a little; the pin widens, each
+  face keeps its size. `asset-graph.ts`, `tools/refs.ts` and the validator read every face.
+- `PlaceDef.joins?: Id`: `dom/map-view.ts` groups the unlocked places by their pin (`joins ?? id`). A one-place pin
+  is a button as before; a pin with several places is a `div` with one `.facebtn` per face, named after its place
+  (`aria-label`), the current one ringed (`.facebtn.here`). Going between two places of one pin resolves at once, no
+  journey drawn; a journey to or from a joined place starts or ends at its pin's `pos`. The list under the map still
+  names each place. `style.css`: the face button's rules, `box-sizing: border-box` so a face's border does not cover
+  its neighbour's button.
+- The map checks moved out of `tools/validate.ts` to `tools/validate/map.ts` (`mapChecks`), with the new ones: the
+  joined place exists, is not the place itself, joins no other pin, is in the same region. `validate.ts` shrank by 15
+  lines, its cap in `tests/file-size.test.ts` lowered to its size (1096 → 1081).
+- Tests: `tests/dom/map-portraits.test.ts` (every face drawn in order, the validator and asset graph read each) and
+  `tests/dom/map-joined-places.test.ts` (one pin with both faces, a face travels to its own place with no journey,
+  the locked place's face hidden, "here" from the joined room, the validator's four refusals). CONTENT_GUIDE in both
+  languages, API.md regenerated.
+
+→ next: review.
+
+
+## #258 · 2026-10-22 · Claude · proposal · 4.4.0: the phone column fits a short landscape screen (#227)
+
+- `dom/shell.ts` `layout()`: the column's width is `W - 1.6 × H` (176 to 300 px), the verbs a fixed `max(44, min(56,
+  12% of H))` px, the slots squares a third of the column wide (`.slot { aspect-ratio: 1 }`). Nothing tied the sum to
+  the height: on a wide and short screen (a phone in landscape with its browser's bars, 844 × 320) the stack reached
+  387 px and the tools row, pushed last, left the screen. Reported on a phone playing a game in production; our
+  844 × 390 screenshots fit, which is why it went unseen.
+- The fix: `dom/side-fit.ts` `fitSide()`, pure, from the column's height and what is neither a verb row nor a slot row
+  (measured by `fitSideColumn()`: padding, gaps, the tools row as the fonts draw it, the bag's page buttons when they
+  show). Order of sacrifice: the slots' squareness (`.inv.fit`, a `--slot-max` height), the verbs' comfort (down to
+  44 px), then an even share, never under 24 px. `renderInv` refits when the page buttons show or hide. The tools row
+  and the page buttons are `flex: none`; `.side` scrolls past the floor rather than cutting.
+- Also: `layout()` read `#app`'s border box, safe-area padding included; it now reads the content box, so the game no
+  longer overflows into the notch or the home indicator.
+- Measured (Playwright, touch Chromium, DPR 2, demo `?dev&at=house`): 568 × 320, 640 × 360, 667 × 375, 740 × 360,
+  812 × 375, 844 × 390, 932 × 430 unchanged; 844 × 320 and 844 × 300 now fit (44/50 and 42/42 px verbs/slots), and
+  with nine items 568 × 320 and 844 × 320 too; the desktop layout is untouched.
+- Tests: `tests/side-fit.test.ts`, the order of sacrifice and the column's total against the height.
+
+→ next: review.
+
+
+## #259 · 2026-10-22 · Claude · proposal · 4.4.0: a translation's verb keys checked by every caller of validate
+
+- `localeVerbKeyChecks` ran in `tools/validate.ts` only; 4.3.1's reading named the gap (LOG #255). `playerChecks`
+  takes `locales` (which `validate` has had since 4.3.1 for the voices) and runs it; the command line's own call is
+  gone, so it is checked once. `tests/dom/verb-keys.test.ts`: the clash through `validate`, and nothing without the
+  tables. `validate.ts` keeps its line count (the size cap).
+→ next: none.
+
+
+## #260 · 2026-10-22 · Claude · proposal · 4.4.0: the Studio's hero × language matrix
+
+- An outside review asked for one view of what the data already implies: every hero's final text and clip, in every
+  language. `src/engine/tools/hero-matrix.ts` (pure) builds it from what exists: the game's switched flags and their
+  values (`gameSwitchFlags`, moved out of `src/studio/hero-picker.ts`, which re-exports it as `switchFlags`), the
+  hero's variant per combination (`check` on a state built from the start plus the column's flags), `applyLocale`,
+  `lineIds`, `renderText`, `voiceKey` / `lineClip` over each language's clips as boot.ts picks them (`langVoices`,
+  else the game's own: `borrowed`), and `switchesKept` (now exported from i18n.ts) for a lost agreement.
+- Exposed as `GET hero-matrix` (studio-server ops/core.ts + routes.ts, a reviewer's read), `api.heroMatrix` (server
+  and `BrowserApi`, over `mod.locales`), and the Voices tab's view switch (`src/studio/hero-matrix.ts`); the demo,
+  which has no recording table, opens on the matrix. Not an MCP tool: the voice table is not one either.
+- Choices: no "(unset)" column (the plain clip before the choice is the voice table's business); a voiced language
+  only flags missing clips (a game without any voice says nothing); columns capped at 24 combinations (`truncated`).
+- Tests: `tests/hero-matrix.test.ts` (the matrix on the heroes fixture and its French "Ready?", the server, its route
+  and the demo alike), `tests/dom/studio-hero-matrix.test.ts` (headers, cells, filters, the tab's switch).
+→ next: a human pass on the Voices tab's matrix with the heroes example.
+
+
+## #261 · 2026-10-22 · Claude · proposal · 4.4.0: before/after captures in the semantic diff
+
+- An outside review asked for them ("voir immédiatement une régression de placement, de police ou de débordement"),
+  and 4.2.3 left them open (D45). `tools/studio/diff-rooms.ts` (pure) says which rooms: `layout/<id>.json`, a room's
+  source (every room a shared file defines, by the head's room files), `rooms/<id>.ts` for a room added or removed,
+  a locale's `room:<id>/…` keys; other drawn files (`cast.ts`, `site.json`, a locale's other keys) alone give the
+  first room as a sample; authoring files, tests, `private/`, `art/`, `audio/` are not drawn; cut at 6.
+- `studio-server/src/ops/diff-captures.ts`: a revision is the folder on disk with every journal operation after it
+  undone from its "before" blob (`snapshotAt`, packed as the worker's snapshot), built by `localPreview` (the
+  worker's child, `vite build` of preview-build.ts: the game's code never runs in the Studio's process), and served
+  to one headless Chromium from memory through `context.route` (no server, no port): the build's files, else
+  `public/` and the prepared assets, the same for both sides. 960 × 600, one device pixel, reduced motion, CSS
+  animations and transitions off, `document.fonts.ready`, images decoded, the editor's overlays hidden (as the
+  existing screenshot). The two captures are compared in that browser: `box` where any channel is off by more than
+  16, `same` when nowhere. Exact bytes were not enough: two renders of one page differed by 2 on an anti-aliased
+  corner of the inventory. Measured on the demo: the whole route (two builds, four captures) in about 5 s.
+- `core.diffCaptures` (unavailable with an `executor`: hosted), `GET diff/<from>..<to>/captures` (501 with the
+  reason), the panel's button and view (`src/studio/diff-captures-view.ts`), PNGs as data URLs (both servers answer
+  them; no file route needed) and as files under `.cache/studio/<game>-diff-<from>-<to>/`.
+- Limits, said in STUDIO "Check": local only; default language; the room as entered, not at a chosen checkpoint;
+  today's prepared images, sounds and fonts on both sides; a hand edit the journal did not record is on both sides.
+- Tests: `tests/studio-diff-rooms.test.ts` (which rooms), `tests/studio-diff-captures.test.ts` (the demo over a
+  journal: a revision put back; the garden's tank moved 200 px gives two different PNGs and a box in the scene; a
+  market look line gives `same`; hosted unavailable; real builds and Chromium), `tests/dom/studio-diff-panel.test.ts`
+  (the captures asked on demand, the box in percents, a missing side, the hosted refusal). CI: the unit jobs do not
+  install Chromium, so the drawing test is skipped there; `studio-hosted` (which does) runs it with
+  `STUDIO_TEST_CAPTURES=1`, required; Windows excludes it like the worker's tests; `tools/ci-plan.ts` gates the test
+  and `diff-rooms.ts` on `studioHosted`.
+→ next: the captures on a hosted Studio (Chromium qualified on the worker, or drawn from the revisions' previews in
+the reviewer's browser), and a checkpoint or a language to draw at.
+
+
+## #262 · 2026-10-22 · Claude · proposal · 4.4.0: the hosted preview, measured phase by phase, then made faster
+
+- **Why**: on the reference deployment (QUALIF-4.2.3 §6) a hosted preview takes p50 34 s, p95 44 s from a write to
+  ready, while the worker's own `preview` job takes about 6 s. A reading of the code gave suspects (the worker's one
+  job at a time behind the health's `validate` and `solve`, the files stored one after another, the staging deletes
+  awaited, a snapshot packed three times per revision) but no measure said which.
+- **Instrumentation, no behaviour change**: the `preview` line's phases (`queuedMs`, `snapMs`, `jobMs`, `storeMs`,
+  `sinceWriteMs`); a `worker-call` line per job on the Studio's side (`putMs`, `postMs`, `getMs`, `delMs`); the
+  worker's `worker-job` line (`queueMs`, `fetchMs`, `unpackMs`, `childMs`, `putMs`); two histograms. The help of
+  `studio_preview_build_seconds` said it included the snapshot: it never did.
+- **Optimizations** (a second commit, to measure against the first):
+  - the worker's lanes (`worker/lanes.ts`): `preview` and `other`, one child each at most, 8 jobs held per lane; ADR
+    0028 says what two children at once change (nothing past the trust domain it already assumed);
+  - one snapshot per revision (`server/snapshot-memo.ts`), given again while the head (epoch, revision, read without
+    the lock) has not moved, forgotten at each `confirmed`; a failed pack is not kept;
+  - a build's files stored 8 at a time (`storeFiles`); the S3 blob store skips the PUT of a blob it wrote itself less
+    than an hour ago (the collection's grace is a day; the key is the content's hash); a HEAD was not enough: an old
+    blob's date must be refreshed, or the collection may take it before its row lands;
+  - the remote executor no longer awaits the staging deletes (`settled()` for the tests);
+  - not done: a persistent Vite `cacheDir` per worker. `vite build` does not use it (it holds the dev server's
+    prebundled dependencies), and a folder the game's code writes in must not outlive its job (ADR 0028).
+- **Tests**: tests/studio-worker-lanes, tests/studio-snapshot-memo, tests/studio-s3-blobs (new); the previews' phases
+  and `storeFiles` in tests/studio-workshop-previews-mutants; the phases and the staging in
+  tests/studio-remote-executor; the worker's line and a preview run beside a load in tests/studio-worker; the
+  histograms in tests/studio-metrics.
+→ next: measure both commits on the reference deployment (write → ready p50/p95, by phase) and write the numbers in
+QUALIF-4.2.3 §6; then the passes.
+
+
+## #263 · 2026-10-22 · Claude · proposal · 4.4.0: a playable example of choosing the hero (games/heroes)
+
+- The outside review of 4.3 asked for "un petit exemple réellement jouable, avec plusieurs héros et deux langues".
+  `games/heroes` ("Who Am I Today?") is one room, the demo's garden and art (D13; only `cat/r1c1`, `extras/r2c4` and
+  `extras/r2c5` are new in `public/assets/img`): one hero character (Pixel) with two variants (Biscuit, Gaby the gull)
+  read from `form`, set by the intro's three portrait cards. Grandma greets each by name with her own words, French
+  agrees what English does not (`Prêt{form?gull=e|*=}`, the farewell `sain{form?gull=e|*=} et sau{form?gull=ve|*=f}`),
+  her dust line has a clip per hero in English and in French, and her farewell one English clip, the gull's own in
+  French and the plain one for the cats. The clips are a babble synthesised by `games/heroes/audio/babble.py`
+  (provenance: stand-ins). `validate --release`, `solve --prove`, `i18n status`, `voices check`, `lint` and
+  `build:game` are clean; `provenance.lock.json` locks the 81 files.
+- The solver merges the heroes (the flag only feeds texts and looks): the proof has 3 states. `tests/heroes-game.test.ts`
+  shows it still goes down each card (a gate only one hero may open still finishes; a gate for nobody does not), then
+  plays the 3 heroes × 2 languages through the engine (names, lines, clips), and a French save continued in a new
+  engine.
+- The example found three gaps, fixed here: `tools/refs.ts` never listed `voicesByLang`, so `npm run assets` never
+  shipped a translation's clips (the player looks them up by file name: they 404ed); `tools/voices.ts check` called
+  `orphanClips` without the localized game (4.3.1 fixed `status` only); `scripts/e2e/lib.mjs` cached the verb labels
+  across page loads.
+- Browser: `games/heroes/e2e.mjs`, from the real title screen, for en then fr (`?lang=fr`) and each hero: the three cards
+  with their images, the hero's own line, its name on the engine's character, Grandma's greeting and dust line (the
+  clip id spied on `App.audio.voice`), the key, a reload and Continue (same hero, same key), the farewell and its clip,
+  the ending; in French no English default visible. Wired into the `reference` job (Chromium, after the chapter's own
+  steps: its build replaces the chapter's); `tools/ci-plan.ts` sends `games/heroes/` and `games/demo/` (which the
+  example reads) to that gate. Played locally on a production build in Chromium only.
+→ next: the first human passes of the example (a phone, both languages, the three heroes), then the Studio's hero ×
+language matrix.
+
+
+## #264 · 2026-10-22 · Claude · proposal · 4.4.0: the 137 mutation exemptions read again (4 killed, 2 bugs fixed, 133 to 4.5.0)
+
+- Every entry of `docs/dev/mutants.json` was due at 4.4.0. Four reviewers read them against origin/main 829d1126 (one
+  context per quarter, read-only), then each verdict was checked again here. Each kill's test sits in a file the
+  entry's set runs, checked by hand to fail with the mutant applied and pass without it.
+- Killed: `reality-runtime.ts` the binding's `&&` (`reality`, tests/reality-engine.test.ts: a delivery without a
+  player, or with `playerId: ''`, binds nothing; with `||` the save held `playerId: ''`, which the save schema
+  refuses); `bridge.ts` the re-sign cache's hit (`reality`, tests/bridge.test.ts: `signSignalSync` spied, a hit signs
+  nothing; the test's own comment was wrong, a scan wider than the cache misses all three, not two);
+  `badges/fetch.ts` the request's `timeout` answering `ok: false` (`connectors-pure`, new
+  tests/connectors-badges-timeout-mutants.test.ts: the socket's idle timer is armed in the request's constructor,
+  before the whole-exchange timer, so a connect that never completes fires it first; the old reason said the
+  opposite); `oidc.ts` verifyLogoutToken's `&&` (`studio-auth`, tests/studio-oidc-mutants.test.ts: `events: null`).
+- Fixed: `http-port.ts` `sleep` removes its abort listener when the wait ends on time (tests/reality-port.test.ts
+  counts them over twenty polls; the `once` entry is equivalent again, its context line updated);
+  `email/mime.ts` `htmlToText` lowers ASCII only, so `lower` keeps `html`'s indexes (tests/connectors-mime-mutants:
+  İ before a script, a comment, inside a style).
+- Kept, reason rewritten (16): `runs.ts` seedKind ×2 and `answer` ×2, `runs-store.ts` toRun, `envelope.ts`
+  worldEvidence, `verify.ts` the links count, `compile.ts` ×2 (a null command throws in eachCmd anyway),
+  `restore.ts` the deletes without --force (only a row committed in between by another connection, Postgres READ
+  COMMITTED, would differ), `ssh/connector.ts` parseKey may answer undefined too, `durable.ts` ×2, `oidc.ts`
+  `idTokenExpected` (openid-client sets it itself for a string nonce), `backup.ts` row order, `http-port.ts` sleep.
+- Per set, kept / killed / fixed: core 3/0/0, reality 15/2/1, runs 20/0/0, speedrun 9/0/0, remix 15/0/0,
+  connectors-pure 11/1/1, connectors-edge 14/0/0, reality-store 7/0/0, reality-store-postgres 1/0/0 (read by
+  argument, no database here), studio-ops 12/0/0, studio-auth 9/1/0, studio-workshop 10/0/0, voices 7/0/0.
+- Left as is, by choice: four entries (`runs.ts` ×2, `runs-store.ts` toRun, `envelope.ts`) differ only by an own key
+  set to undefined that no reader tells from an absent one; pinning object shapes was not worth four tests.
+
+→ next: the mutation sets run on the branch in CI; the remaining 133 are read again at 4.5.0.
+
+
+## #265 · 2026-10-22 · Claude · proposal · 4.4.0: the mutation reread read again (a restore race pinned, a short write tested, the simulator's listener)
+
+- A second automated reading of #235's work (LOG: the 137 exemptions read again) found two entries wrong and one leak
+  more. `restore.ts`'s `if (o.force)` was named equivalent, yet its own reason described a difference: a run or quota
+  that another connection commits after the checks (Postgres READ COMMITTED). Without `--force` the read-back refuses
+  and rolls back, keeping that row; the mutant would delete it and succeed. `tests/reality-store-backup-mutants.test.ts`
+  now stages that commit (a wrapper answers the checks as the store was before it) and kills the runs' and the quotas'
+  DELETE mutants; the daily records' stays named (without --force its key list is empty, nothing is sent).
+- `durable.ts`'s write loop: `buf.length - off` → `+` was named equivalent ("a regular file is written whole");
+  POSIX does not promise that (FUSE, network file systems). `tests/studio-durable-mutants.test.ts` makes one write
+  short by a byte: the original finishes the file, the mutant throws. The entry is removed.
+- `simulator.ts`: the same `{ once: true }` leak as the port's sleep, one listener per empty wait; removed when the
+  wait ends, `tests/reality-simulator.test.ts`.
+→ next: the release.
+
+
+## #266 · 2026-10-22 · Claude · proposal · 4.4.0: the device login's refusal named; offline_access in the runbook
+
+- Found on the reference deployment while measuring the preview: after the realm's admin was recovered, the login was
+  refused with a bare `ResponseBodyError`. `auth/device.ts` now turns the OAuth error (`error`, `error_description`)
+  into the message; the cause was the user's missing `offline_access` role (the CLI asks for `offline_access`, for its
+  refresh token). STUDIO-SERVER (en, fr) lists both requirements.
+→ next: none.
+
+## #267 · 2026-10-22 · Claude · release · 4.4.0 "Author's Desk": making a whole game simpler
+
+- **The maintainer's go** (22 October): « Va pour réaliser la 4.4 et prends en compte les PR qui ont été faites. Lance
+  la release. Je t'autorise à la signer. » The Studio's matrix went in without waiting for people's passes (« tu vas
+  direct en 4.4 »); the hosted preview measured and optimized on the reference deployment; no npm publishing.
+- **What ships**: #228 (#227), then one integration PR, #234, for #222 (#221), #224 (#223), #229, #230, #231, #232,
+  #233 and #235 (each reviewed and green on its own; together they conflicted only on generated files), LOG #256–#266.
+- **Read twice**: the second automated reading of the mutation reread named two entries wrong (a restore race, a short
+  write), both now killed by tests, and one leak more (the simulator), fixed (LOG #265).
+- **Measured**: the reference deployment, ten notes per series: median 17.8 s → 5.6 s, max 26.0 s → 11.7 s from a
+  write to a ready preview; the files stored 8 at a time are the gain, the worker's cold build is now the larger part.
+  Recovering the realm's admin for the measurement found the CLI's bare `ResponseBodyError` (LOG #266).
+- **Budgets**: the first visit's JavaScript 135 → 136 KB on the demo, the reference chapter's budget 140 → 142 KB.
+- **Passes**: 21, two new; none passed (docs/dev/passes/4.4.0.md).
+→ next: the people's passes, the heroes example and the matrix first; the worker's cold build (the preview's larger
+part now); captures on a hosted Studio; npm publishing.
+
+## #268 · 2026-10-23 · Claude · proposal · 4.5.0, A1: the wiki's plan, D50, ADR 0030
+
+- **The ask.** The maintainer enabled the GitHub wiki and asked for an exhaustive plan, in French and in English, for a wiki covering installation, first use, contributing, the Studio, and a team Studio on Clever Cloud.
+- **The plan.** Three revisions, each after a review by the maintainer, give `docs/dev/PLAN-4.5-WIKI.md`. It rests on six deliverables before any move:
+  - the manifest and its four indexes;
+  - the coverage matrix of the old pages;
+  - the documentation access contract for MCP and the package;
+  - versions and proofs;
+  - publication and switch-over;
+  - an acceptance test made of real questions, with counter-examples.
+
+  Three end-to-end demonstrators then come before the writing.
+- **Recorded.** D50 holds the decisions, the bootstrap exception and the D37 yes for v4.5.0. ADR 0030 records the architecture.
+- **Found while planning.** `read_doc` has nothing to read in a created project: the package ships no docs. 4.5.0 fixes it.
+
+→ next: the wiki spike (the maintainer creates the wiki's first page, then the push token, per-folder sidebars, `<a name>` anchors and images are tried), then A2, the manifest.
+
+
+## #269 · 2026-10-23 · Claude · proposal · 4.5.0, A1 spike: the wiki takes per-folder sidebars, `<a name>` anchors and a deploy key
+
+- **Setup by the maintainer.**
+  - They created the wiki's first page.
+  - They added a write deploy key, `wiki publisher (docs-publish)`; their test pushed to `quest-n-click.wiki.git`.
+  - They created the `docs-publish` environment: required reviewer `wanoo`, branches `main` and `docs/*`, secret `WIKI_DEPLOY_KEY`.
+- **Results.** Test pages pushed to the real wiki, then removed, showed:
+  - `en/` and `fr/` sidebars are honoured per folder;
+  - `<a name>` anchors keep one id in both languages, and a link scrolls to them (clicked by the maintainer);
+  - images resolve from the wiki root;
+  - accented names work;
+  - the wiki's branch is `master`.
+- The plan records these results (§4.5). The fallback to heading slugs is dropped.
+
+→ next: the maintainer's A7 stop (replay the demonstrators, the human reviews), then phase B.
+
+
+## #270 · 2026-10-23 · Claude · proposal · 4.5.0, A2: the wiki's manifest, its check and its wiki build
+
+- **The manifest.** `wiki/manifest.json` holds the whole Annex A catalogue as 213 pages. 209 are `planned`; the four indexes are `generated`. The count by domain: index 6, start 6, play 9, install 17, create 55 (publishing included), engine 4, studio 24, team 21, clever 23 (the overview, steps 1 to 21 and 3 bis), bridge 16, contribute 25, reference 7, help 0.
+  - Each entry has an id, a type (a page doing two jobs adds `alsoTypes`), an audience, a context and its titles and URLs in both languages.
+  - The how-to and troubleshooting pages carry the plan's own questions (§4.6, §13) where it gives them. The others are listed as gaps.
+  - The strict zod schema refuses an unknown field. URLs are checked against the domain words, with acronyms in capitals (`EN-Reference-NPM-Scripts`).
+  - `versions` and `sources` are required from `draft` on, not before: a planned page may not know them yet (plan §4.1, amended).
+- **The checks.** `npm run wiki -- check` is the work level of §4.1:
+  - a planned page has no file, a draft or ready page has both, and a generated page never has one;
+  - every file is a manifest page;
+  - a written page has `appliesFrom` and sources, and each source glob matches a tracked file;
+  - links reach known pages, existing sections, tracked files and the wiki's images; a bare `src/x.ts` is refused with its working form, `../../src/x.ts`;
+  - ready twins keep the same section ids, link destinations and blocks.
+
+  A link to a planned page is listed, not refused. The npm scripts and MCP tools no page claims yet are listed as gaps. `check --publish` and the error register come in A5.
+- **One link scanner** for the check and the build: titled links, images, a linked image's outer link, nothing inside fenced or inline code.
+- **The wiki build.** `build --target wiki` writes the home page, the sidebars, the footer and the pages. It publishes `ready` pages only (`--preview` adds drafts under a banner); the four indexes come with the first published page. Links to the code point at the product's commit, images at `raw.githubusercontent.com`; the wiki's own images are copied. It only empties a folder it built (a marker file), keeps `.git`, and refuses an output inside the working tree outside `.cache/`.
+- **`ci:plan`** reports a `docs` family and the wiki pages whose `sources` a change touches.
+- **Kept apart.** The Help domain has no page: Annex A files every troubleshooting page under its own domain. The GitHub wiki has one footer for every page, so each page also ends with its own "edit the source" link.
+
+→ next: A3, the anchor inventory of `docs/` and the coverage matrix, which fill the manifest's `replaces`.
+
+
+## #271 · 2026-10-23 · Claude · proposal · 4.5.0, A3: the anchor inventory, the coverage matrix, the legacy order and the freeze
+
+- **The inventory.** `wiki -- coverage --init` reads 70 pages: the 32 files of `docs/en` and of `docs/fr`, `PRODUCTION.template.md` included, and the six root pages. It finds 1,036 sections, 1,034 anchors, 246 code blocks and 1,805 limit candidates.
+  - ATX and setext headings of every level outside fenced code. A `---` after a blank line or a list item is a thematic break, not a heading.
+  - Each heading gets GitHub's slug, following github-slugger on the rendered text: lowercase; punctuation, emoji and symbols removed; accents kept; each space a `-`; `-1`, `-2`… for a repeated heading. The rendered text keeps the space an HTML tag leaves (`on <date>` gives `…-on-`, the real case of `PRODUCTION.template.md`). Autolinks keep their URL, entities are decoded, and a `_` that is not emphasis stays.
+  - Two READMEs also have text before their first heading, kept as a row keyed `<file>`. A heading with an empty slug is keyed `<file>#`, so the two never collide.
+  - Explicit `<a id>` / `<a name>` anchors (none in `docs/` today).
+  - Each code block's sha256, language and line.
+  - A section's hash covers its body, the lines under its heading, as written: only CRLF is normalised, so a hard break counts as a change.
+  - The generated blocks of DSL.md and API.md (between the `dsl-doc` and `api-doc` markers) are masked; their headings stay. Those pages become generated wiki references, and `dsl-doc` and `api-doc` already guard their drift.
+  - The figures `quality:baseline` writes into the READMEs (`<!-- metric:… -->`) are masked before hashing. Otherwise every pull request that adds a test would move a frozen section.
+  - The limit candidates come from markers (*only*, *not*, *never*, *cannot*, *uniquement*, *seulement*, *pas encore*, *jamais*, *ne … pas*, *limite*, *attention*, *warning*), looked for outside inline code. *ne … que*, the French "only", was added. They are a review aid.
+- **The cross-check.** It found 11 anchored links into these pages in the tracked files (READMEs, BENCH's and DESIGN's links, two code comments). All resolve. An anchor holding a `$` or a brace is a template, not a link. Markdown links are read relative to their file with A2's link scanner, so never inside code. Paths written in code or in other files are read from the root; GitHub `blob/main` URLs are read too. The matrix, `legacy.json` and the manifest's `replaces` are not scanned: they hold every anchor by construction.
+- **The matrix**, `wiki/coverage.json` (`quest-n-click-docs-coverage` v1), has one row per section. Each row gives the old file, heading, level, anchor, line range, hash, code blocks, explicit anchors and limit candidates (`pending`, `reported`, `not-a-limit`). Then come the fields a person fills: `destinations` (`id` or `id#section`), `decision`, `reason`, `examples`, `verification`, `planned`, `migrated`.
+  - All 1,036 rows are planned from Annex A, the French twins section by section like their English page: 725 keep, 245 rewrite, 66 drop.
+  - The 57 ROADMAP milestone sections of each language were reread after a second-context review.
+    - 24 still name open items ("left for later", "not done", "missed", "still open", "reported, not done"). They become `rewrite` → `start.roadmap#open-items`, with the items quoted in `reason`, to confirm against the current state when that page is written. The 2.5 non-goals also go to `index.not-supported`.
+    - 33 are fully shipped and stay dropped. Each reason names where the history lives: the CHANGELOG version (and LOG entries), or the git tag for the releases before 3.0, where the CHANGELOG starts. A deferral closed later is named: 3.1's "reduction in proof mode" was settled in 3.3, and the NO-GO of 4.1.19 and 4.1.20 was lifted by D38.
+  - A drop counts as "migrated and reviewed" only once it is confirmed (`migrated`) and every limit candidate is ticked. Its pending candidates are a gap of the check, and the drops are counted on their own line: "dropped, limits reviewed: 21/66" (45 still hold candidates).
+  - Section ids are proposed in kebab case where the destination is obvious. Every row of the eight `read_doc` pages has one, so the legacy order rebuilds sections rather than whole pages.
+  - 172 of the 213 manifest pages now have `replaces`. Their schema accepts the root pages and GitHub's accented anchors.
+- **The merge.** `wiki -- coverage` keeps what a person wrote. A row follows its section:
+  - by key, when the body is unchanged;
+  - otherwise by its body, the same hash in the same file. That covers a renamed heading, flagged `changed`, and same-named twins that swapped places and so swapped their `-1` keys, carried with no flag;
+  - otherwise by key again, its text `changed`.
+
+  A new section comes in flagged `added`. A section that left its page stays at the end, flagged `removed`. A limit keeps its status while its sentence is unchanged. A `changed` row that is still planned is an error of the check until a person rechecks its destinations and runs `npm run wiki -- coverage --ack <key>`, which clears the flag on the current hash. A `removed` row that holds a decision is an error until it is carried or deleted (`--ack` deletes it). `--init` refuses to replace a matrix without `--force`. The JSON is written in a stable layout. The manifest is written by hand, so its `replaces` are set in place: every other byte is kept, and the result is checked by parsing it back.
+- **`wiki/legacy.json`.** For each of the eight `read_doc` names (`DOCS`, imported from `tools/studio/tools.ts`), it holds the ordered destinations of the old sections. It is generated by `wiki -- coverage`, and the check refuses one that drifted. Deduplication is `page-covers-sections`, written in the file:
+  - a destination appears once, at its first place;
+  - a bare `id` covers its page, so an `id#x` after it is dropped (UPGRADING's seven v2-to-v3 steps, AUDIO's `#furnace`, STUDIO's `#structured-editing`);
+  - an `id#x` before a bare `id` keeps its place and the bare `id` stays; the concatenator (C2) then emits only the sections not yet emitted.
+- **The check and the freeze.**
+  - `wiki -- check` now checks the matrix: schema; destinations are manifest pages, and on a written page an existing section; a planned row has a decision and a destination; a drop has a reason; every code block of the pages is in a row; `legacy.json` and `replaces` are the matrix's.
+  - A matrix out of step with `docs/` is an error that names `npm run wiki -- coverage`. `tests/wiki-coverage.test.ts` holds the same guard: `docs/` is frozen.
+  - Rows without a decision, and drops with pending limit candidates, are gaps. `added` rows and unresolved incoming links are warnings.
+  - `check`, `coverage` and `stats` print the two counters (planned 100 % for sections, code blocks and limit candidates; migrated 0 %) and the drops' line.
+- **Elsewhere.** `ci:plan`'s docs family also runs on the six root pages. `tools/wiki/coverage.ts` is a classified writer in `tests/single-entry.test.ts` (it writes `wiki/coverage.json`, `wiki/legacy.json` and the manifest's `replaces`). Keys and paths are in forward slashes on every system: the schema refuses a backslash, and linked files are read with CRLF normalised. A2's `mapLines` hands each fenced block to an optional callback; it and `mapLine` are exported, and nothing is duplicated.
+
+→ next: A4, `read_doc` extended without replacing the active reader, `search_docs`, `list_docs`, and the bundle with `legacy/` as an exact copy of `docs/en`.
+
+
+## #272 · 2026-10-23 · Claude · proposal · 4.5.0, A4: the documentation access contract, the loader, the bundle and the two new tools
+
+- **The loader** (`tools/wiki/docs-load.ts`). One in-memory set, from a package's `docs-bundle/` or the repository's `wiki/`: the index (`quest-n-click-docs-index` v1), the pages' Markdown, and a provenance that is identity only (`productVersion`, `productCommit`, `docRevision`, `buildId`, `source`, a label). The repository's set holds the `draft` and `ready` pages and says "repository preview"; a bundle holds `ready` pages only and says promotion is recorded outside it. An unknown major version of `index.json` or `bundle-manifest.json` is refused with a plain message. `read_doc {name}` reads `docs/en/<NAME>.md` in the repository (unchanged) and the bundle's `legacy/<NAME>.md` in a package; a package never reads `docs/en`.
+- **The readings** (`tools/wiki/docs.ts`, no node import: the Studio page bundles it). Sections are cut at `<a name>` anchors outside fenced code. The search is deterministic: weights title and question 10, alias, keyword, identifier and a glossary term naming the page 6, section heading 4, body 2 (plus a little for repeats); a whole question, title or identifier typed counts once more; glossary words add the other language at 0.6. Below a score of 3, or with fewer than half the typed words found, a page is not a confident match. One result per page, its best section. `version` drops a page outside `appliesFrom`..`appliesUntil` (inclusive), or marks it `notApplicable` with `includeArchived`. Status is `current` until A5 brings deprecation. Cursors are `c1.` + base64url of the revision (the doc revision and a hash of every page file), the language, a hash of the request and the offset; a mismatch is `stale_cursor`.
+- **`read_doc`'s compatibility.** Its schema keeps `name` and the same eight-value enum, adds `id`, `section`, `lang`, `cursor`, `maxChars`; `name` is no longer required, so `required` shrinks. A 4.4.0 client always sends `name` and is served byte for byte as before, with no `structuredContent` (a client that prefers it would otherwise lose the page; the plan's §4.3.2 says so); other arguments beside `name` are ignored, as 4.4.0's schema stripped unknown keys (one of a wrong type, `lang: "de"`, is now a schema error: the residual difference). One that sends nothing, or both `name` and `id`, gets the explicit error "give either name (one of the 8 legacy pages) or id, not both" instead of a schema error. Reads by id, `search_docs` and `list_docs` put their full text in `structuredContent` beside the provenance and the fields, so a client that shows structured content loses nothing. `tests/fixtures/mcp/read_doc-4.4.0.json` records the 4.4.0 server's schema (read from `tools/list` at c00b44fc, whose read_doc code is unchanged since), the eight calls and the 4.4.0 sizes; `tests/mcp-docs.test.ts` replays them through the real stdio server.
+- **Where the tools are offered.** The stdio server over the core (repository and package) and the Assistant, local and demo (the demo snapshot embeds the wiki's index and ready pages beside the content guide, unchanged). **Known limit: the remote MCP** of a hosted Studio does not offer the doc tools: ADR 0029 §4 makes each remote tool a request to the Studio's `/api`, which has no documentation route, and reading the client's own engine would answer for another version than the server's. A hosted agent reads the documentation through the local stdio MCP of the same engine version, or later a `GET /api/docs` route (the plan's §4.3 says so). The MCP instructions keep "read_doc CONTENT_GUIDE": steering agents to `search_docs` first waits for C2, when the index has pages.
+- **The bundle** (`wiki -- bundle --out`, `tools/wiki/bundle.ts`): `index.json`, `md/<lang>/<id>.md` with links rewritten for a local reading, `legacy/<NAME>.md`, `assets/`, `bundle-manifest.json` (identity, the git tree of `wiki/`, each file's sha256 and size). No date. `scripts/pack.mjs` writes it into the prepared engine folder after the tracked files and before `npm pack`; the package has no `files` list, so it is packed as is. It is refused under any folder the repository tracks. Today: 9 files, about 306 kB, no page.
+  - Identity: `wiki -- bundle` refuses when `git status --porcelain -- <wiki> docs/en` is not empty, unless `--allow-dirty`, which stamps `docRevision: <sha>-dirty` and `wikiTree: dirty`. `pack.mjs` passes `--allow-dirty` only when its caller does, and `--build-id <id>`; the candidate packs with `--build-id=${{ github.run_id }}` (its one pack call site). A bundle's label names where promotion is checked, `https://wanoo.github.io/quest-n-click/docs/publication.json` (`PUBLICATION_URL`, one constant).
+  - Reading: a bundle is checked once per process and cached (it never changes): every listed path is `index.json`, `md/<lang>/<id>.md`, `legacy/<NAME>.md` or `assets/…`, every file matches its sha256, the index's page files are exactly `md/<lang>/<id>.md`; a mismatch is an error naming the file. The repository mode reads `git rev-parse HEAD` and the pages again at each load.
+- **The search's words.** `œ` → `oe`, `æ` → `ae`; a plural `s` (not `ss`), and an `x` after `eu`/`au` (jeux, niveaux), on words of four letters or more. Versions compare as SemVer (rc.2 < rc.10). A rare word met once in a body only scores 2, under the threshold of 3: not a confident match until it is in a heading or a title, or repeated (tested, documented, unchanged).
+- **Checked.** `tests/wiki-access.test.ts` (loader, search, list, read by id, cursors, the tool's rules, reproducibility, hashes, legacy copies), `tests/mcp-docs.test.ts` (the eight calls, schema inclusion), `tests/docs-consumers.test.ts` (every reader of `docs/en|fr|img` or `wiki/`, literal or template-built, declared A4 active or C2 switch; the messages that cite a `docs/en|fr` page, "C2: repoint the message"; the data files naming one, `docs/dev/surfaces.json` among them, C2), `external-consumer` (the archive's bundle against its manifest, and an MCP client over stdio against an installed project; run once locally on macOS, Node 22: green, `read_doc {name: "CONTENT_GUIDE"}` one block of 68,000 characters, the bundle's copy). The engine archive grows by the bundle (9 files). The MCP surface in `tests/api-surface.json` gains `search_docs` and `list_docs` and `read_doc`'s optional arguments; the quality baseline's surface hash follows.
+
+→ next: A5, versions and proofs, identity in the bundle and `publication.json` outside it, `check --publish`, the docs archive and its publication after `ship verify`.
+
+
+## #273 · 2026-10-23 · Claude · proposal · 4.5.0, A5a: versions, statuses, proofs, examples and the publication level of the check
+
+- **Versions** (§4.4.1). The manifest's `versions` are validated as SemVer (no leading zero, a well-formed pre-release) and in order (`appliesUntil` not before `appliesFrom`, `featureSince` not after `appliesUntil`). A section narrows them with `<!-- applies: <from>..<until> since <v> -->` on the line right after its `<a name>` (each part optional, inclusive bounds); `check` refuses a malformed marker, a marker away from an anchor, a section wider than its page, an empty range, and twins whose markers differ. The index's sections carry their `versions`; `search_docs {version}` drops (or, with `includeArchived`, marks `notApplicable`) a section that does not apply; `list_docs` shows them; `wiki -- build` moves the marker under the heading as a visible line. The templates (how-to, reference) show the marker and say how to write it.
+- **The status registry** (§4.4.2, `tools/wiki/contracts.ts`, data `docs/dev/contracts.json`). SUPPORT.md's matrix is prose, so the minimum is extracted: 13 surfaces, each with its contract status and the SUPPORT sentence that states it in each language (`tests/contracts.test.ts` checks the quote is there and says the status; support-truth's three experimental surfaces stay experimental), the CI environments as of the 4.4.0 matrix (23 Oct 2026), ci:plan gates, CI and candidate jobs and test files (each checked to exist), and the passes it waits for (all 21 covered, each bound by `surfaces.json`, each with its `field-pass` issue). The passes' states are read from the newest `docs/dev/passes/<v>.md` not after the version (the `field:report` table), `not-asked` for a pass `PASS_SINCE` does not ask yet; a `passed` pass changes the pass status, never the contract (D18). A manifest page's `surfaces` must name registry ids; the wiki header shows one line per surface with the five statuses apart, the limits being the page's `[!LIMIT]` ids.
+- **Structured blocks and claims** (§4.4.3, `tools/wiki/claims.ts`). Blocks are read with their body and `- key: value` fields. `[!MEASURE]` needs date (a day), version (SemVer), volume, conditions and source (`https://github.com/<o>/<r>/blob/<40-hex>/…`, as a link or bare); the date, version and source are identical in both languages. `[!GUARANTEE id]` needs a manifest claim on its page and every claim of a written page its block in both languages; claim ids are unique across the manifest; step ids pair like sections. Three states: referenced (the tracked file holds that exact name; a scanner of `describe`/`suite`/`it`/`test` calls, modifiers and `.each(…)(…)` included, skipping strings, comments, templates and regexes, joins nested titles with ` › `, as Vitest's `ancestorTitles` + `title`); executed (a `--test-report` Vitest JSON report and the `commit.json` beside it, `{format: "quest-n-click-test-report", version: 1, commit, run}`, naming the documented commit, with the test `passed`; a report without its sidecar is refused); scope reviewed (`wiki/reviews.json`, `{claimTextHash, testFileHash, by, date}` per claim id, written by `wiki -- review-claim`; the claim hash covers the test name and both languages' block text, the file hash is taken on LF line ends). A real report of `tests/studio-backup.test.ts` was read end to end locally.
+- **The candidate.** `release-check:ci` runs `test:coverage` with `--reporter=default --reporter=json --outputFile.json=.cache/test-report/vitest.json`; `release-core` then writes `.cache/test-report/commit.json` from `git rev-parse HEAD` and the run id, and uploads both as `candidate-test-report` (hidden files included). No other job changes; release.yml's release-check writes the same report and ignores it.
+- **Examples** (`tools/wiki/examples.ts`). ` ```room-example ` (a room's JSON, or `{room, layout, items, characters}`) is put in a one-room schema-3 game (nine verbs, a hero, a fallback per verb) and run through `validate()`; ` ```studio-config ` through `loadConfig()` of `studio-server/src/server/config.ts`. Each error names the page, the fence's line and the validator's message.
+- **`check --publish`** (§4.1.4, §4.5.2, §4.5.3, `tools/wiki/publish.ts`). A ready page linking to a draft or planned page, a translation pair to review (`wiki/translations.json`, `{enHash, frHash, reviewedAt, by}` per `id#section`, `_lead` for the text before the first section; `wiki -- translations --ack`; stale records warned and dropped at the next ack), a ready page's claim not executed on the product commit, a doc revision that is not the checkout's clean HEAD, does not descend from the product or changes anything outside `wiki/<lang>/*.md`, `manifest.json`, `translations.json`, `reviews.json` and `images/**`, and, with `--released`, a page or section whose `appliesFrom` is after the product's `package.json` version, are errors; drafts are listed as not published. `--state preview` is refused once `git tag -l 'v*'` holds a release (no pre-release) ≥ 4.5.0.
+- **Checked.** `tests/wiki-proofs.test.ts` (17), `tests/wiki-examples.test.ts` (6), `tests/wiki-publish.test.ts` (9, on throwaway git repositories), `tests/contracts.test.ts` (7); `wiki-check`'s block expectation gains the body; `single-entry` lists the two new writers; `docs-consumers` the two new readers.
+- **Second-context review, fixed.** The source set reads `git diff --no-renames --name-status` and judges both paths (code renamed into `wiki/images/` or a page is still code); `wiki/images/` accepts png, jpg, jpeg, webp, gif, svg, avif only. The preview's tag rule fails closed: release tags from `git ls-remote --tags origin` and the local ones, refused when origin does not answer and the clone is shallow or holds no release tag (docs-publish will fetch with `fetch-depth: 0` and tags). `--candidate <run>` binds the reports to a run (`commit.json.run`), required by `--state candidate|published`; `commit.json` gains `root`, and a report's file must match the claim's path exactly under it. A test written `.skip`, `.todo`, `.only`, `.fails`, `.skipIf` or `.runIf` (on it or a describe around it) backs no claim; only `passed` counts (`skipped`, `todo`, `pending` named). A claim whose file `test:coverage` excludes (its `--exclude`, or vite.config's `test.include`) gets "<file> is not in the candidate's report: excluded by …". `release-check:ci` keeps the `github-actions` reporter beside `default` and `json`. `--state published` implies `--released`; a page or section whose `appliesUntil` is below the product is refused unless `lifecycle: deprecated|archived` (a section: the word at the end of its marker), and such pages and sections leave `search_docs` unless `includeArchived`, with their status. `contracts.json` maps every row of SUPPORT.md's matrix (EN, FR) to a surface and back (`matrixRows`), the experimental surfaces are derived from the rows that say so, and `passIssues` is by pass then version, with every pass of the newest sheet required. A `room-example` may declare `verbs` and `hero`. A translation pair's hash covers the bytes of the images its section shows; a section in one language only is refused at publish (tested).
+
+→ next: A5b, the publication pipeline: identity in the bundle and `publication.json` outside it, the docs archive in the candidate, `docs-publish.yml` after `ship verify`, Pages' `/docs/` from archives, the `docs/<v>` branch and `docs-v<v>-r<n>` releases.
+
+
+## #274 · 2026-10-23 · Claude · proposal · 4.5.0, A6: acceptance by real questions (L6)
+
+- **The questions** (`wiki/acceptance/questions.json`, format `quest-n-click-docs-acceptance` v1). 60 entries, in English and in French:
+  - 53 questions: author 26, admin 14 (Bridge 3 among them), contributor 7, player 6;
+  - 7 counter-examples: two absent features, two pairs of similar commands, one old procedure, two shared codes (409 and 503).
+
+  The maintainer's eight are marked. Each entry gives its `expect` destinations (manifest ids, sections from the written page or the coverage matrix) and its `facts`, gathered from `docs/en` and the code by a read-only sub-agent and written as short statements. `beginner` names the ten questions of level 3.
+- **Level 1** (`tools/wiki/acceptance.ts`, `npm run wiki -- acceptance`). It runs every question through `searchDocs` over the repository's `wiki/` (draft and ready pages):
+  - a destination `id#section` matches that section only, a bare page id any of its sections, everywhere;
+  - for a question, a hit when an expected destination is in the top 3;
+  - for a counter-example, each row's rule: `expectEmpty` / `expectNotFirst`, `expectStatus` (not shown without `includeArchived`, marked with it), `withContext` (the right page first), and `withoutContext` (both pages in the top 5, `names` in the excerpt);
+  - a justified-empty rate.
+
+  Pending is counted apart from a miss. Today: 106 question runs and 14 counter-example runs, all pending (213 planned pages). The command exits 0; `--strict` (C1) exits 1 on a miss, a failed counter-example or a pending run. `wiki -- check` validates the file: schema, pages, sections, the four rows, the beginner set.
+- **Levels 2 and 3.** `docs/dev/acceptance/AI-PROTOCOL.md` covers the channel (MCP from an installed archive, or the public URL only), the prompts (`--export-prompts <dir> [--channel mcp|web] [--url]`, one file per question and language, with no answer inside), the fresh agent, the found / missing / misread grading in a second context, and where results go: a section of `docs/dev/passes/<v>.md` outside the `field:` block. `docs/dev/acceptance/BEGINNER-READER.md` defines the pass `docs-beginner-reader`, wired like the others:
+  - `PASS_IDS` and `PASS_SINCE` 4.5.0 in `tools/field/schema.ts`, and its label;
+  - a binding in `surfaces.json`: the engine package, `wiki/en/**`, `wiki/fr/**`, `wiki/manifest.json`, `wiki/images/**` and the protocol, but not the acks nor the questions, so an ack does not void a carried pass;
+  - a new `documentation` surface in `contracts.json` waits for it. Its `support` and `matrixRows` are null with a reason (SUPPORT.md gains its row at C2), which the registry now accepts only with a reason;
+  - a Field Kit folder that names no release is asked the passes of the checkout's version, not every pass.
+
+  No issue was opened. `passIssues` only requires the newest sheet's passes (4.4.0), so no 4.5.0 sheet was added; C3 opens the issue and records it.
+- **Findings for A7 and phase B.**
+  - When a page's title matches, the excerpt `search_docs` returns is the title itself. So `team.write-refused-409`'s title must name its service ("hosted Studio") for D3's "each names its service" to hold. A page that matches through `identifiers` alone has the identifier as its excerpt.
+  - A two-word query that matches one word of a page's question already scores above the threshold. A neighbour can then come first. The fixture's "the game is silent" shows it.
+  - The page that replaces CONTENT_GUIDE should carry the alias `CONTENT_GUIDE`.
+- **Second-context review, fixed.**
+  - Destinations with a section match exactly, everywhere, and a destination under two contexts is refused.
+  - The documentation surface is its own contract, and the pass's binding is narrowed.
+  - Documentation gaps moved out of `facts` into `gaps`, and an unsupported CI fact was dropped.
+  - Prompts are numbered `q01`…: the agent gets `prompts/`, the grader `grading/key.json`.
+  - `--strict` and `--export-prompts` are refused together.
+  - New tests: strict with pending runs only, an old procedure shown as current, `check` validating the file, the export CLI, the 4.5.0 surfaces, and a carry across an ack but not across a page change.
+- **Checked.** `tests/wiki-acceptance.test.ts` (18) covers level 1 on a fixture wiki (ten written pages, one planned): D3's 423 in both languages, « conflit de verrou » through the glossary, 409 and 503 by context, the four rows passing and then failing when mutated, the measures, pending versus miss, `--strict`, the prompts holding no answer, the real file's validity and counts. `field-carry` asks the new pass from 4.5.0, not 4.4.0. `single-entry` and `docs-consumers` list the new writer and reader.
+
+→ next: A7, the three demonstrators (their pages make D3's questions leave pending), then the stop.
+
+
+## #275 · 2026-10-23 · Claude · proposal · 4.5.0, A5b: the publication pipeline (archive, docs-publish, wiki push, publication.json, Pages from archives, transition pages)
+
+- **The archive** (§4.5.4, `tools/wiki/archive.ts`, `npm run wiki -- archive --out quest-n-click-docs-<v>[-r<n>].tar.gz [--revision r<n>] [--preview] [--build-id]`): the bundle (`index.json`, `md/`, `legacy/`, `assets/`), `html/` and `wiki/` (the wiki build, so promotion and rollback push what was built), `bundle-manifest.json` with `docRevisionNumber` and the sha256 of every file. Written with `tools/field/tar.ts` (sorted, time 0, no owner, 0644) and the gzip system byte fixed: the same bytes on a fixed toolchain; a file name that is not the identity's is refused. Fixture archive 133 KB; the repository's today (no ready page yet, the eight legacy pages) 126 KB, 19 files.
+- **HTML** (`tools/wiki/html.ts`): no Markdown library in the project, so a small renderer of the subset the pages use (ATX headings with the `<a name>` id, paragraphs, lists, fences, pipe tables, quotes, links, images, code spans, emphasis, `<br>`); every other character escaped, raw HTML included; only http(s), mailto and relative targets kept. `tools/wiki/build.ts` now composes pages once (`composePages`) for two link styles: the wiki's public URLs, the archive's relative links (`<id>.html#<anchor>`, `../fr/…`), which are the §4.5.6 permalinks once copied under `/docs/<v>/r<n>/`. The search is `searchDocs` bundled by esbuild (`tools/wiki/html-search.ts`, lazily required, as the package ships tools/ without esbuild); it also reads `publication.json` and says whether the revision shown is published and current. The preview's pages carry the §4.5.3 banner (latest published 4.4.0, `blob/v4.4.0/docs/`); the wiki footer says "current documentation <v> r<n>" and points to the Pages permalinks.
+- **The release chain.** `candidate.yml`'s `pack` builds the archive twice (`cmp`), uploads `candidate-docs`; the gate copies it under `candidate-release/docs/` (manifest, attestation); `docs/dev/surfaces.json` classifies `docs/*` under `status`. `tools/release/artifacts.mjs` gains `docs:archive` (candidate `docs/{proj}-docs-{pkg}.tar.gz`, published `{proj}-docs-{v}.tar.gz`, since 4.5.0); `release.yml` downloads it, publishes it in the sums and the attestation subjects, checks it with `check-release`, and its last step (after `ship verify`) hands version, candidate run and sha256 to a new job `docs-publish` (`needs: [release]`, `uses: ./.github/workflows/docs-publish.yml`, `secrets: inherit`). `ship verify` requires the archive from 4.5.0.
+- **`docs-publish.yml`**: `workflow_call` (version, tag, sha, candidate, archive-sha256, revision) and `workflow_dispatch` (a doc revision from `docs/<v>`, a rollback, the preview from main); concurrency `docs-publish`, never cancelled; `fetch-depth: 0` and every tag; the release's archive checked against the verified sha256, the SHA256SUMS, the candidate manifest and `gh attestation verify`; `candidate-test-report` downloaded from the tag's candidate run and `check --publish --state published|candidate --candidate --test-report`; a doc revision built twice, attested, released as a draft then published pre-release `docs-v<v>-r<n>` (`--latest=false`); the wiki pushed unless an rc; then `gh workflow run ci.yml --ref main` so Pages is assembled again (ci gains `workflow_dispatch`; a dispatched run cancels nothing and waits behind a push's run). The group is on the job: a called workflow's `github` context is the caller's, so the call is known by its inputs, never by `github.event_name`.
+- **`publication.json` and the wiki push** (`tools/wiki/publication.ts`, `npm run wiki -- publish --target wiki --version --revision --tag --archive --repo [--sha256] [--rollback-to] [--dry-run]`): the record lives at the wiki repository's root and Pages copies it. `decide` orders states SemVer then revision, across versions; same state, no commit; an older version's fix records the version only; older within a version, an rc, a changed revision refused; the preview only before any release. The push clones, keeps `.git` and pages starting with the redirect marker, writes the archive's `wiki/` and the record, one commit `wiki: <v> r<n> (<docRevision>)`, one push. `GITHUB_TOKEN` as an `http.extraheader` (by `GIT_CONFIG_*`, never in a URL or argument), or `WIKI_DEPLOY_KEY` over SSH with GitHub's host key pinned and the key 0600.
+- **Pages** (`tools/wiki/pages.ts`, `npm run wiki -- pages --out dist/docs --repo …` in ci's `check` on main): `downloadReleases` (the only part with `gh`) then `assemblePages` (pure): every `v*` ≥ 4.5.0 (rcs included), `docs-v*-r<n>` and `docs-v*-preview-<sha12>`; each archive against its sums, its candidate manifest, its own manifest and the tag's identity; `publication.json` must name only archives the releases carry; `html/` copied byte for byte to `/docs/<v>/r<n>/`; `/docs/<v>/` and `/docs/latest/` as alias pages (they say so, `#section` kept); an rc's alias to r1; `/docs/preview/` only in the bootstrap; a placeholder pointing to `blob/v4.4.0/docs/` while nothing is released.
+- **Beside the game.** The game's service worker answered every navigation under its scope with `index.html`; Pages serves `/docs/` in that scope, so a reader who had played got the game instead of a page. `vite.config.ts` adds `navigateFallbackDenylist: [/\/docs\//]` (checked in the built `sw.js`; first visit unchanged, 136 KB).
+- **Transition pages** (`tools/wiki/transition.ts`, `npm run wiki -- transition [--root] [--version]`, not run on the real docs: C2 does): every heading of the L2 inventory at its level and order, escaped so GitHub computes the same anchor, the explicit anchors kept, each section linked to the version alias `<Pages>/docs/<package version>/<lang>/<id>.html#<section>` and to `blob/v4.4.0/docs/<lang>/<FILE>.md#<anchor>`, a drop with its reason.
+- **Checked.** `tests/wiki-archive.test.ts` (13: identity, reproducibility, links by output, escaping, search, tampering), `tests/wiki-publication.test.ts` (15: ordering across versions, rc, preview, immutability, rollback, idempotence and redirects on bare repositories, the CLI's checks), `tests/wiki-pages.test.ts` (9: byte copies, aliases, the §4.5.5 byte-identity with an unreleased change in the branch's wiki, refusals, bootstrap), `tests/wiki-transition.test.ts` (5: anchors re-inventoried, links, the version is package.json's), `tests/release-docs-publish.test.ts` (19: the four workflows statically: no `release:` trigger, `needs: [release]`, outputs after `ship verify`, concurrency, fetch depth, rc, deploy key); `release-artifacts`, `ci-plan` (a rule for the publication tools), `single-entry` (four writers), `docs-consumers` (two readers), `wiki-check` (banner, footer, usage) extended.
+
+- **Second-context review, fixed.** Pages authenticates what it serves: each archive's attestation by its signer workflow and ref (`attestationArgs`: release.yml for `v*`, docs-publish.yml from `refs/heads/docs/<v>` for `docs-v*-r<n>`, from `refs/heads/main` for the preview), and docs-publish checks with the same rule (`wiki -- attest`); a doc revision is served only when `publication.json` records it with its sha256 and its release tag, the preview only when recorded; a record whose `latest` its versions do not hold is refused plainly; only the releases listed are read (a cached folder of a deleted release is not). docs-publish: five modes (`release`, `revision`, `rollback`, `promote`, `preview`), each from one ref, checked in the workflow and by `wiki -- publish --mode --ref`; the job runs in the environment `docs-publish` (to be created and protected by the maintainer); release.yml passes `WIKI_DEPLOY_KEY` only; inputs reach the shell through `env` only; `promote` (forwards or the same state) and the rerun of a cancelled job are the two recoveries, and the concurrency text says GitHub replaces a pending run whatever `cancel-in-progress` says; `next-revision` completes a revision released but not recorded, and a rerun reuses a release with the same bytes or refuses. The record holds each archive's `docRevision` and `buildId`, and a page's display state is keyed on them (`tools/wiki/display.ts`): an rc page is never "published and current" once the final ships. ci: a dispatched `pages-only` run (`ci-plan --pages-only`) builds the Pages artifact only; the archives are cached by the release list, `gh` is retried, and a failed assembly fails the job (no Pages without `/docs/`); the plan says a dispatch may replace a pending push run. `safeHref` refuses `/\` and `\\`; the wiki is cloned for `pages` with the auth's `gitEnv`; a non-fast-forward push is refused and said; transition pages link to the version's alias `/docs/<v>/`; `WIKI_DEPLOY_KEY` is the expected default. Tests: `wiki-pages` 15, `wiki-publication` 18, `wiki-archive` 16, `release-docs-publish` 22, `ci-plan` 47.
+
+→ next: A6 (acceptance questions, in progress beside), then A7's demonstrators and the sandbox replay of the chain; the A1 spike decides `GITHUB_TOKEN` or `WIKI_DEPLOY_KEY` for the wiki, and whether a ruleset blocks the `docs-v*` tags.
+
+
+## #276 · 2026-10-23 · Claude · proposal · 4.5.0, A7: the three demonstrators (D1 restore drill, D2 environment variables, D3 the 423 and its 409 neighbours)
+
+- **A6 merged** into the A5b branch: `tools/wiki.ts` keeps both sides' commands (archive, publish, pages, next-revision, attest, transition, acceptance), the README test figures and `tests/quality-baseline.json` regenerated; A6's and A5's suites green.
+- **D1 `clever.restore-drill`** (ready, FR/EN, `appliesFrom` 4.2.2, surface `studio-server`): the ten headings, six steps with the same ids in both languages, a `studio-config` block the real `loadConfig` accepts, `[!MEASURE id=restore-time]` pinned to QUALIF-4.2.3 at edb8d39a (28.7 s and 59.7 s, the two samples of §4), `[!GUARANTEE id=restore-empty-db-only]` claimed by `tests/studio-backup.test.ts › the Studio Server's backup › refuses a backup altered, a project not empty, a blob missing, another schema`, and the `[!LIMIT]`s `rpo`, `same-engine-version` (added after the review) and `no-going-back-after-migrations`. "Verified on" is not filled: the page says it was not replayed on a live installation. The guarantee was narrowed to what the test proves (a non-empty project refused); "before the first row is written" is said in plain text, from the code. Its scope is recorded as self-checked by claude-a7 (AI, author), not reviewed: a person's review is the maintainer's.
+- **D2 `reference.environment-variables`** (ready): `wiki/data/env.json` (93 variables in 8 groups at first, 142 in 9 after the review; two dynamic reads of `takeSecrets` resolved), `tools/wiki/env.ts` (the scan, the check, the generator), `npm run wiki -- env`, `wiki -- check` failing on drift, `tests/wiki-env.test.ts` (14). The test resolves `takeSecrets`' computed reads through a recording environment, so the register's resolution is exactly what the code reads.
+- **D3 `team.write-refused-423`, `team.write-refused-409`** (ready, titles naming the hosted Studio per A6's finding) and **`bridge.troubleshooting`** (ready: 409, 503, a signal twice, a connector down), so the 409 counter-example is real. A6's test fixture of the Bridge page said a 409 meant a duplicate signal; the code answers 200 `duplicate` for that, and 409 for a pairing confirmed twice, a run sent twice or a moderation of an invalid run: the page says the code's version.
+- **Acceptance** (`wiki -- acceptance`): 10 question runs in the top 3, 0 missed, 96 pending; 2 counter-example runs passed (the 409 by context and without), 12 pending.
+- **Coverage**: no row is marked migrated (each of the eight rows these pages take from is split with pages still planned); the limit candidates carried into a `[!LIMIT]`, the guarantee or the error tables are ticked `reported`. The translation pairs are acknowledged by claude-a7 as their author (AI), which the pages say: not reviewed. `CONTENT_GUIDE`'s alias waits for its page (phase B).
+- **What the chain found, fixed** (`tools/wiki/docs.ts`): from the installed archive, `search_docs "STUDIO_SESSION_KEY"` gave the right section with the excerpt `**STUDIO**`, and "How do I restore the Studio on an empty database?" ranked the variable page second, with the reason "identifier": the variable `STUDIO` matched the word "studio" as a whole identifier. An identifier in capitals now counts only when typed exactly, the longest whole identifier is the one shown, and an excerpt drops the page's own `**` before marking the words found (it read `****423**`). New test in `tests/wiki-access.test.ts`, failing without the fix.
+- **Also found by D2, fixed**: `read_doc {id}`'s provenance from the installed package had no `url.versioned` nor `url.current` (§4.5.4, §13 D2). `readDocById` now adds `url` for a bundle (the Pages permalink with the revision, `r1` for a package; the wiki page, labelled current), none for a repository preview; the bundle's `docRevisionNumber` reaches the provenance. New test in `tests/wiki-access.test.ts`.
+- **Second-context review, fixed** (after A5a's 30 s timeouts were merged):
+  - Pages: the Bridge page no longer suggests `GET /v1/pairings/<code>`, the player's one-time claim (calling it would use up the capability): the log lines say it, and no operator route exists; a duplicate run is refused as it joins the queue, ranked only once valid. The restore drill says to use the backup's engine version (`restore` migrates the target first), separates a failed `restoreInto` (one transaction: an empty, migrated database, `replay` says "no restore is under way") from a failed replay (the "restoring" mark), attributes 28.7 s and 59.7 s to their two phases with no causal claim, and uses `npm run -s` for its one JSON line. The 423 page: the fences cause applies to API clients sending `x-studio-fences` only, your own lease never refuses you, the exclusive lease is also a dev's job (Prepare, cutting) given back when it ends, and the FR page names the *Spans* panel as the English UI does. Code check on that last point: `POST /api/exclusive`, `/api/exclusive/release` and `/api/leases/takeover` are all three owner-only in `http.ts` (one gate); the page says so.
+  - Register: `GAME_DIR` always names the folder; `GH_TOKEN`/`GITHUB_TOKEN` precedence per tool (run-jobs reads `GH_TOKEN` first, `wiki -- publish` `GITHUB_TOKEN` first); `GIT_DIR` said as cleared for the Studio Server's children. The scan skips `delete env.X`, reads `{ X } = process.env` (a rest is a dynamic read), and reads the workflows (`env:` keys, `${{ env.X }}`, `$GITHUB_ENV` lines, their shell) as origin `ci`: 142 variables now.
+  - Search: an all-caps identifier also matches as a one-token query in another case (`studio_session_key`); the section headed exactly by the identifier typed ranks first; an identifier's excerpt is its section (the description); excerpts drop only emphasis around words, never inside inline code.
+  - `url.versioned` only for a release build (numeric build id, not dirty), worded as the permalink once published; otherwise `null` with the reason.
+  - The "executed" gap, fixed: `wiki -- archive --test-report --candidate`; candidate.yml's new `docs-archive` job `needs: [target, release-core]`, downloads `candidate-test-report`, builds twice and compares; docs-publish's revision archives read the product's report too; `tools/release/artifacts.mjs` names the new job; tests updated.
+  - Reviews: `reviewers: [{name, kind, relation, date}]` on translation pairs and claim reviews (`tools/wiki/reviewer.ts`). This is a list, not the single `reviewer` the review asked for, so a person's review can sit beside the AI author's without replacing it; the same texts read again add a reviewer, a change starts over. The 133 old acks and the claim review migrated to `{claude-a7, ai, author}`. `check --publish` requires a human review; the rendered state says "self-checked by the author (AI), not reviewed". Plan amendment (A7) in §4.7.1, the how-to templates.
+  - `a7-chain.sh`: `set -euo pipefail`, the output folder resolved and refused when it is `/`, `$HOME`, the repository or inside it, or non-empty without the script's marker; every variable quoted; the tarball named from `package.json`.
+- **The chain**, recorded in `docs/dev/acceptance/A7-DEMONSTRATORS.md`.
+
+→ next: the stop. The maintainer replays the three demonstrators and confirms the claim review and the translation acks; what needs GitHub (the wiki push, docs-publish after `ship verify` in a sandbox, the `docs-publish` environment, a live restore drill) is listed in the evidence file.
+
+
+## #277 · 2026-10-23 · Claude · proposal · 4.5.0, B11: the generated reference pages
+
+- **The mechanism** (`tools/wiki/generated.ts`, `tools/wiki/generators.ts`). One region per page, `<!-- generated:begin -->` … `<!-- generated:end -->`, written by `npm run wiki -- generate [<page>…] [--no-manifest]` from the code and a data file of `wiki/data/`; the hand-written text around it is kept. Each generator gives the region in both languages, its problems (data against code) and, when it owns them, the page's manifest identifiers. `check` reports a generator's problems whenever its data file is there, and for a written page a region or identifiers that are not the generator's. Data prose is escaped outside code spans (`<id>` stays visible); sources are read with LF line ends (a Windows checkout gives the same pages).
+- **The eight generators.** `ref-scripts.ts`: `package.json`'s scripts and the `scripts` block `cli/create.mjs` writes, with the command each runs. `ref-cli.ts`: the six commands; the subcommands are checked against the code where it lists them (the `COMMANDS` table, the Bridge's usage line, `CONNECTOR_IDS`, the Studio Server's `cmd === '…'` branches), every option and exit code named must appear in the command's files. `ref-errors.ts`: `new StudioError(message, status)` of `studio-server/src` and `tools/studio` and `new BridgeError(status, code, message)` of `bridge/src`, parsed (string and template literals, a computed message counted), the solver's statuses from `status.ts` with `exitOf`, and the exit codes of the checking commands. `ref-support.ts`: `surfaceStatuses` of `docs/dev/contracts.json` at its own `asOf` version. `create.dsl` and `engine.api` reuse `dsl-doc.ts` and `api-doc.ts` (`dslWikiBlock`, `signaturesWiki`: the same blocks with section ids and translated headers). `ref-studio-api.ts`: the shared route table read through `routes()`, the Assets tab's own list, the dev server's other routes found by a text of their file. `ref-mcp.ts`: the tools of `TOOLS` and their JSON Schema, the English text the code's, the French in `wiki/data/mcp-tools.json`.
+- **The pages.** Ten pages ready in both languages: the eight generated ones, `reference.dev-url-parameters` (every query parameter the engine reads, with the builds that read it: the dev tools only on the dev server, a demo build and a hosted preview, the others in every build) and `reference.changelog` (where to read `CHANGELOG.md`, how to read a release's section, the `changes/` fragments).
+- **Checked.** `tests/wiki-generated.test.ts`: the repository's generated pages and identifiers are the generators' (no drift), the output is deterministic, a CRLF checkout reads the same, and each generator fails on a missing description and on a described item the code no longer has. `single-entry` lists the new writer.
+
+→ next: the integration branch merges the eleven B lots; C2 moves `scripts-documented`, `dsl-doc` and `api-doc` to the wiki's pages.
+
+
+## #278 · 2026-10-23 · Claude · proposal · 4.5.0: three product bugs found while writing the wiki
+
+- **Span `groupings` refused by the lease routes**: `http.ts` kept its own regex of span names, which missed `groupings`. `spans.ts` now exports `NAMED_SPANS` (built from its file and folder tables, which `spanOf` reads too) and `isSpanName`; `http.ts` uses it for `spans`, `span` and `x-studio-fences`. Tests in `tests/studio-collab.test.ts`: every span the repository's files give, and every named span, is accepted; the Studio's Spans panel (`src/studio/spans.ts`) lists exactly `NAMED_SPANS`; `groupings` is leased, taken over and released over HTTP (400 before the fix).
+- **`doctor` without Playwright**: `tools/doctor.ts` imports `playwright` lazily through `playwrightBrowsers(load)` (`tools/doctor-checks.ts`), which gives null on `ERR_MODULE_NOT_FOUND` only; `collectChecks` then reports one optional `Playwright` check with the install commands. Test in `tests/tooling.test.ts` with an injected failing import; checked by hand by running the doctor from a folder without `node_modules`.
+- **Pages without `.html`**: `outPath` appends `.html` to a default name that lacks it; `world.ts` and `puzzles.ts` pass `world.html` and `puzzles.html`. Test in `tests/pages.test.ts`.
+
+→ next: back to the 4.5.0 wiki.
+
+
+## #279 · 2026-10-23 · Claude · proposal · 4.5.0: the 132 mutation exemptions read again (5 killed, 127 to 4.6.0)
+
+- Every entry of `docs/dev/mutants.json` was due at 4.5.0. Five reviewers read them against origin/main b3b54cdf (one
+  context per group of sets, read-only), then each verdict was checked again here. All 132 had survived the 4.4.0
+  candidate's full run (39844438395); only `previews.ts` changed among the exempted files since, and its two entries
+  hold. Each kill's test sits in a file the entry's set runs, checked by hand to fail with the mutant applied and pass
+  without it.
+- Killed: `envelope.ts` sealEnvelope's `o.world.evidence ?` forced true (`speedrun`, tests/speedrun-envelope-seal: the
+  in-memory envelope a `sealed` listener and the speedrun UI hold; 4.4.0 had left such own-undefined keys as is, but
+  this one is public); `journal.ts` withLease's `until_ms > t` → `>=` (`studio-ops`, tests/studio-journal-mutants: the
+  old why said the database clock could not be staged, the suite already stages it); `durable.ts` writeDurable's
+  string test forced false and `===` → `!==` (`studio-ops`, tests/studio-durable-mutants: on a short write the text
+  given to writeSync as is would be written again whole at the offset; the mock now cuts the string overload too);
+  `health.ts` judge's `rev > head` forced false (`studio-workshop`, tests/studio-workshop-health-mutants: `bisect` is
+  public).
+- Wrong, corrected: `badges/crypto.ts` ed25519Key's length guard (createPublicKey accepts the SPKI header followed by
+  33 or 64 bytes, so the guard is not redundant with the DER parse; the mutant stays unreachable through multikey).
+- Sharpened (19): session-runtime `chosen`, http-port stream relay `once`, runs.ts `out.seedKind` and `r.verdict`,
+  runs-store claimNext's tie, recorder digests, apply.ts ×2, compile.ts ×4, imap.ts `dead`, ssh parseKey, store.ts
+  Sealer.open ×4, builds.ts `rebuilt`.
+- Per set, kept / killed: core 3/0, reality 15/0, reality-store 7/0, reality-store-postgres 1/0, runs 20/0, speedrun
+  8/1, remix 15/0, connectors-pure 11/0, connectors-edge 14/0, studio-ops 8/3, studio-auth 9/0, studio-workshop 9/1,
+  voices 7/0. `docs/dev/MUTANTS.md` gains a table of the rereads; `tests/mutants-json.test.ts` checks the entries at
+  4.5.0 and its pre-releases.
+
+→ next: the mutation sets studio-ops, studio-workshop and speedrun measured on the branch; the 127 are read again at 4.6.0.
+
+
+## #280 · 2026-10-23 · Claude · proposal · 4.5.0, B and C1: the wiki written, then integrated
+
+- **Phase B, the pages.** Eleven lots, each on its own branch from the A phase, merged into `feature/450-integration`: B01 Index, Start, Play (17 pages), B02 Install (17), B03 Create a game A (18), B04 Create a game B (20), B05 Create C, Publish, Engine (19), B06 the local Studio (22), B07 the team Studio (19), B08 Clever Cloud (22), B09 the Reality Bridge and connectors (15), B10 Contribute (25), B11 Reference and the generated pages (10). With the five A7 wrote, 209 pages `ready` in both languages, plus the four generated indexes; 102 guarantees, each linked to a named test.
+- **Bugs the writing found.** Three fixed on `fix/450-found-while-writing` (the span `groupings` refused by the lease routes, `doctor` stopping without Playwright in a created project, `page:world` and `page:puzzles` writing files without `.html`). Three opened as issues, not fixed in 4.5.0: #248 (`{ seen: 'room.npc.<n>' }` never matches a topic that has an id), #249 (a voiced line whose clip cannot play closes its bubble at once), #250 (`i18n extract` misses a custom minigame's `textParams`).
+- **C1, the integration.**
+  - The link scanner (`tools/wiki/page.ts`) missed a link whose text wraps onto the next line, as several writers reported: `mapLines` gains `joinLinks` (a label opened on a line and closed on the next line of the same paragraph, never across a blank line, a heading, a list item, a fence or a quote boundary), used by the check, the build, the bundle and the translation hash. Six such links were in the pages; none broke parity.
+  - Three claim ids were used twice: the reference page keeps each (`create.state-saves`, `create.stage`, `studio.assistant`), the other carries a page-specific id.
+  - Sources feeding more than ten pages narrowed (`cli/quest-n-click.mjs`, the Studio Server's `config.ts` and `http.ts`; `team.limits` names its files instead of `studio-server/src/server/*.ts`).
+  - Acceptance: 11 question misses and 8 counter-example failures, fixed by the pages' metadata (questions, aliases, glossary terms owner and stem, section headings) and by the search (`tools/wiki/docs.ts`): with a context, a status code typed ranks a reference register below the troubleshooting pages, and a section headed by the context's name answers for a page spanning several; an excerpt shows the field holding most of the words found; contractions and possessives are stop words; a page is cut and counted once, not on every search (the acceptance run over the wiki went from 10 s to 3 s, back under the test's timeout). One expectation corrected: `npm-run-studio-contexts` named `contribute.dev-loop` (a DSL command walkthrough) and `create.project-layout#game-files` (the game's files); the answer per context is in `create.project-layout#engine-repository` and `#created-project`, which now say it.
+  - `clever.restore-drill`'s RPO limit says a copy elsewhere must hold `backups/`, `sha256/` and `journal/` together.
+  - Coverage: every row migrated but `README.md#documentation` and `README.fr.md#documentation` (their destination is a generated index; the READMEs keep the section until C2); limit candidates ticked by a script (reported when their words are in the destination, 1783; the 22 left are release-history sentences of ROADMAP, not limits).
+  - Every translation pair and every claim's scope recorded as read by the AI author (`kind: ai, relation: author`), each claim's test read against its sentence first: 56 held as written, 46 said more than their test checks and were narrowed (the unchecked part moved to prose when true). `check --publish` still asks a person's review of each, as planned.
+
+→ next: C2, the switch-over (people's reviews of the pairs and claims, `docs/` turned into transition pages, `read_doc {name}` from `wiki/legacy.json`).
+
+
+## #281 · 2026-10-23 · Claude · proposal · 4.5.0, C2: the switch-over
+
+- **Transition pages.** `npm run wiki -- transition` replaced the 64 files of `docs/en` and `docs/fr` (version 4.4.0, package.json's; the release pull request regenerates them, `tests/wiki-transition.test.ts` checks the version). A heading that ended on an HTML tag (`## 3. State of the project on <date>`, its slug ending in `-`) keeps its trailing space behind an empty comment. The coverage matrix is final: `wiki -- check` no longer compares it to `docs/` (the freeze, still tested on the fixture) but requires each old page to be the transition page it makes, with every anchor of its rows; `wiki -- coverage` refuses to merge. The two README rows C1 left open are migrated (the README's Documentation section now points to the wiki): 1036 of 1036.
+- **Generators.** `tools/dsl-doc.ts` and `tools/api-doc.ts` write the generated part and the identifiers of `create.dsl` and `engine.api` (`updateGeneratedPage`, `tools/wiki/generated.ts`), as `wiki -- generate` does; the `docs/` blocks are gone.
+- **`read_doc {name}`.** `legacyConcatenation` (`tools/wiki/docs.ts`) builds each of the eight pages from `wiki/legacy.json`: an `id#section` gives that section, a bare `id` the parts of its page not given yet, a page missing from the set is named as coming. The whole text is 1.3 to 2.9 times the 4.4.0 page (the wiki's sections say more), so a bound of 1.5 times is kept by giving the longest sections by heading and first paragraph, then by heading alone, with the section read for the rest. Sizes against 4.4.0: CONTENT_GUIDE 101 359 / 68 195 (16 sections shortened), ENGINE 43 872 / 31 143 (5), TOOLS 75 442 / 59 054 (0), STUDIO 62 947 / 42 276 (22), WORKFLOW 6 481 / 4 395 (4), AUDIO 20 095 / 14 345 (4), UPGRADING 64 678 / 62 223 (0), CLASSICS 16 158 / 10 850 (14). The repository builds it from `wiki/`, the bundle writes it as `legacy/<NAME>.md` with its links made for its folder; the exact copy of `docs/en` is gone. `tests/mcp-docs.test.ts` requires the eight 4.4.0 calls to answer one text block within the bound, holding every old `##` heading or its declared rewrite.
+- **Tests and checks on the wiki.** docs-truth (paths quoted in the architecture and the code tour; EN/FR parity over every written page), `tools/docs-truth.ts` (422 documents), scripts-documented, classics, support-truth, contracts (the quotes are rows of `start.stability`'s surface table, the matrix rows those of `reference.support-matrix`; the documentation surface gains both, its reason goes), docs-links, propagation, the 4.3.0 notes in `bridge.test.ts`. Two English sections were a third shorter than their French and gained the missing precision; the solver's module paths in `contribute.boundaries` were wrong.
+- **References.** Every active file names the wiki: `wiki/<lang>/<id>.md` in code, the public wiki URL in a message; `tests/docs-consumers.test.ts` requires it, with a versioned list of the historical records and of the files whose job is the old paths. `npm run audit` now reads `wiki/`, and found two words of the private origin in the French pages, replaced by the demo's own French and the name the English page uses.
+- **What is left for the maintainer:** the preview publication right after the merge (§4.5.3), the walk and the crawl, the people's reviews of the pairs and claims (`check --publish`).
+
+→ next: merge the integration branch, then the preview publication.
+
+## #282 · 2026-10-23 · Claude · release · 4.5.0 "Wiki": the documentation moves to a bilingual wiki
+
+- **The maintainer's go** (23 October): « Publie le wiki… arrête de perdre du temps »; « tu finalises tout le plan… tu
+  ne t'arrêteras que quand la version 4.5 est révisée »; « tu peux signer la 4.5 », the D37 yes for `v4.5.0` only,
+  recorded in D50.
+- **What ships**: the plan's phases A to C (LOG #268–#281). The bilingual wiki, 210 pages in English and in French
+  (the 209 of the catalogue and the upgrade notes of 4.5), every page `ready`, generated into the GitHub wiki and into
+  `/docs/<version>/r<n>/` from the release's documentation archive (`docs-publish`, after `ship verify`); MCP
+  `search_docs`, `list_docs` and `read_doc` by id and section, `read_doc {name}` unchanged; the docs bundle in the
+  package (`docs-bundle/`); the 64 transition pages of `docs/en` and `docs/fr`, regenerated for 4.5.0.
+- **Fixed on the way**: the scenario map's span (`groupings`) leased on a shared Studio, `doctor` in a created project,
+  `page:world` and `page:puzzles` writing a `.html` file (LOG #278).
+- **Mutation reread**: the 132 exemptions due at 4.5.0 read again, five killed by a test, 127 to 4.6.0 (LOG #279).
+- **Upgrade notes**: a new page, `install.upgrade-notes-4-5` (both languages, from 4.5.0): nothing to change in a game;
+  the documentation moved to the wiki, `read_doc {name}` still works, two new MCP tools, the package carries
+  `docs-bundle/`.
+- **Fixtures**: golden save `demo-4.5.0.json`; reference run regenerated (engine version 4.5.0). The Studio Server's lock
+  names `quest-n-click` 4.5.x as its peer.
+- **Passes**: 22, one new, `docs-beginner-reader` (issue #258); none passed (docs/dev/passes/4.5.0.md). The twenty-one
+  of 4.4.0 keep their open issues, recorded for 4.5.0 in `docs/dev/contracts.json`.
+- **Left to people**: the review of the translation pairs and of the guarantees' scopes by a person, which
+  `check --publish` wants before it publishes a page that only its AI author checked.
+- **Joined at the end, at the maintainer's request** (« 252;257;255 »): Horacio's #253 (the placement editor's mirrors, #252), #260 (offline images' last resort, #257) and #256 (the e2e's latest-preview race, #255), LOG #283–#285. The repository-wide wiki suites get 300 s (Windows runners).
+→ next: the candidate on the merge commit, the signed tag `v4.5.0`, `ship verify`, then `docs-publish` (the wiki and
+`/docs/4.5.0/r1/`) and a read of the published outputs; the people's passes, `docs-beginner-reader` first.
+
+## #283 · 2026-10-23 · Claude · proposal · 4.5.0: the placement editor's mirrors (#252)
+
+- `dev/editor.ts`: the Selection folder was read-only, so the layout's `flip` (a prop or an actor) and `flipV` (a
+  prop), read by `dom/room.ts`, could only be set from the phone placement page (`tools/pages/placement.ts`) or by
+  hand in the JSON. Found turning an NPC toward the room in a game: the editor moves and sizes a character, but cannot
+  turn it around.
+- `dev/mirror.ts`: the checkboxes, rebuilt on each selection (from the overlay and from the Studio's bridge). A prop
+  is edited in the state shown when that state's variant sets its own mirror, as its position is; otherwise the
+  prop's own value. Off on an element's own entry removes the field, as the placement page does; off on a state's
+  variant stays written, or the state would fall back to the prop's value. Turning an actor drops the facing a script
+  left in the state (`face`, `place`), as a drag drops its remembered position. An actor whose room sets `facing`
+  shows a note: that facing wins (`o.facing ?? a.facing ?? flip`, unchanged).
+- `roundLayout` moved from `dev/editor.ts` to `dev/save-layout.ts` (what is written), so the editor stays under its
+  size cap (`tests/file-size.test.ts`).
+- `docs/` is frozen for the wiki (PLAN-4.5-WIKI §4.2): the two `TOOLS.md` sections changed, `wiki/coverage.json`
+  refreshed (`npm run wiki -- coverage`) and both acknowledged (`--ack`); their destination,
+  `studio.placement#placement-editor`, is planned and not written yet, so no wiki page to carry the text into.
+- Checked in Chromium on the demo (`?edit=house`): Biscuit mirrored and back, Grandma's note (`facing: 'right'`), the
+  chair's two checkboxes, none on a hotspot. Tests: `tests/editor-mirror.test.ts`.
+
+- Review and integration (Claude, for the maintainer): tests for `mirrorControls`' wiring (nothing on a hotspot, the
+  state shown, the note, the script's facing dropped, the redraw) and for the mirrors through `roundLayout`. Main
+  moved the docs to the wiki (#254): `docs/*/TOOLS.md` are transition pages now, so the mirror text went to
+  `wiki/en|fr/studio.placement.md` (`#placement-editor`, `#layout-fields`) and the actor's `flip` to
+  `create.geometry.md#layout-file`, both languages acknowledged.
+
+→ next: merge.
+
+
+## #284 · 2026-10-23 · Claude · proposal · 4.5.0: e2e studio-hosted, the latest preview read after the head's is built (#255)
+
+- `scripts/e2e-studio-hosted.ts` step 6b read `previews.state().ready`, then clicked "Load the latest preview". The
+  layout written meanwhile and Undo (revisions 2 and 3) schedule their previews in the background
+  (`journal.events.on('confirmed')`); when revision 3's finished between the read and the click, the Play frame opened
+  `/preview/3/` against an expected 2. Seen on PR #253's CI (run 39955383402, the Firefox/HTTPS pass; its HTTP pass
+  read 2 and passed).
+- The fix: `await previews.schedule()` (it resolves when the run building the head ends) before the read, and a check
+  that the ready revision is then the journal's head, so the step loads the latest revision, not just a stable one.
+- Checked: Chromium three times locally (ready 3, head 3, `/preview/3/`); the Firefox pass does not launch on this
+  machine, CI runs it.
+
+→ next: review.
+
+
+## #285 · 2026-10-23 · Claude · proposal · 4.5.0: the image route's last resort, and its reason told (#257)
+
+- `pwa-firefox` failed twice on 2026-10-23 (`main` run 39954872309, PR #253 run 39961281118): every step passed, then
+  three cached cat frames refused offline by Firefox's worker, over `MAX_REFUSED = 2` in `scripts/e2e-pwa.mjs`. The
+  reason was logged nowhere: the test could only count.
+- `vite.config.ts`: `imageLastResort`, a workbox plugin on the `/assets/img/` route (`CacheFirst`, `jeu-images`). Its
+  `handlerDidError` runs when the strategy throws (a cache read failing, the expiration plugin, `no-response`): it
+  answers with `caches.match(request)` across every cache, and posts `{ type: 'qnc-sw-error', url, reason, recovered }`
+  to the open pages (the game ignores it). Workbox copies the plugin into `sw.js` as text: nothing from the config's
+  scope.
+- `scripts/e2e-pwa.mjs`: an init script relays each `qnc-sw-error` to the console as a warning; the run prints them
+  (and a CI `::warning::` with the distinct reasons), not counted. `MAX_REFUSED` is unchanged: a refusal the worker
+  recovered from no longer reaches the browser's console, one it could not still counts.
+- Checked (Chromium, `vite preview`, offline after the warm-up): an image removed from `jeu-images` but kept in another
+  cache answers 200, reported `recovered: true` (`no-response`); an image in no cache still fails, reported
+  `recovered: false`. `npm run e2e:pwa -- --serve=dist --update --interrupted --reinstall` passes in Chromium. Firefox
+  does not launch on this machine: CI's `pwa-firefox` will show the actual reason. If it shows none, Firefox's error is
+  outside workbox's handler (the `respondWith` itself), which this does not reach.
+
+→ next: review.
+
+
+## #286 · 2026-10-23 · Claude · proposal · 4.5.0: CI browser jobs in Playwright's image (#261)
+
+- The cause: `npx playwright install --with-deps` downloads the browsers fast, then 51.6 MB of `.deb` (fonts, GLib,
+  codecs) from `azure.archive.ubuntu.com`, at about 50 kB/s on 23 October 2026 (job 120463321470: `fonts-wqy-zenhei`
+  alone 2 min 40 s). Four jobs failed on it that day (PR #260's `pwa-firefox` and `reality (webkit)`, `studio-hosted`
+  twice on main); the three-attempt loop cannot help, the first attempt eats the step's time.
+- The fix: `container:` `mcr.microsoft.com/playwright:v1.64.1-noble@sha256:47b5…` on `e2e`, `reality`, `pwa-firefox`,
+  `cross-runtime`, `fresh-install`, `second-game`, `reference`; their install step removed. The image only when the
+  plan runs the job (`${{ gate && image || '' }}`: a spared job stays on the runner, no 2 GB pull to print a notice).
+  `--init --ipc=host` (Playwright's advice for Chromium); `HOME: /root` (Firefox under root); `safe.directory` after
+  the checkout (owned by the runner's user).
+- ffmpeg had the same mirror under it: 8.5 min in `coverage` and in `reference` on run 39958590812, and in the image
+  apt would first need a whole `apt-get update` (the image ships no package lists). `scripts/ci-ffmpeg.sh` now takes
+  the static build from GitHub first (BtbN's n8.1 release branch, not master: 150 MB, about 20 s), apt only if that
+  fails; as root without sudo, and unpacked with Python when `xz` is missing (the image has none). No test depends on
+  ffmpeg's version (`tests/tooling.test.ts` mocks it).
+- `tests/ci-plan.test.ts`: the image's version is the lockfile's `playwright`, pinned by digest, in those seven jobs,
+  none of which installs a browser.
+- Left out: `studio-hosted` starts its own containers (SeaweedFS, Keycloak) with `docker run` on the runner, so it keeps
+  the install; `windows` installs no system package; `candidate.yml`, `nightly.yml` and `release.yml` keep theirs for
+  now.
+- Checked: `tests/ci-plan.test.ts`, the YAML parsed; the jobs themselves only run on CI.
+
+→ next: this PR's CI, then the same for the other workflows if it holds.
+
+
+## #287 · 2026-10-23 · Claude · proposal · 4.5.0: the reference job's Chromium work in three parallel jobs (#265)
+
+- The cause: `reference (chromium)` was the last job of every run (run 39958590812: 36.3 min of 43.9; run
+  39914754905: 18.4 of 24.1), everything else done by 12–15 min. Once in Playwright's image (#261), about 15 min of
+  sequential work stays: build 1.5, keyboard e2e 2.8, French then generic e2e 5.4, visual + perf + weight 0.6, music
+  0.4, taps 0.4, the `heroes` build, proof and e2e 4.1.
+- The change: `reference` (chromium, webkit) keeps its names, required by the ruleset of main, and its work but the
+  French and generic line and the `heroes` steps. Two new jobs on the `reference` gate, in the same image: `reference-fr`
+  (its own `GAME=reference` build, then `--lang fr` and `--generic --axe --save`) and `heroes` (`GAME=heroes`: build,
+  `solve --prove`, the e2e). Expected: about 7, 8 and 6 min with setup. `check`'s `dist` is the demo's, so each job
+  builds its own game. `pr-gate` needs both; `JOB_OF.reference` names them; the CI page of the wiki (EN, FR) too.
+- `tests/ci-plan.test.ts`: the two jobs gated like the others; each check in exactly one of the three jobs; nine jobs
+  in Playwright's image instead of seven.
+- Checked: `tests/ci-plan.test.ts`, the YAML parsed, `actionlint`; the jobs themselves only run on CI.
+
+→ next: review.
+
+
+## #288 · 2026-10-23 · Claude · proposal · 4.5.0: e2e, WebKit's "Context is stopped" tolerated during the save round trip's reload (#263)
+
+- Cause: `e2e (webkit, keyboard, false)` failed 4 times in 5 days (run 39539641390, job 120463400276; 39967673186
+  and 39416255342 green on rerun) on `pageerror Cache API operation failed: Context is stopped`, after "a manual save
+  survived a reload" and "e2e: done". `harness.saveRoundTrip()` reloads the page while the offline warm-up
+  (`dom/assets.ts` `warm()`) may have a `caches.match` in flight; WebKit stops it with its document. The excuse in
+  `scripts/e2e.mjs` covered only errors collected after "done" (the teardown).
+- Not an unhandled rejection: WebCore logs the stopped call itself, a console message of source JS and level error
+  ("Cache API operation failed: <reason>"), and Playwright's WebKit backend reports those as `pageerror` (its name
+  "Cache API operation failed", its message "Context is stopped", no stack: the CI line's exact shape). A page that
+  catches every Cache API promise and is reloaded ten times got it twice. `warm()` already catches: there is nothing
+  to handle in the engine.
+- Fix: `scripts/e2e.mjs` records the stretches of `harness.errors` in which a document goes away, the save round trip
+  and the browser's close (`stopWindow`), and excuses the error only inside them, only once every check passed, only
+  on WebKit and in its seen form. An error outside them still fails the run.
+- Checked: WebKit keyboard e2e (`--prod --generic --keyboard --save --no-indexeddb --axe`, `vite preview`) 6/6 green;
+  Chromium 1/1. With a Cache API loop injected into the page and extra reloads before the walkthrough (a temporary
+  copy of the script), the error from those reloads counted and failed the run, one inside a window was reported and
+  not counted.
+
+→ next: review.
+
+
+## #289 · 2026-10-23 · Claude · proposal · 4.5.0: e2e studio-hosted, the Play frame after "Load the latest preview" waited for as in 4b (#264)
+
+- Cause: step 6b clicked "Load the latest preview" twice, each followed by a loop that took the Play frame as soon as
+  its URL held `/preview/${ready}/`, then one `waitForFunction` of 30 s on that `Frame`. In Firefox, the frame caught as
+  its navigation commits may never answer an evaluation (already seen in 4.2.2 PR 3b, which bounded step 4b's): the
+  wait timed out, and the failure dump's own `evaluate` on it hung until the run's 8 min deadline. The second click
+  also reused the `ready` read before the first: before #256 the first could read 2 while 3 was building, so the
+  second loaded 3, its loop never matched, and after 80 tries it went on silently. All four CI failures were on the
+  Firefox pass: runs 39601284222, 39402884553 (attempt 1), 39232599877 (second click), 39978416632 (first click, with
+  #256's check passing, ready 3, head 3).
+- Fix, in the script only: one `loadLatest()` for both clicks. At each click it waits for the head's preview and reads
+  `ready` again (#256's check), marks the page in the frame, clicks, then for up to 45 s looks the frame up again at
+  each try and bounds each evaluation to 2 s (`within`, as 4b), until the frame at `/preview/${ready}/` runs a game
+  that is not the marked page. Silent for 15 s at the right URL: clicked once more, with a `note:` line in the output.
+  At the deadline, an error that names the URL instead of a bare timeout. The failure dump bounds each frame's
+  evaluation to 5 s.
+- Checked: the CI failure was not reproduced locally (33 Firefox runs, some with the room editor's reload delayed onto
+  the click, some under CPU load, all green). The retry path was forced once (no answer for the first 17 s): both
+  clicks noted, then passed. Then Chromium and Firefox four times each, green; `npm run quality`, `tsc`,
+  `changes --check`.
+
+→ next: review.
+
+## #290 · 2026-10-24 · Claude · proposal · A game's own files: spans.json for the shared Studio, audit-allow.json for the leak audit (#269)
+
+- **Why:** clever-onboarding, a game that tracks the engine's main, failed two checks on legitimate files after every sync. 52 of its tracked files had no span (`minigames/*.ts`, `commands/*.ts`, data modules its rooms share, the hand-written art notes and image prompts, small art scripts, a deployment hook), so `tests/studio-collab.test.ts` failed and a shared Studio would refuse a write to them; and one word of the audit's private list is also the first name of a colleague portrayed in the game, 143 hits, `build:game` failing.
+- **`studio-server/src/ops/spans.ts`:** `spanOf(path, own?)` and `spansOf(paths, own?)` take the game's own spans, consulted after the engine's rules, first match wins. `parseOwnSpans` refuses a key outside the game folder and a span a client may not take (`isSpanName`); `readOwnSpans(gameDir)` reads `spans.json` again when its mtime changes. `spans.json` and `audit-allow.json` are `meta`. `Leases` takes `own`, read by `claimPaths`; `main.ts` gives it the served game's file and uses it in the precheck; the live stream's spans use it too.
+- **`tools/audit-allow.ts`:** `parseAuditAllow` (12 hex digits, a reason, a prefix the audit blocks) and `allowances(root, blocked, current)`, which `tools/audit-assets.ts` asks per path: the game's own folder, and `public/assets/` for the current game.
+- **Tests:** `tests/studio-collab.test.ts` walks the files git tracks in `games/` (an ignored local `private/` is no file of the repository) with each game's own spans, plus four tests of the declaration (patterns, order, engine rules first, refusals, rereading, a lease claimed by a declared span); `tests/audit-allow.test.ts`, four.
+- **Docs:** `team.concepts#span` and `create.build-release#audit-allow`, both languages; the `audit:assets` entry of the npm scripts' reference.
+- **Review (maintainer):** `spans.json` keys are matched by a table over key and path (no regular expression, so no backtracking on a hostile glob), capped at 256 entries of 256 characters in 64 KiB; a key naming an engine file or folder literally, or with a `.` segment or a NUL, is refused; the file is read again on mtime, size or inode; on the hosted Studio a faulty file is logged and leaves the engine's rules alone, so the write that repairs `spans.json` (`meta`) is never blocked; `spanOf` reads its tables with `Object.hasOwn` (`spanOf('constructor')` no longer returns a function). `audit-allow.json` allows nothing in itself (a reason that spells the word is a leak), and a file that is not JSON is named.
+→ next: nothing; a game with no such file behaves as before.
+
+
+## #291 · 2026-10-24 · Claude · proposal · site.json's url: an absolute og:image and an og:url for link previews (#271)
+
+- **Why:** clever-onboarding, deployed at the root of its domain, served `og:image` = `/og.png`; the Open Graph protocol wants an absolute URL there, and LinkedIn and Facebook showed no image. The engine cannot know where a game is served, and a game could not say it without editing `index.html`.
+- **`tools/vite/plugins.ts`:** `siteUrl` reads `site.json`'s `url` (an absolute `http(s)` URL, a final slash added; anything else is none); `sitePlugin`'s page transform then writes `og:image` as `<url>og.png` and adds `og:url` before `og:type`. `index.html` is unchanged, so `tests/field-carry.test.ts`'s check of `%BASE%og.png` still holds.
+- **Tests:** `tests/site-url.test.ts`, four (without it, with it, the slash and the escaping, the addresses ignored).
+- **Docs:** `create.project-layout#site-json`, both languages.
+→ next: nothing.
+
+
+## #292 · 2026-10-24 · Claude · proposal · 4.5.1: the 24 findings of the maintainer's wiki audit of 24 Oct 2026, fixed
+
+- **Why:** the maintainer's audit of the published wiki (24 October 2026, 24 findings F01–F24, in `.cache/audit/`, not committed) found the link scanner blind to code labels (2,556 broken links in every output), a first tutorial that starts with an npm command that cannot work, contradictions (saves, support window, Safari, browsers), a search that drops « son », and headers that hide the first answer.
+- **Links (F01–F03):** `tools/wiki/page.ts` `mapLine` reads a line left to right (code spans bind tighter than links, a span inside a label is part of it; `closeBracket` skips code spans). `tests/wiki-output-links.test.ts` builds the real wiki's archive and reads the wiki, the bundle and the HTML back with an independent regular-expression reader, and checks each of the audit's 2,556 occurrences (`tests/fixtures/wiki/audit-2026-10-24-links.json`). `tests/wiki-access.test.ts`'s legacy headings skip fenced code (the longer absolute links shorten other sections).
+- **Pages (F04–F07, F12–F16, F19–F22, F24):** the tutorial, the saves trio, the support table (`SECURITY.md` too), the FAQ, `read_doc {name}` (the tool's description too, `tools/studio/tools.ts`), the code of conduct (`CODE_OF_CONDUCT.md` too), Safari, Domains and TLS, the gallery's "Not shown yet", the quick entries of the four references. Every changed pair acknowledged by `claude-451-audit` (ai, author): not a person's review.
+- **Home and headers (F09, F17, F18, F23):** `tools/wiki/build.ts` writes a root `_Sidebar.md`, Home's search note, a one-line header (`pageReview` from the translation pairs' reviewers) and the qualification folded in `<details>` after the lead; `tools/wiki/html.ts` renders `<details>`.
+- **Search (F10, F11):** `tools/wiki/docs.ts` (« son » as a noun only after a determiner; a troubleshooting section whose heading the query holds gets a bonus; a page's lead no longer takes a context's heading bonus), `tools/wiki/acceptance.ts` (`top1`, the top 1 measured apart), seven new questions.
+- **Not done:** F08 is the 4.5.0 docs-publish waiting for its environment's approval and a person's review (the 4.5.1 release publishes again); F16's screenshots need new steps in `scripts/docs-screenshots.mjs` (`games/heroes`, the Voices tab, a hosted Studio); GitHub's "Pages (427)" box cannot be removed from a wiki; the private vulnerability report form is switched off on the repository (`gh api …/private-vulnerability-reporting`: `enabled: false`), which the code of conduct and the security policy rely on.
+→ next: the maintainer turns on private vulnerability reporting; a person reviews the changed pairs; the screenshot steps.
+
+## #293 · 2026-10-24 · Claude · release · 4.5.1: the maintainer's wiki audit fixed, a game's own files, site.json's url
+
+- **The maintainer's words** (24 October): « ajoute les pr et release 4.5.1 »; the audit of the published wiki, « contre
+  ces remarques là pour corriger la 4.51 » (24 findings, LOG #292); and « wiki relu et ok », the maintainer's reading of
+  the wiki as published at v4.5.0, before the audit's fixes.
+- **What ships**: #274, the 24 findings of the audit (links whose label is code in every output, the first tutorial,
+  saves, the support window, the FAQ, Home and its sidebar, search « son », one-line page headers, LOG #292); #270,
+  a game's own files, `spans.json` and `audit-allow.json` (Horacio, #269, with the review's hardening, LOG #290);
+  #272, `site.json`'s `url`, an absolute `og:image` and an `og:url` (Horacio, #271, LOG #291).
+- **The maintainer's review recorded**: « wiki relu et ok » is recorded as a person's review (`wanoo`, human,
+  independent, 24 October) for each translation pair and each guarantee's scope whose text has not changed since
+  v4.5.0: 2,790 of the 2,837 pairs (their English and French hashes those of `v4.5.0:wiki/translations.json`) and 98
+  of the 102 scopes (claim text and test file unchanged). The 47 pairs changed since v4.5.0 (the audit's, #270's,
+  #272's and this release's upgrade notes) keep their AI author's record only, and so do the four scopes whose test
+  file, `tests/save-v3.test.ts`, this release changes (the golden save 4.5.1 added: `play-save-refused-untouched`,
+  `save-refused-untouched`, `save-stale-pruned`, `save-foreign-game-refused`); all are listed in the release PR for
+  the maintainer to confirm, and `check --publish` still wants a person's review of them.
+- **Upgrade notes**: "From 4.5.0 to 4.5.1" in `install.upgrade-notes-4-5` (both languages, from 4.5.1): nothing to
+  change in a game; `spans.json`, `audit-allow.json` and `site.json`'s `url`, all optional.
+- **Fixtures**: golden save `demo-4.5.1.json`; reference run regenerated (engine version 4.5.1). The Studio Server's
+  lock still names `quest-n-click` 4.5.x. Transition pages regenerated for 4.5.1.
+- **Passes**: none added, the twenty-two open (`docs/dev/passes/4.5.1.md`), their issues recorded for 4.5.1 in
+  `docs/dev/contracts.json`.
+- **Signature**: the tag's signature awaits the maintainer's yes for v4.5.1 (D37).
+→ next: the candidate on the merge commit, the signed tag `v4.5.1`, `ship verify`, then `docs-publish`; a person's
+review of the 47 changed pairs; the people's passes, `docs-beginner-reader` first.
+
+## #294 · 2026-10-24 · Claude · fix · 4.5.1: the candidate's audit and spans mutants
+Branch: fix/451-candidate
+
+- **The candidate** (run 40042235755 on `69c8a7b5`) failed twice: `npm audit --audit-level=high` on five advisories
+  published after #275, and the mutation set `studio-ops` on eight unexplained survivors in
+  `studio-server/src/ops/spans.ts` (#270).
+- **Audit**: `npm audit fix` (no `--force`): `serialize-javascript` 7.1.2 → 7.1.4 (GHSA-m5mm-p8h7-m29v),
+  `happy-dom` 21.0.1 → 21.0.4, `body-parser` 2.3.0 → 2.4.0 (with `qs` 6.16.1), `ip-address` 10.7.3 → 10.7.4,
+  `fast-uri` 3.1.8 → 3.1.9; all inside the declared ranges, only `package-lock.json` moves; `npm run locks -- --check`
+  holds (none of them is in a versioned lock).
+- **Mutants**: `tests/studio-spans-mutants.test.ts` (in the set's tests) kills four: a literal key gets no `**`
+  (line 101), the entries, key length and file size taken at their limit (148, 151, 184). Four are equivalent and
+  explained (revisit 4.6.0): the two loops of `globMatch` started at `n + 1` instead of `n - 1` (a write past a
+  Uint8Array is dropped, cur[n] rewritten with the value it has), the literal loop run to `j <= n` (writes the 0 a new
+  array holds), and `key.endsWith('/') → false` in `parseOwnSpans` (for a key ending in '/', no engine rule tells `key`
+  from `${key}x`).
+→ next: the candidate again on the merge commit.
+
+## #295 · 2026-10-24 · Claude · proposal · 4.5.2 "Org": the repository in the Quest-n-Click organization
+
+- **Why:** the maintainer transferred the repository from `wanoo/quest-n-click` to `Quest-n-Click/quest-n-click` on 24 October 2026 and moved the site to the organization's `quest-n-click.github.io`. After the transfer `gh attestation verify f --repo Quest-n-Click/quest-n-click` answers 404 for every release up to 4.5.1 and `--repo wanoo/quest-n-click` fails too: the attestations stayed under the user. `--owner wanoo --signer-workflow wanoo/quest-n-click/.github/workflows/release.yml` verifies (and `--signer-repo wanoo/web-scumm` up to 4.2.4), while `--signer-workflow Quest-n-Click/…` under that owner is refused, as it should be. So `ship verify v4.5.1` failed, and `wiki -- pages` would have refused the 4.5.0 and 4.5.1 archives.
+- **Provenance:** `tools/release/provenance.mjs` names the identities (`FORMER_REPO`, `PRE_TRANSFER_REPO`, `TRANSFERRED = 4.5.2`), `repoOfRelease` maps a version to its identity, `lookupArgs` / `downloadArgs` build the lookup (an owner always with its signer pinned), `verifyAttestation`'s `former` tries the repository then the two pre-transfer identities. `tools/wiki/pages.ts` `attestationTries` (a doc revision or a preview before 4.5.2 tries both sides of the transfer), `tools/field/field.ts` downloads under the release's identity. `ship verify` skips `gh release verify` / `verify-asset` for a pre-transfer release, saying so: GitHub's release attestation is kept under `wanoo` and that command looks under the repository only.
+- **Checked for real:** `ship verify v4.5.1` (34 files, 34 attestations) and `ship verify v4.2.4` (33, 33) pass; `wiki -- pages --repo Quest-n-Click/quest-n-click` assembles 890 files from v4.5.0 and v4.5.1.
+- **Addresses:** `tools/rename-org.mjs` (idempotent, `--check` in `tests/rename-org.test.ts`) renamed 217 files; the exceptions are its `EXCLUDED` paths and its `KEEP` sentences, and the test fails on an old address anywhere else. The `wanoo/web-scumm` leftovers are all history (D47) and stay.
+- **Pages:** the `pages` job, the base-path build, the `/docs/` assembly and the `pages-only` input and plan are removed from `ci.yml` and `tools/ci-plan.ts`; the `dist` artifact the e2e rows play stays; `docs-publish` (and its caller in `release.yml`) needs `actions: read` only. No cross-repository dispatch: that needs a GitHub App, a later step.
+- **Docs:** Contributing CI, Play online, What it is, Install from the repository, Coming from web-scumm, the 4.2 upgrade notes and Publish on GitHub Pages say where things are now and where they were; the 93 translation pairs the renaming touched acknowledged by `claude-452-org` (ai, author), not a person's review.
+- **Website (D52, decided by the maintainer the same day):** the project's website, `https://quest-n-click.cleverapps.io` (`Quest-n-Click/quest-n-click-site`, Next.js on Clever Cloud), replaces GitHub Pages, which is abandoned. The candidate builds `site/web.tar.gz` (`BASE_PATH=/demo/ STUDIO=1 VITE_STUDIO_DEMO=1 npm run build:web`, after `dist.tar.gz`), `tools/release/artifacts.mjs` lists it as `game:web` since 4.5.2, release.yml copies it into the sums, the attestation and the upload, `ship verify` requires it from 4.5.2. Checked locally: the tarball extracted under `/demo/` of a static server plays (`/demo/` shows the title screen, its service worker scoped `/demo/`), and `/demo/studio.html` opens the Studio demo, no page error and no failed request. Links: `tools/rename-org.mjs` maps a versioned docs page to `/docs/<id>` (English, unprefixed) or `/fr/docs/<id>`, anything else under `/docs/` to the docs' index in its language, the game to `/demo/`; the documentation tools build the website's links (`tools/wiki/site.ts`), `read_doc`'s `versioned` is null with the release archive named, `publication.json` is read from the wiki's repository.
+- **Revalidation:** release.yml's `site-revalidate` job (needs release and docs-publish, `always()` once the release succeeded, `continue-on-error`, `permissions: {}`) POSTs `${SITE_URL}/api/revalidate` with the Bearer secret, three tries of 60 s, prints the JSON, warns on `ok` not true or on failure, skips with a notice without the secret. Its script was run locally against a stand-in server: no secret (notice), ok (exit 0), `ok: false` (warning), 401 three times (warning).
+- **Second review (656dab3a, 914f1634):** the website's answer is printed between a fresh `::stop-commands::` token and its end (compacted by `jq -c` when it is JSON), the warnings carry only the HTTP code, `.ok` and `.changed` (stripped of newlines and `::`); a `SITE_URL` that is not https:// gets a warning and no token; only a network failure or a 5xx is tried again. Run locally against a stand-in server: ok, a body of workflow commands (shown inside the stop-commands block, not acted on), `ok` holding `::error::` (stripped), 500 (three tries, warning), 401 (one try, warning), no server (three tries, warning), not https (no call). candidate.yml's version probe: 0 builds, 10 skips, anything else fails the step (checked with a missing module).
+→ next: the maintainer reviews and merges; the organization's site rebuilds by hand after each publication until a GitHub App dispatches it; the prose rename to "Quest'n'Click" is its own pull request.
+
+
+## #296 · 2026-10-24 · Claude · proposal · Packages: the @quest-n-click scope (#283, first task)
+
+- **Why:** the maintainer created the npm organisation `quest-n-click` on 24 October 2026 and bootstrapped the five scoped names; an organisation owns only scoped packages (#283). D53 records it; publishing itself (staged stable promoted with 2FA per D34, trusted publishing, a `next` channel) is a later pull request of the same issue.
+- **Names:** `scripts/pack.mjs` and `scripts/pack-manifests.mjs` write `@quest-n-click/engine`, `/create`, `/bridge`, `/connectors`, `/studio-server`, each `publishConfig.access: public`; `/create` gains `repository` and `engines`, depends on `@quest-n-click/engine` exactly, imports `@quest-n-click/engine/cli/create.mjs`; the Studio Server's optional peer is `@quest-n-click/engine` (still optional: decided with publishing). The locks (`scripts/locks/*.json`, `OUTSIDE_ROOT` in `scripts/locks.mjs`) take the new names. The bins do not change. npm names a scoped archive `quest-n-click-engine-<v>.tgz`: `pack.mjs` renames each archive back to its folder's name, so `tools/release/artifacts.mjs`, the SBOMs, `ship verify`, the website and the README's URL keep theirs; `PACKAGES` gains each package's `npm` name and `SCOPED = 4.5.2`.
+- **Repository:** the root package is `@quest-n-click/engine` (cli/create.mjs reads its name: a project made from the repository depends on the scoped name); `NAME` in create.mjs is now the command, `PACKAGE` the package, and `tools/wiki/ref-scripts.ts` reads the command. The template, `games/signals` and the scripts import `@quest-n-click/engine/…`; `vite.config.ts`, `studio-server/src/worker/preview-build.ts` and `tsconfig.json` resolve both the scoped and the unscoped entries (a transition through 4.5.x; a test holds the repository's own sources to the scoped one). `tools/bridge.ts` imports `@quest-n-click/bridge/cli`; the Bridge's version reader, `tools/dist.ts` and `tools/api-doc.ts` know the scoped names.
+- **migrate:** `tools/migrate-name.ts` maps `web-scumm…` and the unscoped `quest-n-click…` straight to the scoped names: imports `'quest-n-click/…'` and `'quest-n-click-bridge/…'` (a quote before the name, a `/` after: never a command, a URL or an archive), `tsconfig.json`'s paths and `node_modules/…` targets, and a dependency dropped once its scoped name is installed (otherwise said). The Studio Server's engine upgrade renames hosted games with the same function. `tests/former-name.test.ts` covers it (idempotent, commands untouched).
+- **Release tools:** `tools/release/preflight.mjs` judges each archive by its file name and its npm rows by the scoped name from 4.5.2 (`npmNameFor`), a name ours when an owner (`OWNERS = ['lostinbrittany']`; npm's organisation endpoint answers `{}` without a token, so the members cannot be read in CI; Erwan's npm user to add) or the logged-in user publishes it, and adds a `<name>:pointer` row for each unscoped name but `create-quest-n-click`, which gets a `:relay` row (an owner's, not deprecated: its command imports `@quest-n-click/create/index.mjs`, pinned by `tests/pack-manifests.test.ts`; the manifest moved to `createManifest`). The nightly `npm-names` job watches the scoped and former names (owners exactly), the four pointers (an owner's, deprecated) and the relay; run locally against the registry on 24 Oct, the scoped names answer ours, the pointers and the relay free. `REPO` was already `Quest-n-Click/quest-n-click` (#282). Tests: `tests/release-stable.test.ts`.
+- **Scripts:** `external-consumer` checks each archive's scoped name, `publishConfig`, `repository` and `engines`, uninstalls an unscoped old engine and checks no unscoped import is left after `migrate`; `fresh-install`, `upgrade-check`, `studio-install-smoke` and `connector-archive-e2e` look under `node_modules/@quest-n-click/`.
+- **Docs:** the wiki (en and fr), the READMEs and CREDITS say the scoped names where they describe how things work now (`npm init @quest-n-click`, imports, `node_modules/@quest-n-click/engine`, the install and npm pages, the maintainers' check by the organisation's owners); the upgrade notes of 4.5 gain "From 4.5.1 to 4.5.2"; history (the CHANGELOG, the LOG, the decisions, earlier upgrade notes) keeps the old names. Coming from web-scumm says that `migrate` now goes straight to the scoped names. Generated pages regenerated; the 123 translation pairs touched acknowledged by `claude-283-scoped` (ai, author), not a person's review.
+→ next: the npm publish step in release.yml (stage per archive, `--tag next` for an rc), the `next` channel from `main`, trusted publishers; the unscoped names reserved as deprecated pointers (Horacio, after 25 Oct 13:35 UTC).
+
+
+## #297 · 2026-10-24 · Claude · proposal · One hashed requirements.txt that Dependabot keeps (#285)
+
+- **Why:** Dependabot's pip bumps touched `requirements.txt` only, and `tests/worker-python-lock.test.ts` wanted `ops/studio/worker-requirements.lock` to repeat its versions: PR #280 (numpy 2.5.4) was red until fixed by hand (641335be); merged into this branch, its numpy carries every file's hash here. The maintainer chose one hashed file (D54).
+- **The file:** `requirements.txt` holds the sha256 of every file of each version from `https://pypi.org/pypi/<package>/<version>/json` (Pillow 83, NumPy 66 for 2.5.4, SciPy 61, sdists included, as hashin and so Dependabot write them), sorted, pip's `\` continuation lines; the three hashes of the former lock are among them.
+- **Dependabot:** dependabot-core's `RequirementReplacer` (e26b22f9) replaces a hashed requirement's hashes with `hashin.get_package_hashes(name, version)`, every file of the new version, with the file's own separator. Read from the source, not run: the next Dependabot pip pull request is the check.
+- **Installs:** the 16 `pip install -r requirements.txt` of ci.yml, candidate.yml and release.yml, `doctor`'s fix, the docs' commands (en, fr) say `--require-hashes`; the worker's hook (`clever.configuration`, `clever.first-deployment`, `install.from-archive`) names `requirements.txt` with `--only-binary=:all:`; `scripts/studio-install-smoke.mjs` installs and compares `requirements.txt`; `scripts/pack.mjs` ships it alone. The 4.2 and 4.3 upgrade notes, the QUALIF and PLAN pages and `wiki/coverage.json` keep the lock's name: history.
+- **Test:** `tests/python-requirements.test.ts` (renamed from `worker-python-lock`): each logical line pins `==` with sha256 hashes, no duplicate, and the lock is gone. Offline it cannot see Clever's wheel: the candidate's `studio-install-smoke` (CPython 3.13) installs the file as the hook does.
+→ next: the next Dependabot pip pull request (or #280 rebased) shows the hashes rewritten; the 4.5.2 upgrade notes (#284's section) get a line on the worker's hook.
+
+
+## #298 · 2026-10-24 · Claude · proposal · Release: the npm packages staged for an owner's approval (#283, second task)
+
+- **Why:** D34 planned stable publication on npm as staged by CI through trusted publishing and promoted by the maintainer with 2FA; D38 postponed it because one person held the 2FA, D53 lifted that (two owners of the organisation `quest-n-click`) and named the packages under the scope. This pull request writes the step; the `next` channel from `main` stays for a later one.
+- **Where:** a job of its own, `npm-stage`, `needs: [release]`, `if: needs.release.result == 'success'`, permissions `contents: read` and `id-token: write` only. Not a step of the release job: `docs-publish` reads the release job's outputs and must not wait for npm, and a job alone can be re-run. It checks out the tag's commit (a tag that predates `tools/release/npm-stage.mjs` says so and does nothing), sets up Node `NPM_PUBLISH_NODE`, installs npm `NPM_PUBLISH_NPM` (both moved from the release job's env, where nothing used them), checks both versions, downloads the release's `.tgz` and `SHA256SUMS` with `gh release download` and checks each archive against the sums.
+- **The script:** `tools/release/npm-stage.mjs`, an `exec` given by its caller as `preflight.mjs` does. It refuses a token (environment or `.npmrc`), reads each archive's manifest (the scoped name, the tag's version, `repository` naming the workflow's repository since npm refuses a provenance otherwise, `@quest-n-click/create` on the exact engine), then engine first: `npm view <name>@<v> version` (published: skipped; a registry error is never read as "absent"), `npm stage publish <tgz> --provenance --access public --tag latest --loglevel verbose`, the id read from npm's `(staged with id …)`. npm's 409 on a version not published is "staged by an earlier run": a staged version cannot be seen without a token (`npm stage list` refuses the short-lived OIDC token, `npm help stage`), and the exact text of npm's 409 is not documented, so the job reads the code and checks the version is not published rather than match a sentence. `ENEEDAUTH` is "no trusted publisher accepted this workflow": npm's `oidc()` never throws (lib/utils/oidc.js in npm 11.19.1), so a failed exchange ends there. It stops at the first failure (create never staged without its engine) and writes the run summary: each package's state, the `npm stage approve <id>` lines in order, main's and the tag's commits.
+- **Pre-release tags:** an rc's archives carry the stable version (`{pkg}` strips the suffix: `v4.5.2-rc.1` packs `4.5.2`). Staging them under `next` would take 4.5.2's number for good (a staged version holds it, its tag cannot change), so an rc stages nothing and rehearses: `npm stage publish --dry-run` runs the OIDC exchange before its dry-run branch, and only warns "requires you to be logged in" when no credential came, which the script reads as a failure. A dry run builds no provenance.
+- **Flags, checked against npm 11.19.1's source and `npm help stage`:** `npm stage publish` is `npm publish` with `stage = true` (same params, `--provenance` accepted; libnpmpublish POSTs to `/-/stage/package/<name>` with the same metadata, provenance included). Provenance is automatic under OIDC for a public repository and package; `--provenance` makes it explicit. A pre-release version without `--tag` is refused, as `npm publish` does. The trust configuration's file is the workflow's name, `release.yml`; a new one expires unless used within two days (docs.npmjs.com/trusted-publishers).
+- **Provenance commit:** npm's provenance takes `GITHUB_SHA` and `GITHUB_REF` from the run (libnpmpublish/lib/provenance.js); under `workflow_run` they are main's head and `refs/heads/main`, not the tag's commit, and the OIDC token signing it says the same. The wiki says so (`npm-provenance-commit`), the summary prints both commits; to look at on the first staging (`npm stage view <id>`) before approving.
+- **Preflight:** a trusted publisher counts only on `release.yml`; the hint carries the two-day expiry; a `publish-step` row (`stepProblems`) blocks a release.yml without the npm-stage job, with a direct `npm publish` or a token.
+- **Tests:** `tests/release-npm-stage.test.ts` (the dist-tag rule, the arguments, the plan's refusals, order, skips, the 409, ENEEDAUTH with its command, a registry down, the rehearsal, the summary, no token); `tests/release-stable.test.ts` (the job's shape and permissions, exact pins checked before npm, no token, never `npm publish`, the download step run against a fake gh, the preflight's trust on another workflow and `stepProblems`).
+- **Docs:** `contribute.npm-packages` (the procedure as it now is, the job, the first release step by step), `contribute.releasing` (a step `npm-stage`, the preflight's list), `install.from-npm` and `install.package` (the step exists; still "not yet published"), in both languages; three variables in the register.
+- → next: the five `npm trust github …` just before the first tag; an `-rc` to rehearse; the stable tag; approve engine first; check provenance; then "require 2FA and disallow tokens". The `next` channel from `main`.
+
+## #299 · 2026-10-24 · Claude · release · 4.5.2 "Org": the organization, the website, the scoped packages, the first npm staging
+
+- **The request**: Horacio (co-maintainer) asked for the 4.5.2 release pull request, the first release staged on npm;
+  it prepares the release only (no candidate, no tag, nothing on npm).
+- **What ships**: #282, the repository in the Quest-n-Click organization, pre-transfer releases verified under their
+  signer, the website in place of GitHub Pages and the release's `web.tar.gz` (wanoo, D51, D52, LOG #295); #281, the
+  logo's capitals; #284, the packages under the `@quest-n-click` scope (Horacio, #283, D53, LOG #296); #286, one hashed
+  `requirements.txt`, the worker's lock gone (Horacio, #285, D54, LOG #297); #287, release.yml's `npm-stage` job, the
+  packages staged for an owner's 2FA approval (Horacio, #283, D34, LOG #298). The name "Org" is #282's (D51, D52).
+- **Upgrade notes**: "From 4.5.1 to 4.5.2" in `install.upgrade-notes-4-5` (both languages), started by #284 and #286,
+  completed with a new project (`npm init @quest-n-click` once on npm, `npx create-quest-n-click` a relay), the
+  repository's address and attestations, and npm as it is on the tag's day: staged, published once an owner approves.
+  `install.from-npm` and `contribute.npm-packages` say the same (both languages).
+- **Reviews**: no person has read the 4.5.2 changes to the wiki. The pairs this release changes
+  (`install.upgrade-notes-4-5#from-4-5-1-to-4-5-2`, `install.from-npm#context-and-versions`,
+  `contribute.npm-packages#npm-publishing`) are acknowledged by `claude-452-release` (ai, author);
+  `start.what-it-is#_lead`, left to review on `main` after #281, #282 and #284, read against each other by
+  `claude-452-release` (ai, independent). The four scopes whose test file this release changes
+  (`tests/save-v3.test.ts`, the golden save 4.5.2: `play-save-refused-untouched`, `save-refused-untouched`,
+  `save-stale-pruned`, `save-foreign-game-refused`) keep an AI author's record. No person's review is recorded.
+- **Fixtures**: golden save `demo-4.5.2.json`; reference run regenerated (engine version 4.5.2; the logic and
+  presentation fingerprints unchanged). Transition pages regenerated for 4.5.2.
+- **Passes**: none added, none made for 4.5.2, the twenty-two open (`docs/dev/passes/4.5.2.md`), their issues recorded
+  for 4.5.2 in `docs/dev/contracts.json`.
+- **Signature**: the tag's signature awaits the maintainer's yes for v4.5.2 (D37).
+→ next: the five `npm trust github …` just before the tag, the candidate on the merge commit, an `-rc` to rehearse the
+staging, the signed tag `v4.5.2`, `ship verify`, then `npm stage approve` engine first; a person's review of the
+changed pairs; the people's passes.
+
+## #300 · 2026-10-25 · Claude · proposal · LostInBrittany as a second tag signer
+
+`ship tag 4.5.2 --sign` failed on LostInBrittany's machine: git's signing key there is a GPG one, and
+`.github/allowed_signers` named only wanoo. The new line is LostInBrittany's `id_ed25519` key, in a commit signed by that
+key over SSH (8ebe6f91). `tools/field/trust.ts` accepts a change to the file only from a key the previous version
+names, so wanoo approves it here. Until it merges, 4.5.2 is tagged by wanoo or waits.
+
+→ next: merge; LostInBrittany registers the key on GitHub as a signing key, runs `ship preflight-stable`, then tags 4.5.2 with `--key=$HOME/.ssh/id_ed25519.pub`.
+
+
+## #301 · 2026-10-25 · Claude · proposal · release.yml starts only for v* tags
+
+Every `ci` run (main, each pull request) fired `release.yml`, whose jobs all skipped unless the run was a tag's: the
+Actions list filled with skipped release runs. `workflow_run` takes a `branches:` filter, matched against the triggering
+run's `head_branch`, which is the tag's name for a tag push; `branches: ['v*']` keeps only those. The jobs' `if:` (a
+successful push of a SemVer-looking ref) stay as they were, the gate. Merged after 4.5.2's release run had started,
+since `workflow_run` reads the workflow from main.
+
+→ next: the next rc tag shows the filter lets a tag's run through; if it does not, revert the three lines.
+
+
+## #302 · 2026-10-25 · Claude · proposal · The candidate is the release's only test pass (#291, D55)
+
+A release commit was tested four times: main's `ci`, the candidate (about 85 minutes: release-check, heavy, mutation,
+pack, image, the signing rehearsal…), the tag's `ci` (the same SHA as main's), then `release.yml`, which ran
+`release-check:ci` and the whole mutation matrix again before publishing (up to two hours), although since 4.1.20 it
+builds nothing and copies every file from the candidate. Now `release.yml` starts on the tag's push (`push: tags:
+['v*']`, the `workflow_run` trigger and #290's `branches:` filter gone) and runs from the tag's own commit. Its gate:
+the SemVer tag, the tag still on the commit the run was started for, that commit on main's first-parent line and
+main's `ci` green on a push at that SHA (`tools/release/main-ci.mjs`, new), the previous stable tag an ancestor, the
+candidate the tag names (green, dispatched on main, its manifest this SHA's, every file matching), not published yet.
+The mutation jobs, `release-check:ci` and the python, ffmpeg and Chromium setup are gone; Node and `npm ci` stay for
+the release notes, `speedrun:verify`, the manifest's check and `ship verify`. The Remix proofs, the one check the
+candidate did not run, move to its new `remix-proof` job: `remix/remix-<game>.json` in the manifest from 4.5.3
+(`tools/release/artifacts.mjs`, the release-made entries kept up to 4.5.2 so older releases still verify), listed as
+evidence in `docs/dev/surfaces.json`, and a candidate without them is refused like one without its site. `ci.yml` no
+longer runs on tags; `ship tag` always waits for main's run (`--now` refused) and `ship watch` waits for the release
+run only. Found on the way: `docs-publish` in release mode required `refs/heads/main` (true under `workflow_run`), now
+`refs/tags/v<version>` (`tools/wiki/publication.ts` too), and the `docs-publish` environment's deployment policy
+(main, docs/*) needs a tag rule `v*`, a repository setting the maintainer adds. npm's provenance and the release's
+attestations now name the tag and its commit instead of main's head; `npm-stage`'s summary says so, and flags a run
+whose commit is not the tag's. 4.5.2 was released with the old workflow (candidate 40121513569 predates this).
+
+→ next: the maintainer adds the `v*` tag rule to the `docs-publish` environment, then the next rc tag (on a fresh
+candidate, npm-stage rehearsing) exercises the new trigger and gate end to end.
+
+
+## #303 · 2026-10-25 · Claude · proposal · The wiki's claims match .each test names
+
+4.5.2's `docs-publish` (run 40130164629) failed `check --publish` with 9 errors; one was `bridge-restore-refused-while-serving`
+"not executed", although the candidate's report has `maintenance leases on sqlite › restore refuses…` passed. The claim
+names the test as its source writes it (`… on $name …`), which the static check needs; the report holds the name the run
+filled in. `sameTest` (tools/wiki/claims.ts) now reads `$x`, `$a.b` and `%s %d %i %f %j %o %#` as any text, so every
+variant the report holds counts, and all of them must have passed. Checked against candidate 40121513569's report:
+the claim is "executed on 36049e12f06b". The other 8 errors are reviews only a person can record (7 claims, 263
+translation pairs).
+
+→ next: the human review of the 7 claims and the 263 pairs; then 4.5.2's docs as r2 or with 4.5.3 (a docs revision may only change wiki/ files, so it cannot carry this fix).
+
+
+## #304 · 2026-10-25 · Claude · proposal · 4.5.2's wiki: the claims and a first share of the pairs read by a person
+
+`docs-publish` of 4.5.2 refused 7 claims and 263 en/fr pairs that only their AI author had checked. LostInBrittany read
+them on a review page (each claim beside its test, each pair side by side) and marked all 7 claims and 82 pairs correct;
+they are recorded under that name (human, independent), each pair only if its text was still the one read. 181 pairs
+are still to read.
+
+→ next: the 181 remaining pairs; then 4.5.2's docs as r2 or with 4.5.3.
+
+
+## #305 · 2026-10-25 · Claude · proposal · Translation pairs no longer need a person's reading to publish (D56, amends A7)
+
+4.5.2's `docs-publish` failed: 181 pairs of ready pages were recorded by their AI author only, and A7 made
+`check --publish` want a person on every pair. Both maintainers agreed the rule was the bootstrap's and does not scale
+to a 214-page bilingual wiki. `checkTranslations` now puts those pairs among the gaps at both levels (printed by
+`check`, never silent), counted and worded as "checked by their AI author only, not read by a person". A pair "to review"
+still fails a publication; a published claim still needs `review-claim --kind human`. The page headers already say who
+read each page (`pageReview`: "written and self-checked by an AI, not reviewed by a person"), so nothing a reader sees
+turns an AI's check into a person's. `publication.json` records no review state.
+
+→ next: re-run 4.5.2's `docs-publish` once #293 and #294 are merged; a person's reading of a pair stays welcome and
+still shows as "reviewed by a person" in the header.
+
+
+## #306 · 2026-10-25 · Claude · proposal · wanoo in OWNERS
+
+Erwan's npm user `wanoo` is an owner of the `quest-n-click` organisation and a maintainer of the five scoped packages
+(`npm access list collaborators`: read-write). `OWNERS` (tools/release/preflight.mjs) and the nightly's copy name him, so
+a name he publishes is not reported "taken". D53's "until Erwan's npm user is known" is settled.
+
+→ next: after the unscoped pointers are republished, `npm owner add wanoo` on each of them.
+
+
+## #307 · 2026-10-25 · Claude · proposal · candidate starts only when full-ci is added
+
+Over two days, 28 of about 200 workflow runs were `candidate` on a pull request push, every job skipped (no `full-ci`
+label). `candidate.yml` now listens to `pull_request: [labeled]` only, and its `target` job runs when the label added is
+`full-ci` (`github.event.label.name`), so another label added to a labelled pull request starts nothing either. With
+#292, the skipped `release` runs (64 in two days) are already gone. `ci`'s own reading of `full-ci` is unchanged.
+
+→ next: none.
+
+## #308 · 2026-10-25 · Claude · proposal · ship tag: the organisation's remote, and the CHANGELOG section before the tag
+
+Tagging `4.5.3-rc.1` from LostInBrittany's checkout, where `origin` is the fork, would have pushed the tag to the fork:
+it went out through a `remote.origin.pushurl` override. Its release run then failed at `release-notes.mjs`: no
+`## 4.5.3` on e88ef808, and the tag ruleset keeps the tag, so rc.1 is spent. `ship tag` now uses `releaseRemote()`
+(tools/release/lib.mjs: the remote whose fetch URL is REPO, `origin` first) for its fetches, its tag look-up and its
+push, and reads `CHANGELOG.md` at the commit with release.yml's own `releaseNotes` before tagging (a dynamic import:
+tools/ ships in the package, scripts/ does not).
+
+→ next: tag 4.5.3 (rc.2 or final) on the release pull request's merge commit, without the pushurl override.
+
+## #309 · 2026-10-25 · Claude · release · 4.5.3 "One pass": the candidate as the release's only test pass
+
+- **The request**: Horacio (co-maintainer) asked for the 4.5.3 release pull request. `v4.5.3-rc.1`, tagged on e88ef808,
+  failed at `scripts/release-notes.mjs` ("no "## 4.5.3" section in the changelog"): the section must be on the commit
+  the tag names, so this branch carries it; rc.1 is spent (the tag ruleset refuses deleting it), the next tag is
+  `4.5.3-rc.2` or `4.5.3` on this branch's merge commit. It prepares the release only (no candidate, no tag, nothing on
+  npm). The name "One pass" is Claude's pick, for #292's rework of the chain.
+- **What ships**: #289, LostInBrittany's key as a second tag signer (LOG #300); #290, then #292, the candidate as the
+  release's only test pass, `release.yml` on the tag's push, `ship tag` without `--now`, the Remix proofs in the
+  candidate (#291, D55, LOG #301, #302); #293, a claim backed by a `.each` test counts as run (LOG #303); #294, 7 claims
+  and 82 pairs of 4.5.2 read by LostInBrittany (LOG #304); #295, translation pairs checked by their AI author no longer
+  stop a publication (D56, amends A7, LOG #305); #296, `wanoo` in `OWNERS` (LOG #306); #297, the candidate on a pull
+  request only when `full-ci` is added (LOG #307); Dependabot's bumps (actions/setup-python 7.1.0, #298). 4.5.2's five
+  packages were approved and published on npm on 24 October 2026 (`npm view @quest-n-click/engine dist-tags`:
+  `latest: '4.5.2'`, maintainers `lostinbrittany` and `wanoo`).
+- **Fragments**: `npm run changes -- --assemble` folds a `.log.md` only beside its `.md`, so the two LOG-only fragments
+  (`release-trigger-tags`, `review-452-lostinbrittany`) were folded by hand at their place in the order (#301, #304).
+- **Upgrade notes**: "From 4.5.2 to 4.5.3" in `install.upgrade-notes-4-5` (both languages): nothing in a game; for the
+  maintainers, the new chain (a candidate on main's commit, then the signed tag that names it, release.yml on the tag's
+  push), `--now` refused, a candidate made before 4.5.3 refused, the `docs-publish` environment's `v*` tag rule, npm's
+  provenance on the tag, the second signer, D56. npm is now live: `install.from-npm` (titled "Install from npm"),
+  `install.from-archive`, `install.package`, `install.upgrade`, `create.first-game`, `contribute.npm-packages` and the
+  READMEs say so, and that the unscoped names, unpublished on 24 October, are not republished yet as pointers.
+- **Reviews**: no person has read the 4.5.3 changes to the wiki. The 16 pairs this release changes are acknowledged by
+  `claude-453-release` (ai, author), enough to publish since D56. The four claims whose test file changes
+  (`tests/save-v3.test.ts`, the golden save 4.5.3: `play-save-refused-untouched`, `save-refused-untouched`,
+  `save-stale-pruned`, `save-foreign-game-refused`) lose LostInBrittany's review and keep an AI author's record: a
+  published claim still needs a person's, so `docs-publish` refuses them until a person records it.
+- **Fixtures**: golden save `demo-4.5.3.json`; reference run regenerated (engine version 4.5.3; the logic and
+  presentation fingerprints unchanged). Transition pages regenerated for 4.5.3. Quality baseline rewritten.
+- **Passes**: none added, none made for 4.5.3, the twenty-two open (`docs/dev/passes/4.5.3.md`), their issues recorded
+  for 4.5.3 in `docs/dev/contracts.json`.
+- **Signature**: the tag's signature awaits a maintainer's yes for v4.5.3 (D37).
+→ next: a person's `review-claim` of the four save claims; the `v*` tag rule on the `docs-publish` environment; the
+candidate started by hand on the merge commit; the signed tag `v4.5.3-rc.2` (or `v4.5.3`) naming it; `ship verify`;
+then `npm stage approve` engine first; the people's passes.

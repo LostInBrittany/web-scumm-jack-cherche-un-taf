@@ -1,4 +1,4 @@
-// The Open Badges connector (4.1.9, docs/en/CONNECTORS.md "Open Badges", docs/dev/threat-models/open-badge.md). A
+// The Open Badges connector (4.1.9, wiki/en/bridge.connector-open-badges.md, docs/dev/threat-models/open-badge.md). A
 // player posts `{ code, badge, email? }` to `POST /v1/badges`: the pairing code links them (the Bridge confirms it),
 // the badge is verified (`verify.ts`, every document through the SSRF-safe fetcher), and the signal the game declares
 // for the verdict is proposed. The game receives a signal, never the document: the payload `{ badgeId, issuer,
@@ -18,7 +18,7 @@ export interface BadgeConfig {
   perMinutePerIp?: number;
   /** A request's body, in bytes (64 KB). */
   maxBytes?: number;
-  /** Tests only (docs/en/CONNECTORS.md says never in production). */
+  /** Tests only (wiki/en/bridge.connectors.md says never in production). */
   testing?: NetPolicy['testing'];
   resolve?: NetPolicy['resolve'];
 }

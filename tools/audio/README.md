@@ -4,7 +4,7 @@ The pipeline behind `npm run audio` (`tools/audio.py` at the repository root run
 source becomes a Sega Mega Drive arrangement (YM2612 FM + SN76489 PSG + DAC drums) through a `spec.json` written by
 the human or the AI assistant; the sound effects of a game come from `sfx.json` recipes; everything builds from one
 `palette.json`. The workflow, the rules (sources you may use, one palette, QA before delivery) and the spec reference
-are in `docs/en/AUDIO.md`, written for any assistant.
+are in `wiki/en/create.music.md`, written for any assistant.
 
 ```bash
 npm run audio -- setup                                              # Furnace 0.6.8.3 + GM SoundFont → tools/audio/.furnace (once)

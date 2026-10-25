@@ -3,6 +3,7 @@
 // Types are shared with the server.
 import type { Layout } from '@engine/core/types';
 import type { GameIR } from '@engine/core/ir';
+import type { HeroMatrix } from '@engine/tools/hero-matrix';
 import type {
   CoverageData,
   GraphData,
@@ -240,7 +241,10 @@ export interface Api {
   voices?(lang?: string): Promise<VoicesData>;
   setVoice?(lang: string, id: string, patch: { status?: string; note?: string; actor?: string }): Promise<{ ok: true }>;
   voicesCsv?(lang: string): Promise<{ lang: string; csv: string }>;
+  /** 4.4.0: the hero × language matrix (read-only; the dev server, a hosted Studio and the demo). */
+  heroMatrix?(): Promise<HeroMatrix>;
 }
+export type { HeroMatrix };
 
 export interface VoicesData {
   lang: string;
@@ -293,6 +297,7 @@ export const serverApi: Api = {
   setVoice: (lang: string, id: string, patch: { status?: string; note?: string; actor?: string }) =>
     call<{ ok: true }>('PUT', `voices/${lang}/${encodeURIComponent(id)}`, patch),
   voicesCsv: (lang: string) => call<{ lang: string; csv: string }>('GET', `voices/${lang}/csv`),
+  heroMatrix: () => call<HeroMatrix>('GET', 'hero-matrix'),
 };
 
 /** The backend in use (a live binding: the tabs read it at call time). Set once at start by main.ts. */

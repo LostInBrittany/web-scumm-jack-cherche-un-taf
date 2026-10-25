@@ -2,9 +2,12 @@
 // (names of real people, private sheet ids, the private project name). Run with `npm run audit`.
 // The blocked words are stored as SHA-1 prefixes so the list itself does not publish them:
 // every token (lowercase runs of letters, digits and underscores, plus each underscore-separated part) is hashed and compared.
+// A game may allow some of them in its own files (games/<id>/audit-allow.json, tools/audit-allow.ts).
 import { createHash } from 'node:crypto';
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { basename, join, extname } from 'node:path';
+import { allowances } from './audit-allow';
+import { GAME } from './game';
 
 const BLOCKED = new Set([
   '08d44dfdb361',
@@ -41,6 +44,7 @@ const ROOTS = [
   'games',
   'public',
   'docs',
+  'wiki',
   'src',
   'tools',
   'scripts',
@@ -65,7 +69,12 @@ function tokens(s: string): string[] {
   }
   return out;
 }
-const hit = (s: string) => tokens(s).find((t) => BLOCKED.has(h(t)));
+const allowed = allowances('.', BLOCKED, GAME);
+const hit = (s: string, ok: ReadonlySet<string>) =>
+  tokens(s).find((t) => {
+    const k = h(t);
+    return BLOCKED.has(k) && !ok.has(k);
+  });
 
 let hits = 0;
 function scan(p: string) {
@@ -74,7 +83,8 @@ function scan(p: string) {
     if (!SKIP.has(basename(p))) for (const e of readdirSync(p)) scan(join(p, e));
     return;
   }
-  const w = hit(p);
+  const ok = allowed(p);
+  const w = hit(p, ok);
   if (w) {
     console.log(`path: ${p} contains a blocked word (${w})`);
     hits++;
@@ -83,7 +93,7 @@ function scan(p: string) {
   readFileSync(p, 'utf8')
     .split('\n')
     .forEach((l, i) => {
-      const t = hit(l);
+      const t = hit(l, ok);
       if (t) {
         console.log(`${p}:${i + 1}: blocked word (${t})`);
         hits++;

@@ -1,0 +1,471 @@
+{
+  "format": "quest-n-click-docs-manifest",
+  "version": 1,
+  "pages": [
+    {
+      "id": "index.not-supported",
+      "domain": "index",
+      "type": "explanation",
+      "audience": [
+        "author"
+      ],
+      "context": [
+        "created-project"
+      ],
+      "title": {
+        "en": "What quest'n'click does not do",
+        "fr": "Ce que quest'n'click ne fait pas"
+      },
+      "url": {
+        "en": "EN-Index-Not-Supported",
+        "fr": "FR-Index-Non-Pris-En-Charge"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [],
+        "fr": []
+      },
+      "aliases": {
+        "en": [
+          "multiplayer",
+          "Steam export"
+        ],
+        "fr": [
+          "multijoueur",
+          "export Steam"
+        ]
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "team.write-refused-423",
+      "domain": "team",
+      "type": "troubleshooting",
+      "audience": [
+        "author"
+      ],
+      "context": [
+        "studio-hosted"
+      ],
+      "title": {
+        "en": "Write refused on the hosted Studio: span locked (423)",
+        "fr": "Écriture refusée sur le Studio hébergé : pan verrouillé (423)"
+      },
+      "url": {
+        "en": "EN-Team-Write-Refused-423",
+        "fr": "FR-Equipe-Ecriture-Refusee-423"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "Why is my save refused with 423?"
+        ],
+        "fr": [
+          "Pourquoi mon enregistrement est refusé avec 423 ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [
+        "423"
+      ],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "team.write-refused-409",
+      "domain": "team",
+      "type": "troubleshooting",
+      "audience": [
+        "author"
+      ],
+      "context": [
+        "studio-hosted"
+      ],
+      "title": {
+        "en": "Write refused on the hosted Studio: stale base revision (409)",
+        "fr": "Écriture refusée sur le Studio hébergé : révision de base périmée (409)"
+      },
+      "url": {
+        "en": "EN-Team-Write-Refused-409",
+        "fr": "FR-Equipe-Ecriture-Refusee-409"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "Why is my save refused with 409?"
+        ],
+        "fr": [
+          "Pourquoi mon enregistrement est refusé avec 409 ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "bridge.troubleshooting",
+      "domain": "bridge",
+      "type": "troubleshooting",
+      "audience": [
+        "admin"
+      ],
+      "context": [
+        "bridge"
+      ],
+      "title": {
+        "en": "Bridge and connector troubleshooting",
+        "fr": "Dépannage du Bridge et des connecteurs"
+      },
+      "url": {
+        "en": "EN-Bridge-Troubleshooting",
+        "fr": "FR-Bridge-Depannage"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "Why does a connector fail?"
+        ],
+        "fr": [
+          "Pourquoi un connecteur échoue ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "clever.troubleshooting",
+      "domain": "clever",
+      "type": "troubleshooting",
+      "audience": [
+        "admin"
+      ],
+      "context": [
+        "studio-hosted"
+      ],
+      "title": {
+        "en": "Clever Cloud troubleshooting",
+        "fr": "Dépannage sur Clever Cloud"
+      },
+      "url": {
+        "en": "EN-Clever-Troubleshooting",
+        "fr": "FR-Clever-Depannage"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "Why does the Studio not answer on Clever Cloud?"
+        ],
+        "fr": [
+          "Pourquoi le Studio ne répond pas sur Clever Cloud ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "create.moving-characters",
+      "domain": "create",
+      "type": "howto",
+      "audience": [
+        "author"
+      ],
+      "context": [
+        "created-project"
+      ],
+      "title": {
+        "en": "Moving characters: patrols and walks",
+        "fr": "Déplacer les personnages : rondes et marches"
+      },
+      "url": {
+        "en": "EN-Create-Moving-Characters",
+        "fr": "FR-Creer-Deplacer-Personnages"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "How do I make a character walk on its own?"
+        ],
+        "fr": [
+          "Comment faire marcher un personnage tout seul ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "install.upgrade-notes-v2-to-v3",
+      "domain": "install",
+      "type": "reference",
+      "audience": [
+        "author"
+      ],
+      "context": [
+        "created-project"
+      ],
+      "title": {
+        "en": "Upgrade notes: v2 to v3",
+        "fr": "Notes de mise à jour : v2 vers v3"
+      },
+      "url": {
+        "en": "EN-Install-Upgrade-Notes-V2-To-V3",
+        "fr": "FR-Installer-Notes-Mise-A-Jour-V2-Vers-V3"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "3.0.0",
+        "appliesUntil": "3.9.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [],
+        "fr": []
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "contribute.dev-loop",
+      "domain": "contribute",
+      "type": "howto",
+      "audience": [
+        "contributor"
+      ],
+      "context": [
+        "engine-repo"
+      ],
+      "title": {
+        "en": "The dev loop",
+        "fr": "La boucle de développement"
+      },
+      "url": {
+        "en": "EN-Contribute-Dev-Loop",
+        "fr": "FR-Contribuer-Boucle-Developpement"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "How do I work on the engine day to day?"
+        ],
+        "fr": [
+          "Comment travailler sur le moteur au quotidien ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "create.working-loop",
+      "domain": "create",
+      "type": "howto",
+      "audience": [
+        "author"
+      ],
+      "context": [
+        "created-project"
+      ],
+      "title": {
+        "en": "The working loop",
+        "fr": "La boucle de travail"
+      },
+      "url": {
+        "en": "EN-Create-Working-Loop",
+        "fr": "FR-Creer-Boucle-Travail"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "How do I work on my game day to day?"
+        ],
+        "fr": [
+          "Comment travailler sur mon jeu au quotidien ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "play.troubleshooting",
+      "domain": "play",
+      "type": "troubleshooting",
+      "audience": [
+        "player"
+      ],
+      "context": [
+        "player"
+      ],
+      "title": {
+        "en": "Player troubleshooting",
+        "fr": "Dépannage pour les joueurs"
+      },
+      "url": {
+        "en": "EN-Play-Troubleshooting",
+        "fr": "FR-Jouer-Depannage"
+      },
+      "state": "ready",
+      "versions": {
+        "appliesFrom": "4.5.0"
+      },
+      "sources": [
+        "src/engine/core/save.ts"
+      ],
+      "replaces": [],
+      "questions": {
+        "en": [
+          "Why will my save not load?"
+        ],
+        "fr": [
+          "Pourquoi ma sauvegarde ne se charge pas ?"
+        ]
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    },
+    {
+      "id": "create.custom-minigame",
+      "domain": "create",
+      "type": "howto",
+      "audience": [
+        "author"
+      ],
+      "context": [
+        "created-project"
+      ],
+      "title": {
+        "en": "A custom minigame",
+        "fr": "Un mini-jeu sur mesure"
+      },
+      "url": {
+        "en": "EN-Create-Custom-Minigame",
+        "fr": "FR-Creer-Mini-Jeu-Sur-Mesure"
+      },
+      "state": "planned",
+      "sources": [],
+      "replaces": [],
+      "questions": {
+        "en": [],
+        "fr": []
+      },
+      "aliases": {
+        "en": [],
+        "fr": []
+      },
+      "identifiers": [],
+      "related": [],
+      "prerequisites": [],
+      "owner": "@wanoo"
+    }
+  ]
+}

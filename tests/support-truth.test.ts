@@ -1,5 +1,6 @@
-// No surface promoted without its people's pass (4.1.18, plan §14.3 and §18.10): `docs/en/SUPPORT.md` and its French
-// page keep the `distributed` profile and the connectors experimental, and the GO / NO-GO keeps them NO-GO for
+// No surface promoted without its people's pass (4.1.18, plan §14.3 and §18.10): the support matrix (the wiki's
+// `reference.support-matrix` in both languages since 4.5.0; docs/en|fr/SUPPORT.md before) keeps the `distributed`
+// profile and the connectors experimental, and the GO / NO-GO keeps them NO-GO for
 // "stable", unless the release's committed Field Kit reports (`docs/dev/field/<version>/`) hold that pass `passed`.
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
@@ -22,16 +23,24 @@ const verdict = (surface: string) =>
 describe('the support matrix promotes nothing a person has not passed', () => {
   it('keeps the distributed Bridge experimental without `bridge-postgres-https`', () => {
     if (passed('bridge-postgres-https')) return;
-    expect(readFileSync('docs/en/SUPPORT.md', 'utf8')).toMatch(/Bridge, `distributed` profile[^|]*`experimental`/);
-    expect(readFileSync('docs/fr/SUPPORT.md', 'utf8')).toMatch(/Bridge, profil `distributed`[^|]*`experimental`/);
+    expect(readFileSync('wiki/en/reference.support-matrix.md', 'utf8')).toMatch(
+      /Bridge, `distributed` profile[^|]*`experimental`/,
+    );
+    expect(readFileSync('wiki/fr/reference.support-matrix.md', 'utf8')).toMatch(
+      /Bridge, profil `distributed`[^|]*`experimental`/,
+    );
     expect(verdict('Bridge, Postgres (`distributed`)')).not.toContain('**stable**');
     expect(readFileSync('docs/dev/GO-NO-GO-4.2.md', 'utf8')).toMatch(/Bridge, Postgres[^\n]*\*\*experimental\*\*/);
   });
 
   it('keeps the connectors experimental without `connectors-real-security`', () => {
     if (passed('connectors-real-security')) return;
-    expect(readFileSync('docs/en/SUPPORT.md', 'utf8')).toMatch(/Connectors \(4\.1\.9\), \*\*experimental\*\*/);
-    expect(readFileSync('docs/fr/SUPPORT.md', 'utf8')).toMatch(/Connecteurs \(4\.1\.9\), \*\*expérimental\*\*/);
+    expect(readFileSync('wiki/en/reference.support-matrix.md', 'utf8')).toMatch(
+      /Connectors \(4\.1\.9\), \*\*experimental\*\*/,
+    );
+    expect(readFileSync('wiki/fr/reference.support-matrix.md', 'utf8')).toMatch(
+      /Connecteurs \(4\.1\.9\), \*\*expérimental\*\*/,
+    );
     const go = readFileSync('docs/dev/GO-NO-GO-4.2.md', 'utf8');
     for (const c of ['Email', 'SSH', 'Telnet', 'Open Badge'])
       expect(go).toMatch(new RegExp(`\\| ${c} connector \\|[^\\n]*\\*\\*experimental\\*\\*`));

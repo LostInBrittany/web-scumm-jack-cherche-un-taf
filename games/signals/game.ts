@@ -1,4 +1,4 @@
-import { defineGame } from 'web-scumm/content';
+import { defineGame } from '@quest-n-click/engine/content';
 import { characters } from './cast';
 import { items } from './items';
 import { rules } from './rules';
@@ -29,7 +29,7 @@ export const game = defineGame({
   rules,
   globalTalk: { hug: 'Hug?', bye: 'Bye.', byeLine: 'See you.' },
   start: { room: 'start', inventory: ['note'] },
-  // Signals from the world outside (4.1.1, docs/en/REALITY.md): the gate's answer by email (required: the radio is its
+  // Signals from the world outside (4.1.1, wiki/en/bridge.what-it-is.md): the gate's answer by email (required: the radio is its
   // fallback), a wrong answer, and a bell rung by a webhook, as often as it likes.
   reality: {
     bridge: 'http://127.0.0.1:8787/',
@@ -37,7 +37,7 @@ export const game = defineGame({
       { id: 'mail.answer.correct', source: 'mail', availability: 'required', replay: 'record', fallback: { verb: 'use', a: 'bench' } },
       { id: 'mail.answer.wrong', source: 'mail', availability: 'optional', replay: 'record' },
       { id: 'hook.bell', source: 'webhook', availability: 'optional', replay: 'record', once: false },
-      // "The mailbox and the terminal" (4.1.9, docs/en/CONNECTORS.md): the real connectors' signals, all optional.
+      // "The mailbox and the terminal" (4.1.9, wiki/en/bridge.connectors.md): the real connectors' signals, all optional.
       { id: 'letter.door', source: 'email', availability: 'optional', replay: 'record' },
       { id: 'letter.unclear', source: 'email', availability: 'optional', replay: 'record', once: false },
       { id: 'terminal.lamp', source: 'terminal', availability: 'optional', replay: 'record' },
@@ -77,13 +77,13 @@ export const game = defineGame({
   },
   checkpoints: { ...startCp },
   audio: { music: {}, sfx: {} },
-  // Interface icons and engine sounds come from the game (see docs/en/CONTENT_GUIDE.md, "skin").
+  // Interface icons and engine sounds come from the game (see wiki/en/create.skin-fonts.md#skin).
   skin: {
     icons: { map: 'starter/ui/map', pause: 'starter/ui/pause', music: 'starter/ui/music', spark: 'starter/ui/spark', pin: 'starter/ui/pin', news: 'starter/ui/news', plane: 'starter/ui/plane', car: 'starter/ui/car', confetti: ['starter/ui/confetti1', 'starter/ui/confetti2'] },
     sounds: {},
   },
   titleScreen: { decor: 'starter/decor/backyard', footer: 'Signals' },
-  credits: ['Signals', '', 'Made with web-scumm'],
+  credits: ['Signals', '', "Made with quest'n'click"],
   ui: {
     walkTo: 'Walk to', newGame: 'New game', continue: 'Continue', confirmErase: 'Erase the saved game?', yes: 'Yes', no: 'No',
     pause: 'Pause', resume: 'Resume', music: 'Music', sfx: 'Sounds', autosave: 'Autosave', credits: 'Credits', restart: 'Restart',

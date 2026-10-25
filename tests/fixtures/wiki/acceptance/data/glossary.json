@@ -1,0 +1,26 @@
+{
+  "format": "quest-n-click-docs-glossary",
+  "version": 1,
+  "terms": [
+    {
+      "id": "lease",
+      "en": {
+        "term": "lease",
+        "synonyms": [
+          "lock"
+        ],
+        "definition": "The right to write a span for a short time."
+      },
+      "fr": {
+        "term": "bail",
+        "synonyms": [
+          "verrou"
+        ],
+        "definition": "Le droit d'écrire un pan pendant un court moment."
+      },
+      "pages": [
+        "team.write-refused-423"
+      ]
+    }
+  ]
+}

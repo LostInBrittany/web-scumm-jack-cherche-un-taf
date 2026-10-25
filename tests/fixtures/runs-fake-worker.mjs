@@ -30,6 +30,14 @@ else if (mode === 'pad') {
   const g = spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], { stdio: 'ignore' });
   writeFileSync(arg, String(g.pid));
   say(sign(valid));
+} else if (mode === 'late') {
+  // 4.3.0: the answer's bytes reach the pipe after the worker exited. A grandchild in its own process group (so the
+  // queue's kill at 'exit' spares it) holds stdout and writes the signed answer 100 ms later, then exits.
+  const line = sign(valid);
+  const code = `setTimeout(() => process.stdout.write(${JSON.stringify(line)}, () => process.exit(0)), 100)`;
+  const g = spawn(process.execPath, ['-e', code], { detached: true, stdio: ['ignore', 'inherit', 'ignore'] });
+  g.unref();
+  process.exit(0);
 } else if (mode === 'signal') process.kill(process.pid, 'SIGTERM');
 else if (mode === 'silent') process.exit(3);
 else say(sign(valid));

@@ -124,7 +124,9 @@ export class DomPresenter implements Presenter {
     const added = items.length > app.items.length;
     app.items = [...items];
     if (added) {
-      const names = items.filter((id) => !previous.has(id)).map((id) => app.game.items[id]?.name ?? id);
+      const names = items
+        .filter((id) => !previous.has(id))
+        .map((id) => app.engine.text(app.game.items[id]?.name ?? id));
       if (names.length) app.live.textContent = names.join(', ');
     }
     if (added) app.invPage = Math.max(0, Math.ceil((items.length - app.invCols * 2) / app.invCols));
@@ -210,7 +212,7 @@ export class DomPresenter implements Presenter {
 
   // ---------------------------------------------------------------- choices, calls, the map
 
-  choose(options: { text: string; seen?: boolean; global?: boolean }[], who?: Id): Promise<number> {
+  choose(options: { text: string; seen?: boolean; global?: boolean; img?: Id }[], who?: Id): Promise<number> {
     return chooseImpl(this.app, options, who);
   }
   phone(whoIn: Id | Id[], ringing: boolean) {
@@ -231,7 +233,7 @@ export class DomPresenter implements Presenter {
     host.style.background = '#000';
     app.scene.append(host);
     app.side.classList.add('off');
-    const voice = app.game.characters[app.game.hintVoice ?? app.game.hero];
+    const voice = app.engine.character(app.game.hintVoice ?? app.game.hero);
     let frame: HTMLElement | null = null;
     const ac = new AbortController();
     const entry: (typeof app.minigameLog)[number] = { id, skipped: false, ms: 0 };

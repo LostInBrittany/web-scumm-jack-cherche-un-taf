@@ -19,7 +19,7 @@ describe('the qualification profile', () => {
     expect(images).toHaveLength(2);
     for (const i of [...images, ...[...dockerfile.matchAll(/^FROM\s+(\S+)/gm)].map((m) => m[1]!)])
       expect(i).toMatch(/@sha256:[0-9a-f]{64}$/);
-    expect(dockerfile).toContain('COPY web-scumm-bridge.tgz');
+    expect(dockerfile).toContain('COPY quest-n-click-bridge.tgz');
     expect(dockerfile).not.toMatch(/COPY \.\s|COPY bridge\//);
     // 4.1.19 (plan §6.1): `npm ci` from the image's versioned lock, never an install that resolves ranges.
     expect(dockerfile).toContain('npm ci --omit=dev');

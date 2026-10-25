@@ -1,6 +1,6 @@
 // Small helpers of the player's modules (element factory, timings of taps, the FPS meter). (4.1.0 "Clarity", from dom/app.ts.)
 import { cmdLists, someCmd } from '../core/cmds';
-import type { GameDef } from '../core/types';
+import type { GameDef, VerbDef } from '../core/types';
 
 export const el = <K extends keyof HTMLElementTagNameMap>(tag: K, cls?: string, html?: string) => {
   const e = document.createElement(tag);
@@ -60,6 +60,15 @@ export function fpsMeter(): () => void {
 export const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 export const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
+
+/** A verb's label as HTML, its key's first occurrence underlined (#203), as SCUMM showed its shortcuts. */
+export function verbLabelHtml(v: Pick<VerbDef, 'label' | 'key'>): string {
+  const key = v.key?.toLocaleLowerCase();
+  const i = key ? v.label.toLocaleLowerCase().indexOf(key) : -1;
+  if (!key || i < 0) return esc(v.label);
+  const j = i + key.length;
+  return `${esc(v.label.slice(0, i))}<u>${esc(v.label.slice(i, j))}</u>${esc(v.label.slice(j))}`;
+}
 
 /** Whether the game captions any sound effect (the settings' captions row). */
 export function someCaption(game: GameDef): boolean {

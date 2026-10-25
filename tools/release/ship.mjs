@@ -6,12 +6,12 @@
 //   ship merge <pr>              `checks`, then merge (merge commit, the only method the ruleset allows); prints the SHA
 //   ship main <sha>              wait for the `ci` run of main on that SHA to be green (re-run once)
 //   ship tag <version> <sha>     the previous stable tag an ancestor of the SHA (4.1.16), `main`, then an annotated tag v<version> on the SHA, pushed; then `watch`
-//                                (`--now`, 4.1.10: without waiting for main's run; the tag's own `ci` run, the same
-//                                suite on the same commit, is what release.yml checks)
+//                                (main's green ci on the SHA is what release.yml checks since 4.5.3, #291: the tag runs
+//                                no ci of its own, and 4.1.10's `--now` is refused)
 //                                `--candidate=<run id>` (4.1.17, required from 4.1.17 on): the `candidate` run that tested
 //                                this SHA, green, its manifest naming this SHA and this run; the tag's annotation names it
 //                                and release.yml publishes that run's files (tools/release/candidate.mjs)
-//   ship watch <version>         wait for the tag's `ci` run, then for the `release` run; exit by its conclusion
+//   ship watch <version>         wait for the `release` run of the tag's push; exit by its conclusion
 //   ship verify <version>        download the release, check the SHA-256 sums and every provenance attestation; from 4.1.20
 //                                also `gh release verify` and `gh release verify-asset` of each file (immutable releases)
 //   ship preflight-stable --candidate=<run id> [--version=<x.y.z>]
@@ -19,7 +19,7 @@
 //                                signing key, allowed_signers, immutability, the tag ruleset, the candidate, npm per
 //                                package, the publishing pins, GO / NO-GO; signs, publishes and changes nothing
 //   ship tag … --sign [--key=<file>] (4.1.20) the tag signed with an SSH key (`git tag -s`); inactive for 4.1.x (D30)
-//   ship chain <pr> <version>    merge → tag → watch → verify (`--now` passes to tag); refused from 4.1.17, whose tags
+//   ship chain <pr> <version>    merge → tag → watch → verify; refused from 4.1.17, whose tags
 //                                need a candidate run of the merge commit (merge, candidate, then tag)
 //
 // A pre-release version (`4.1.8-rc.1`) is tagged the same way; release.yml marks it a pre-release on GitHub.
@@ -29,12 +29,19 @@ import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { checkAncestry } from './ancestry.mjs';
-import { FIRST as FIRST_LISTED, publishedProblems } from './artifacts.mjs';
+import { FIRST as FIRST_LISTED, projectOf, publishedProblems } from './artifacts.mjs';
 import { atLeast } from './candidate.mjs';
 import { preflight } from './preflight.mjs';
 import { isSignedTag, tagArgs } from './signing.mjs';
 import { candidateOf, requiresCandidate, tagMessage } from './candidate.mjs';
-import { candidateRunProblem, queryRun, readCandidateManifest, verifyAttestation } from './provenance.mjs';
+import {
+  candidateRunProblem,
+  queryRun,
+  readCandidateManifest,
+  repoOfRelease,
+  TRANSFERRED,
+  verifyAttestation,
+} from './provenance.mjs';
 import {
   gh,
   ghJson,
@@ -42,6 +49,7 @@ import {
   isPrerelease,
   localCommit,
   originTagCommit,
+  releaseRemote,
   REPO,
   run,
   runIdOf,
@@ -49,6 +57,7 @@ import {
   spawn,
   until,
   versionOf,
+  warn,
   writePid,
 } from './lib.mjs';
 
@@ -246,10 +255,18 @@ async function tag(versionArg, sha) {
   const version = versionOf(versionArg);
   const name = `v${version}`;
   const candidate = candidateFlag();
-  git(['fetch', '--quiet', 'origin']); // the merge commit `chain` just made is on origin, not here yet (seen on 4.1.9, 4.1.10)
+  // `--now` (4.1.10) tagged without waiting for main's run, the tag's own ci being the gate: that run is gone (4.5.3,
+  // #291) and release.yml requires main's ci green on the SHA, so it is refused before anything is done.
+  if (process.argv.includes('--now'))
+    throw new Error(
+      `--now is gone (4.5.3, #291): release.yml requires main's ci green on the SHA, ship tag waits for it`,
+    );
+  // The organisation's repository, whatever its remote is called here (`upstream` when `origin` is a fork, 4.5.3).
+  const remote = releaseRemote();
+  git(['fetch', '--quiet', remote]); // the merge commit `chain` just made is on the remote, not here yet (seen on 4.1.9, 4.1.10)
   const full = localCommit(sha);
-  if (!full) throw new Error(`${sha}: not a commit on origin either`);
-  const onOrigin = originTagCommit(name);
+  if (!full) throw new Error(`${sha}: not a commit on ${remote} either`);
+  const onOrigin = originTagCommit(name, remote);
   if (onOrigin) {
     if (onOrigin !== full)
       throw new Error(
@@ -257,7 +274,16 @@ async function tag(versionArg, sha) {
       );
     say(`${name} already on origin at ${full.slice(0, 7)}`);
   } else {
-    git(['fetch', '--quiet', '--tags', 'origin']);
+    git(['fetch', '--quiet', '--tags', remote]);
+    // release.yml's notes are the CHANGELOG section of the version, on the tagged commit: without it the release run
+    // fails after the tag exists, and the tag is spent (v4.5.3-rc.1). Checked here, before anything is tagged.
+    // Loaded here, not at the top: tools/ ships in the package, scripts/ does not, and only the repository tags.
+    const { releaseNotes } = await import('../../scripts/release-notes.mjs');
+    const changelog = git(['show', `${full}:CHANGELOG.md`], { ok: [0, 128] });
+    if (!releaseNotes(changelog, name))
+      throw new Error(
+        `${name}: no "## ${version.replace(/-.*$/, '')}" section in CHANGELOG.md at ${full.slice(0, 7)}: merge the release pull request first, then tag its merge commit`,
+      );
     const line = checkAncestry(version, full);
     if (!line.ok)
       throw new Error(`${name} on ${full.slice(0, 7)}: ${line.reason} (merge that tag into the branch first, 4.1.16)`);
@@ -278,13 +304,13 @@ async function tag(versionArg, sha) {
       }
       if (imm.enabled !== true)
         throw new Error(
-          `immutable releases are off on ${REPO} (Settings → General → Releases): ${name} is not tagged (docs/en/RELEASING.md)`,
+          `immutable releases are off on ${REPO} (Settings → General → Releases): ${name} is not tagged (https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Contribute-Releasing)`,
         );
       say(`${REPO}: immutable releases on`);
     }
-    if (process.argv.includes('--now'))
-      say(`tagging without waiting for main's run (--now): the tag's run is the gate`);
-    else await main(full);
+    // Main's green ci on this SHA is the gate release.yml checks (4.5.3, #291): the tag runs no ci of its own, so the
+    // tag waits for main's run, always.
+    await main(full);
     const local = localCommit(name);
     if (local && local !== full)
       throw new Error(
@@ -309,7 +335,7 @@ async function tag(versionArg, sha) {
       const key = process.argv.find((a) => a.startsWith('--key='))?.slice('--key='.length);
       git(tagArgs({ name, sha: full, message: candidate ? tagMessage(version, candidate) : version, sign, key }));
     }
-    git(['push', 'origin', `refs/tags/${name}`]);
+    git(['push', remote, `refs/tags/${name}`]);
   }
   return watch(version);
 }
@@ -319,7 +345,7 @@ async function watch(versionArg) {
   const name = `v${version}`;
   const sha = localCommit(name) ?? originTagCommit(name);
   if (!sha) throw new Error(`${name}: not a tag here nor on origin`);
-  await waitRun('ci', sha, name, `ci on ${name}`);
+  // No ci run of the tag to wait for since 4.5.3 (#291): release.yml starts on the tag's push and checks main's.
   const rel = await until(
     () => {
       const r = ghJson([
@@ -331,8 +357,8 @@ async function watch(versionArg) {
         '40',
         '--json',
         'databaseId,headSha,status,conclusion,headBranch',
-        // A `workflow_run` run reports `main` as its branch, not the tag: the SHA is the key; `skipped` is the
-        // release workflow declining a main push, not the tag's run.
+        // The SHA is the key (up to 4.5.2 a `workflow_run` run reported `main` as its branch, not the tag); a
+        // `skipped` run is never the tag's.
       ]).find((x) => x.headSha === sha && x.conclusion !== 'skipped');
       if (!r || r.status !== 'completed') return undefined;
       return r;
@@ -346,6 +372,11 @@ async function watch(versionArg) {
   say(`release ${name} published by run ${rel.databaseId}`);
   return verify(version);
 }
+
+/** The first release that carries its documentation archive. */
+const DOCS_SINCE = '4.5.0';
+/** The first release that carries the website's demo, `<proj>-<tag>-web.tar.gz` (D52); 4.5.1 and before verify without it. */
+const WEB_SINCE = '4.5.2';
 
 async function verify(versionArg) {
   const version = versionOf(versionArg);
@@ -380,11 +411,20 @@ async function verify(versionArg) {
   if (/FAILED/.test(check)) throw new Error(`${name}: a checksum failed`);
   let attested = 0;
   for (const f of files) {
-    verifyAttestation(join(dir, f), { repo: REPO });
+    // A release is verified under the identity that attested it: wanoo/web-scumm up to 4.2.4 (D47), wanoo/quest-n-click
+    // up to 4.5.1, looked up under the user wanoo, the organization's repository from 4.5.2 (D51).
+    verifyAttestation(join(dir, f), { repo: repoOfRelease(version) });
     attested++;
   }
-  // GitHub's own release attestation (4.1.20 PR 3b, immutable releases): the release, then each of its files.
-  if (atLeast(version, FIRST_LISTED)) {
+  // GitHub's own release attestation (4.1.20 PR 3b, immutable releases): the release, then each of its files. One made
+  // before the transfer (up to 4.5.1, D51) is kept under the user wanoo, and `gh release verify` looks only under the
+  // repository, which has none: said and skipped, the files' provenance attestations above being verified under wanoo.
+  const preTransfer = atLeast(version, FIRST_LISTED) && !atLeast(version, TRANSFERRED);
+  if (preTransfer)
+    warn(
+      `${name}: GitHub's release attestation was made before the transfer (kept under wanoo, out of gh release verify's reach): not checked`,
+    );
+  else if (atLeast(version, FIRST_LISTED)) {
     gh(['release', 'verify', name]);
     for (const f of files) gh(['release', 'verify-asset', name, join(dir, f)]);
     say(`${name}: gh release verify and verify-asset passed for ${files.length} files`);
@@ -393,10 +433,22 @@ async function verify(versionArg) {
   const listed = publishedProblems(name, files, dir);
   if (listed.length)
     throw new Error(`${name}: not the files tools/release/artifacts.mjs lists:\n  ${listed.join('\n  ')}`);
-  say(`${name}: ${files.length} files, sums ok, ${attested} attestations verified, as the manifest lists them`);
-  // The tarballs carry package.json's version, never a tag's pre-release suffix (v4.1.8-rc.1 ships web-scumm-4.1.8.tgz).
+  say(
+    `${name}: ${files.length} files, sums ok, ${attested} attestations verified, as the manifest lists them${preTransfer ? "; GitHub's release attestation not checked (pre-transfer)" : ''}`,
+  );
+  // The tarballs carry package.json's version, never a tag's pre-release suffix (v4.1.8-rc.1 ships web-scumm-4.1.8.tgz;
+  // from 4.2.5, quest-n-click-4.2.5.tgz).
   const packed = version.replace(/-.*$/, '');
-  if (!existsSync(join(dir, `web-scumm-${packed}.tgz`))) throw new Error(`${name}: web-scumm-${packed}.tgz missing`);
+  const engine = `${projectOf(version)}-${packed}.tgz`;
+  if (!existsSync(join(dir, engine))) throw new Error(`${name}: ${engine} missing`);
+  // The documentation archive (4.5.0, docs/dev/PLAN-4.5-WIKI.md §4.5.4): summed, attested and listed above like every
+  // file; named here because docs-publish promotes it once this verification passed.
+  const docs = `quest-n-click-docs-${version}.tar.gz`;
+  if (atLeast(version, DOCS_SINCE) && !existsSync(join(dir, docs))) throw new Error(`${name}: ${docs} missing`);
+  // The website's demo (4.5.2, D52): the game and the Studio demo under /demo/, summed and attested above; the website
+  // downloads it from the latest release.
+  const web = `${projectOf(version)}-${name}-web.tar.gz`;
+  if (atLeast(version, WEB_SINCE) && !existsSync(join(dir, web))) throw new Error(`${name}: ${web} missing`);
   return { files, attested };
 }
 

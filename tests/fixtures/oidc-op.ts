@@ -30,6 +30,8 @@ export class TestOp {
   omitIdToken = false;
   /** The token endpoint's answer to a refresh of the confidential client, when set (status, JSON body). */
   refreshAnswer: { status: number; body: Record<string, unknown> } | undefined;
+  /** 4.4.0: the device grant's answer once the user acts, when set (a refusal such as `not_allowed`). */
+  deviceAnswer: { status: number; body: Record<string, unknown> } | undefined;
   private server!: Server;
   private key!: CryptoKey;
   private jwk!: JWK;
@@ -115,6 +117,7 @@ export class TestOp {
           const d = this.devices.get(p.get('device_code') ?? '');
           if (!d) return this.json(res, 400, { error: 'expired_token' });
           if (d.polls++ === 0) return this.json(res, 400, { error: 'authorization_pending' });
+          if (this.deviceAnswer) return this.json(res, this.deviceAnswer.status, this.deviceAnswer.body);
           const rt = randomUUID();
           this.refresh.set(rt, this.user.sub);
           return this.json(res, 200, {

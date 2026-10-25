@@ -10,7 +10,7 @@
 import { EventEmitter } from 'node:events';
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import type { Confirmed, Journal } from '../ops/journal';
-import { spansOf } from '../ops/spans';
+import { type OwnSpans, spansOf } from '../ops/spans';
 import type { Gate, Principal } from './auth/gate';
 import type { Leases } from './leases';
 import type { Health, HealthState } from './health';
@@ -67,9 +67,9 @@ export class Presence {
   }
 }
 
-const spansOrNone = (paths: string[]) => {
+const spansOrNone = (paths: string[], own: OwnSpans = []) => {
   try {
-    return spansOf(paths);
+    return spansOf(paths, own);
   } catch {
     return [];
   }
@@ -108,7 +108,7 @@ export class LiveHub {
   ) {
     this.events.setMaxListeners(0);
     o.journal.events.on('confirmed', (c: Confirmed) => {
-      this.emit({ name: 'revision', data: { ...c, spans: spansOrNone(c.paths) } });
+      this.emit({ name: 'revision', data: { ...c, spans: spansOrNone(c.paths, o.leases?.own()) } });
       // A write claims spans in its own transaction: the leases are read again after each revision.
       this.refreshLeases();
     });

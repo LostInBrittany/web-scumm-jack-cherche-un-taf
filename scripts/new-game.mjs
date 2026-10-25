@@ -22,8 +22,9 @@ cpSync('games/_template', dir, { recursive: true });
 // by mistake (npm run validate -- --release fails on every placeholder, on an asset no entry covers, on a licence
 // outside `licences.allow`, and without a provenance.lock.json: npm run provenance -- --lock once the art is reviewed).
 const placeholder = {
-  source: 'Placeholder drawn from shapes by tools/placeholder-art.py (web-scumm template): replace before a release',
-  author: 'web-scumm',
+  source:
+    "Placeholder drawn from shapes by tools/placeholder-art.py (quest'n'click template): replace before a release",
+  author: "quest'n'click",
   licence: 'CC0 1.0',
   status: 'placeholder',
 };
@@ -60,4 +61,4 @@ Next:
   npm run validate && npm run solve
   (provenance.json lists the borrowed placeholder art: add an entry for each asset you make)
   npm run dev         # then open the URL on your phone, landscape; ?edit=start to place things
-Write the story in games/${id}/storyboard.json, rooms in games/${id}/rooms/, characters in cast.ts. See docs/en/CONTENT_GUIDE.md.`);
+Write the story in games/${id}/storyboard.json, rooms in games/${id}/rooms/, characters in cast.ts. See https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Create-Principles.`);

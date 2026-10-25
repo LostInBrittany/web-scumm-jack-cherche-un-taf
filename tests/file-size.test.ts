@@ -9,7 +9,7 @@ import { describe, expect, it } from 'vitest';
 const LIMIT = 800;
 const EXCEPTIONS: Record<string, { cap: number; why: string }> = {
   'src/engine/tools/validate.ts': {
-    cap: 1113,
+    cap: 1081,
     why: 'the validator: one check after another over the same indexes, read top to bottom',
   },
   'src/engine/dev/editor.ts': { cap: 847, why: 'the dev layout editor: handles of every kind on one overlay' },

@@ -43,7 +43,7 @@ export function mcpEndpoint(o: McpEndpointOptions) {
       resource: `${base}/mcp`,
       authorization_servers: [o.issuer],
       bearer_methods_supported: ['header'],
-      resource_name: `web-scumm Studio (${o.game})`,
+      resource_name: `quest'n'click Studio (${o.game})`,
     }),
 
     async handle(req: IncomingMessage, res: ServerResponse, readBody: () => Promise<unknown>): Promise<void> {
@@ -77,7 +77,7 @@ export function mcpEndpoint(o: McpEndpointOptions) {
         fetch: (url, init) => loopback(url, init, new URL(base).host),
       });
       const server = toolsServer(backend, {
-        name: 'web-scumm',
+        name: 'quest-n-click',
         version: o.version,
         instructions: instructionsFor(
           o.game,

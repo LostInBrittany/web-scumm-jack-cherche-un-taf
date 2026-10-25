@@ -1,17 +1,17 @@
 {
  "format": "web-scumm-surfaces",
  "schema": 1,
- "note": "What each people's pass is bound to (4.1.20 PR 4, plan §9.2, ADR 0024): the candidate's files (`site:` the built site's, one by one; the others by their path in the candidate's manifest), the checkout's configuration (`readme:install` the README's install section), its exclusions (each with its reason and the test that proves the surface does not read it) and the passes it depends on. tools/field/surfaces.mjs writes qualification-surfaces.json from it; a candidate file in no surface and not under `status` fails it.",
+ "note": "What each people's pass is bound to (4.1.20 PR 4, plan §9.2, ADR 0024): the candidate's files (`site:` the built site's, one by one; the others by their path in the candidate's manifest), the checkout's configuration (`readme:install` the README's install section), its exclusions (each with its reason and the test that proves the surface does not read it) and the passes it depends on. `{pkg}` is the package version, `{proj}` the name the release's files start with (quest-n-click from 4.2.5, web-scumm before: D47). tools/field/surfaces.mjs writes qualification-surfaces.json from it; a candidate file in no surface and not under `status` fails it.",
  "surfaces": {
   "bridge-postgres-https": {
    "artifacts": [
-    "pack/web-scumm-bridge-{pkg}.tgz",
-    "image/web-scumm-bridge-image.tar",
-    "image/web-scumm-bridge-image.json"
+    "pack/{proj}-bridge-{pkg}.tgz",
+    "image/{proj}-bridge-image.tar",
+    "image/{proj}-bridge-image.json"
    ],
    "config": [
     "ops/qualify/**",
-    "scripts/locks/web-scumm-bridge-image.json"
+    "scripts/locks/quest-n-click-bridge-image.json"
    ],
    "exclusions": [],
    "dependencies": []
@@ -19,9 +19,9 @@
   "runs-real-players": {
    "artifacts": [
     "site:**",
-    "pack/web-scumm-bridge-{pkg}.tgz",
-    "image/web-scumm-bridge-image.tar",
-    "image/web-scumm-bridge-image.json"
+    "pack/{proj}-bridge-{pkg}.tgz",
+    "image/{proj}-bridge-image.tar",
+    "image/{proj}-bridge-image.json"
    ],
    "config": [
     "ops/qualify/**"
@@ -66,9 +66,9 @@
   "mystery-deployed": {
    "artifacts": [
     "site:**",
-    "pack/web-scumm-bridge-{pkg}.tgz",
-    "image/web-scumm-bridge-image.tar",
-    "image/web-scumm-bridge-image.json"
+    "pack/{proj}-bridge-{pkg}.tgz",
+    "image/{proj}-bridge-image.tar",
+    "image/{proj}-bridge-image.json"
    ],
    "config": [
     "ops/qualify/**"
@@ -140,10 +140,10 @@
   },
   "connectors-real-security": {
    "artifacts": [
-    "pack/web-scumm-bridge-{pkg}.tgz",
-    "image/web-scumm-bridge-image.tar",
-    "image/web-scumm-bridge-image.json",
-    "pack/web-scumm-connectors-{pkg}.tgz"
+    "pack/{proj}-bridge-{pkg}.tgz",
+    "image/{proj}-bridge-image.tar",
+    "image/{proj}-bridge-image.json",
+    "pack/{proj}-connectors-{pkg}.tgz"
    ],
    "config": [
     "ops/qualify/**",
@@ -193,13 +193,14 @@
   "studio-hosted": {
    "since": "4.2.1",
    "artifacts": [
-    "pack/web-scumm-{pkg}.tgz",
-    "pack/web-scumm-studio-server-{pkg}.tgz"
+    "pack/{proj}-{pkg}.tgz",
+    "pack/{proj}-studio-server-{pkg}.tgz"
    ],
    "config": [
-    "docs/en/STUDIO-SERVER.md",
+    "wiki/en/team.*.md",
+    "wiki/en/clever.*.md",
     "ops/studio/**",
-    "scripts/locks/web-scumm-studio-server.json"
+    "scripts/locks/quest-n-click-studio-server.json"
    ],
    "exclusions": [],
    "dependencies": []
@@ -207,11 +208,12 @@
   "studio-collab": {
    "since": "4.2.1",
    "artifacts": [
-    "pack/web-scumm-{pkg}.tgz",
-    "pack/web-scumm-studio-server-{pkg}.tgz"
+    "pack/{proj}-{pkg}.tgz",
+    "pack/{proj}-studio-server-{pkg}.tgz"
    ],
    "config": [
-    "docs/en/STUDIO-SERVER.md",
+    "wiki/en/team.*.md",
+    "wiki/en/clever.*.md",
     "ops/studio/**"
    ],
    "exclusions": [],
@@ -222,11 +224,12 @@
   "studio-preview": {
    "since": "4.2.2",
    "artifacts": [
-    "pack/web-scumm-{pkg}.tgz",
-    "pack/web-scumm-studio-server-{pkg}.tgz"
+    "pack/{proj}-{pkg}.tgz",
+    "pack/{proj}-studio-server-{pkg}.tgz"
    ],
    "config": [
-    "docs/en/STUDIO-SERVER.md",
+    "wiki/en/team.*.md",
+    "wiki/en/clever.*.md",
     "ops/studio/**"
    ],
    "exclusions": [],
@@ -237,11 +240,12 @@
   "studio-assets-hosted": {
    "since": "4.2.2",
    "artifacts": [
-    "pack/web-scumm-{pkg}.tgz",
-    "pack/web-scumm-studio-server-{pkg}.tgz"
+    "pack/{proj}-{pkg}.tgz",
+    "pack/{proj}-studio-server-{pkg}.tgz"
    ],
    "config": [
-    "docs/en/STUDIO-SERVER.md",
+    "wiki/en/team.*.md",
+    "wiki/en/clever.*.md",
     "ops/studio/**"
    ],
    "exclusions": [],
@@ -252,12 +256,13 @@
   "studio-mcp-remote": {
    "since": "4.2.3",
    "artifacts": [
-    "pack/web-scumm-{pkg}.tgz",
-    "pack/web-scumm-studio-server-{pkg}.tgz"
+    "pack/{proj}-{pkg}.tgz",
+    "pack/{proj}-studio-server-{pkg}.tgz"
    ],
    "config": [
-    "docs/en/STUDIO-SERVER.md",
-    "docs/en/MCP.md",
+    "wiki/en/team.*.md",
+    "wiki/en/clever.*.md",
+    "wiki/en/studio.mcp-setup.md",
     "ops/studio/**"
    ],
    "exclusions": [],
@@ -268,23 +273,67 @@
   "studio-oidc-generic": {
    "since": "4.2.3",
    "artifacts": [
-    "pack/web-scumm-{pkg}.tgz",
-    "pack/web-scumm-studio-server-{pkg}.tgz"
+    "pack/{proj}-{pkg}.tgz",
+    "pack/{proj}-studio-server-{pkg}.tgz"
    ],
    "config": [
-    "docs/en/STUDIO-SERVER.md",
+    "wiki/en/team.*.md",
+    "wiki/en/clever.*.md",
     "ops/studio/**"
    ],
    "exclusions": [],
    "dependencies": [
     "studio-hosted"
    ]
+  },
+  "heroes-two-languages": {
+   "since": "4.4.0",
+   "artifacts": [
+    "pack/{proj}-{pkg}.tgz"
+   ],
+   "config": [
+    "games/heroes/**",
+    "wiki/en/create.heroes.md"
+   ],
+   "exclusions": [],
+   "dependencies": []
+  },
+  "studio-hero-matrix": {
+   "since": "4.4.0",
+   "artifacts": [
+    "pack/{proj}-{pkg}.tgz"
+   ],
+   "config": [
+    "wiki/en/studio.voices-matrix.md",
+    "wiki/en/create.heroes.md"
+   ],
+   "exclusions": [],
+   "dependencies": []
+  },
+  "docs-beginner-reader": {
+   "since": "4.5.0",
+   "artifacts": [
+    "pack/{proj}-{pkg}.tgz"
+   ],
+   "config": [
+    "wiki/en/**",
+    "wiki/fr/**",
+    "wiki/manifest.json",
+    "wiki/images/**",
+    "docs/dev/acceptance/BEGINNER-READER.md"
+   ],
+   "exclusions": [],
+   "dependencies": []
   }
  },
  "status": [
   {
    "path": "site/dist.tar.gz",
    "reason": "the site's archive: its files are judged one by one (site:…), the archive's own bytes carry its times"
+  },
+  {
+   "path": "site/web.tar.gz",
+   "reason": "the same game and the Studio's demo built for /demo/ (4.5.2), served by the project's website: its files are those of site: under another base path, not yet a pass surface of its own"
   },
   {
    "path": "site/site-files.json",
@@ -299,7 +348,7 @@
    "reason": "what the archives hold, described: the archives themselves are in their surfaces"
   },
   {
-   "path": "image/web-scumm-bridge-image.cdx.json",
+   "path": "image/{proj}-bridge-image.cdx.json",
    "reason": "the image's SBOM: the image itself is in its surfaces"
   },
   {
@@ -317,6 +366,14 @@
   {
    "path": "signing/*",
    "reason": "the candidate's rehearsal of 4.2's tag signing: a report on the release process, read by no pass"
+  },
+  {
+   "path": "docs/*",
+   "reason": "the documentation archive (4.5.0): published by docs-publish and read by the wiki's own acceptance (PLAN-4.5-WIKI §4.6), not yet a pass surface"
+  },
+  {
+   "path": "remix/*",
+   "reason": "the Remix catalogues the candidate proved (4.5.3, #291; the release job proved them before): evidence of the proof, not a surface a person tries"
   }
  ]
 }

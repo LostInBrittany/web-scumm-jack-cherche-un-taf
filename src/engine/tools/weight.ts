@@ -3,7 +3,7 @@
 // during it). The scopes come from the asset graph (src/engine/core/asset-graph.ts), which the renderer's preload, the
 // warm-up and the offline plan read too; `scripts/e2e-weight.mjs` checks the prediction against the bytes a browser
 // really transfers.
-// `npm run weight` prints it against `assetBudgets` (`initialKB`, `roomKB`, `chapterKB`); docs/en/TOOLS.md "Weight".
+// `npm run weight` prints it against `assetBudgets` (`initialKB`, `roomKB`, `chapterKB`); wiki/en/create.checking.md#commands.
 import {
   assetGraph,
   initialScope,

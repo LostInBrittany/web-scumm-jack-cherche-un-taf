@@ -9,7 +9,7 @@ import { join } from 'node:path';
 import { localeStatus, mergeLocale, textPaths } from '../src/engine/tools/i18n';
 import { GAME, GAME_DIR, loadGameModule } from './game';
 import { uiFallbacks } from '../src/engine/dom/ui-defaults';
-import { lineIds } from '../src/engine/core/content-ids';
+import { orphanClips, voiceTable } from '../src/engine/tools/voices';
 import { writeGame } from './game-write';
 
 const { game } = await loadGameModule();
@@ -59,18 +59,18 @@ if (cmd === 'extract') {
 }
 
 if (cmd === 'voices') {
-  // The voice production table: every line with a stable id, whether `audio.voices` has a clip under it, and the
-  // clips no line claims. Lines without an id are not listed: `npm run ids -- --lines` first.
-  const lines = lineIds(game);
-  const clips = game.audio?.voices ?? {};
-  const missing = lines.filter((l) => !clips[l.id]);
-  const orphans = Object.keys(clips).filter((k) => !lines.some((l) => l.id === k));
+  // The voice production table: every clip a line with a stable id needs (one per value for a line with switches,
+  // `<id>~<flag>=<value>`), whether `audio.voices` has it, and the clips no line claims. Lines without an id are not
+  // listed: `npm run ids -- --lines` first. `npm run voices` has the full table, per language.
+  const rows = voiceTable(game, {}, base);
+  const missing = rows.filter((r) => !r.file);
+  const orphans = orphanClips(game, base);
   console.log(
-    `[${GAME}] ${lines.length} line(s) with an id, ${lines.length - missing.length} voiced, ${missing.length} without a clip, ${orphans.length} clip(s) no line claims`,
+    `[${GAME}] ${rows.length} clip(s) for the lines with an id, ${rows.length - missing.length} voiced, ${missing.length} without a clip, ${orphans.length} clip(s) no line claims`,
   );
   for (const l of missing.slice(0, 200))
     console.log(`  ${l.id.padEnd(48)} ${l.who}: ${l.text.length > 60 ? l.text.slice(0, 60) + '…' : l.text}`);
-  for (const k of orphans) console.log(`  orphan clip ${k} → ${clips[k]}`);
+  for (const o of orphans) console.log(`  orphan clip ${o.id} → ${o.file}`);
   process.exit(0);
 }
 
@@ -88,13 +88,19 @@ if (cmd === 'status') {
   for (const l of langs) {
     const st = localeStatus(game, read(l));
     // Identical to the source without being listed in `i18n.same`: an untranslated line, not a choice.
-    const ok = st.missing.length === 0 && st.stale.length === 0 && (l === base || st.untranslated.length === 0);
+    const ok =
+      st.missing.length === 0 &&
+      st.stale.length === 0 &&
+      st.switches.length === 0 &&
+      (l === base || st.untranslated.length === 0);
     if (!ok) bad++;
     console.log(
-      `${ok ? '✔' : '…'}  ${l}: ${st.translated}/${st.total} translated${st.missing.length ? `, ${st.missing.length} missing` : ''}${st.stale.length ? `, ${st.stale.length} stale` : ''}${st.long.length ? `, ${st.long.length} long` : ''}${st.same.length && l !== base ? `, ${st.same.length} same as ${base}${st.untranslated.length ? ` (${st.untranslated.length} not in i18n.same)` : ', all listed in i18n.same'}` : ''}`,
+      `${ok ? '✔' : '…'}  ${l}: ${st.translated}/${st.total} translated${st.missing.length ? `, ${st.missing.length} missing` : ''}${st.stale.length ? `, ${st.stale.length} stale` : ''}${st.long.length ? `, ${st.long.length} long` : ''}${st.switches.length ? `, ${st.switches.length} with other text switches` : ''}${st.same.length && l !== base ? `, ${st.same.length} same as ${base}${st.untranslated.length ? ` (${st.untranslated.length} not in i18n.same)` : ', all listed in i18n.same'}` : ''}`,
     );
     for (const m of st.missing.slice(0, 10)) console.log(`     missing ${m}`);
     for (const m of st.stale.slice(0, 10)) console.log(`     stale   ${m}`);
+    for (const m of st.switches.slice(0, 20))
+      console.log(`     switch  ${m.path}   (source: ${m.source || 'none'}; translation: ${m.translation || 'none'})`);
     if (l !== base)
       for (const m of st.untranslated.slice(0, 20))
         console.log(`     same    ${m}   (translate it, or list it in i18n.same)`);

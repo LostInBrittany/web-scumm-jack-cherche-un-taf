@@ -38,7 +38,7 @@ export interface RoomDef {
   decor: Id;
   /**
    * What the background shows, left to right, with its light and mood: the LOCATION line of the background prompt
-   * (`npm run prompts`, docs/en/PROMPTS.md). Not shown in the game.
+   * (`npm run prompts`, wiki/en/create.images.md). Not shown in the game.
    */
   description?: string;
   /**
@@ -99,7 +99,13 @@ export interface PlaceDef {
   region: Id;
   /** Position on the region's image, in % [x, y]. */
   pos: [number, number];
-  portrait?: Id;
+  /** The face on its pin, or several faces side by side (4.4.0) when several characters live there. */
+  portrait?: Id | Id[];
+  /**
+   * Another place whose pin this one sits on (4.4.0): a city with several rooms to travel to is one pin, each face on it
+   * a way to its own place. The face shows once this place is unlocked; its `pos` is not used (write the pin's).
+   */
+  joins?: Id;
   /** Vehicle drawn along the route. */
   vehicle?: 'car' | 'plane';
   /** "!" shown while this condition is true. */
@@ -146,7 +152,7 @@ export interface EndingDef {
   card?: { accent?: string };
 }
 
-/** The old name of `EndingDef`. @deprecated since 4.0, removed in 5.0 (docs/en/SUPPORT.md). @public */
+/** The old name of `EndingDef`. @deprecated since 4.0, removed in 5.0 (wiki/en/start.stability.md). @public */
 export type RevealDef = EndingDef;
 
 /**
@@ -174,7 +180,7 @@ export interface SkinDef {
     cardFallback?: Id;
   };
   sounds?: { phone?: Id; plane?: Id; confetti?: Id; jingle?: Id; end?: Id };
-  /** CSS font families (--font-ui and --font-pixel variables). Default: 'DotGothic16' and 'Press Start 2P'. `readable`: the "readable font" setting (e.g. a dyslexia-friendly family the game ships). */
+  /** CSS font families (--font-ui and --font-pixel variables). Default: 'Galmuri11' (4.3.0; 'DotGothic16' before, still behind any `ui` family for Japanese) and 'Press Start 2P'. `readable`: the "readable font" setting (e.g. a dyslexia-friendly family the game ships). */
   fonts?: { ui?: string; pixel?: string; readable?: string };
   /** Default heights for characters with no `height` (logical units). Default: actor 110, hero 84. */
   heights?: { actor?: number; hero?: number };
@@ -239,7 +245,7 @@ export interface GameDef {
   skin: SkinDef;
   /** Sealed ending, optional. */
   ending?: EndingDef;
-  /** Signals from the world outside, through a Reality Bridge (4.1.1, docs/en/REALITY.md). Absent: none, no code loaded. */
+  /** Signals from the world outside, through a Reality Bridge (4.1.1, wiki/en/bridge.what-it-is.md). Absent: none, no code loaded. */
   reality?: RealityDef;
   /**
    * Ready-to-use states for testing a specific moment (teleport in dev mode, solver). A checkpoint with `goals` is the
@@ -284,7 +290,7 @@ export interface GameDef {
    * speedrun envelope (schema 2, since 4.1.16) record so that a load, a replay and a verifier rebuild the same world.
    */
   variant?: WorldVariant;
-  /** Speedrun categories, splits and the rules' version (4.1.14, `docs/en/SPEEDRUN.md`). */
+  /** Speedrun categories, splits and the rules' version (4.1.14, `wiki/en/create.speedrun.md`). */
   speedrun?: SpeedrunManifest;
   /** Manual save slots (pause menu: save, load, export, import). Absent or 0: autosave only. */
   saves?: { slots: number };
@@ -294,7 +300,7 @@ export interface GameDef {
    */
   settings?: boolean;
   /**
-   * How the player's taps read (4.2.3). `exitOnTap`: a single tap on an exit with no verb picked walks there and goes
+   * How the player's taps read (4.2.4). `exitOnTap`: a single tap on an exit with no verb picked walks there and goes
    * through on arrival, as in the LucasArts classics, instead of only walking there (a double tap always went through);
    * a picked verb still wins, a tap elsewhere during the walk still redirects, and an exit's `onTap` overrides it.
    * Default off. Input only: the rules, the solver and saves do not see it.
@@ -309,9 +315,10 @@ export interface GameDef {
   offline?: 'full' | 'nearby';
   /**
    * How far the hero stands from a character it walks up to (talk, give, look…) when the layout gives no `approach`
-   * point: a share of the two characters' mean height, times the depth scale where the character stands. `0.8` suits
-   * characters who gesture as they talk (their arms stay clear of each other). Omitted: a fixed 44 units, whatever
-   * their size.
+   * point (4.2.4): a share of the two characters' mean height, times the depth scale where the character stands. `0.8`
+   * suits characters who gesture as they talk (their arms stay clear of each other). Omitted (or not a positive
+   * number): a fixed 44 units, whatever their size. Presentation only, like the layout's approach points: no rule nor
+   * the solver reads it.
    */
   actorGap?: number;
   /** Content lint (`npm run lint`): codes to silence, as `code`, `code:<stable id>` or `code:<room>/<path>`. */
@@ -489,6 +496,8 @@ export interface UiTexts {
   readableFont?: string;
   /** The settings row of the sound captions (shown only in a game that captions a sound). */
   captions?: string;
+  /** The settings row that turns the verbs' keys off (4.3.0, shown only when a verb has a `key`). English default "Verb keys". */
+  verbKeys?: string;
   volumeMusic?: string;
   volumeSfx?: string;
   volumeVoice?: string;

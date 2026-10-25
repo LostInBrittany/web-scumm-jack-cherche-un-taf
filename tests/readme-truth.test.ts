@@ -30,12 +30,13 @@ describe('the README', () => {
       // `create` writes these scripts (cli/create.mjs); `npm run <x>` of anything else would fail in a new game.
       const created = readFileSync('cli/create.mjs', 'utf8');
       for (const [, cmd] of lines.join('\n').matchAll(/npm run ([\w:-]+)/g))
-        expect(created).toContain(`${cmd}: 'web-scumm`);
+        expect(created).toContain(`${cmd}: \`\${NAME} `);
     }
-    // Outside the block, a created game's tools are `npx web-scumm <command>`: each one the CLI knows.
-    const cli = readFileSync('cli/web-scumm.mjs', 'utf8');
+    // Outside the block, a created game's tools are `npx quest-n-click <command>` (or, through 4.2.x, the former
+    // name's `npx web-scumm <command>`, D47): each one the CLI knows.
+    const cli = readFileSync('cli/quest-n-click.mjs', 'utf8');
     for (const r of [en, fr])
-      for (const [, cmd] of r.matchAll(/npx web-scumm ([\w-]+)/g))
+      for (const [, cmd] of r.matchAll(/npx (?:quest-n-click|web-scumm) ([\w-]+)/g))
         expect(cli).toMatch(new RegExp(`^\\s+'?${cmd}'?: \\[`, 'm'));
   });
 
@@ -50,21 +51,28 @@ describe('the README', () => {
       expect(section).toContain('npm run assets && npm run dev');
       expect(withInstall(r, version)).toBe(r);
     }
-    // The writer moves only the URL, and only between the markers.
-    const page = `T=x/v1.0.0/web-scumm-1.0.0.tgz\n<!-- install:begin -->\nT=https://github.com/wanoo/web-scumm/releases/download/v1.0.0/web-scumm-1.0.0.tgz\n<!-- install:end -->`;
-    expect(withInstall(page, '4.2.0')).toBe(
-      page.replace('download/v1.0.0/web-scumm-1.0.0.tgz', 'download/v4.2.0/web-scumm-4.2.0.tgz'),
-    );
+    // The writer moves only the URL, and only between the markers; the repository's name since 4.2.5 (D47), the
+    // engine's archive as that version's release names it.
+    const old = 'https://github.com/wanoo/web-scumm/releases/download/v1.0.0/web-scumm-1.0.0.tgz';
+    const page = `T=x/v1.0.0/web-scumm-1.0.0.tgz\n<!-- install:begin -->\nT=${old}\n<!-- install:end -->`;
+    const at = (tag: string, file: string) =>
+      page.replace(old, `https://github.com/Quest-n-Click/quest-n-click/releases/download/${tag}/${file}`);
+    expect(withInstall(page, '4.2.0')).toBe(at('v4.2.0', 'web-scumm-4.2.0.tgz'));
+    expect(withInstall(page, '4.2.5')).toBe(at('v4.2.5', 'quest-n-click-4.2.5.tgz'));
     // A release candidate of this version keeps its tag; another version's candidate does not.
-    const rc = page.replace('download/v1.0.0/web-scumm-1.0.0.tgz', 'download/v4.2.0-rc.1/web-scumm-4.2.0.tgz');
+    const rc = at('v4.2.0-rc.1', 'web-scumm-4.2.0.tgz');
     expect(withInstall(rc, '4.2.0')).toBe(rc);
-    const zero = page.replace('download/v1.0.0/web-scumm-1.0.0.tgz', 'download/v4.2.0-rc.01/web-scumm-4.2.0.tgz');
-    expect(withInstall(zero, '4.2.0')).toBe(
-      page.replace('download/v1.0.0/web-scumm-1.0.0.tgz', 'download/v4.2.0/web-scumm-4.2.0.tgz'),
+    const zero = at('v4.2.0-rc.01', 'web-scumm-4.2.0.tgz');
+    expect(withInstall(zero, '4.2.0')).toBe(at('v4.2.0', 'web-scumm-4.2.0.tgz'));
+    expect(withInstall(rc, '4.2.1')).toBe(at('v4.2.1', 'web-scumm-4.2.1.tgz'));
+    // The quick start's archive: under either name of the repository, the archive that version's release names.
+    expect(installTag(old.replaceAll('1.0.0', '4.2.4'), '4.2.4')).toBe('v4.2.4');
+    expect(installTag(at('v4.2.4', 'web-scumm-4.2.4.tgz').split('T=')[2]!.split('\n')[0]!, '4.2.4')).toBe('v4.2.4');
+    expect(installTag(archiveUrl('4.2.5'), '4.2.5')).toBe('v4.2.5');
+    expect(archiveUrl('4.2.5')).toBe(
+      'https://github.com/Quest-n-Click/quest-n-click/releases/download/v4.2.5/quest-n-click-4.2.5.tgz',
     );
-    expect(withInstall(rc, '4.2.1')).toBe(
-      page.replace('download/v1.0.0/web-scumm-1.0.0.tgz', 'download/v4.2.1/web-scumm-4.2.1.tgz'),
-    );
+    expect(installTag(archiveUrl('4.2.5').replace('quest-n-click-4.2.5', 'web-scumm-4.2.5'), '4.2.5')).toBeNull();
   });
 
   it('shows images that exist, under budget, the same in both languages', () => {

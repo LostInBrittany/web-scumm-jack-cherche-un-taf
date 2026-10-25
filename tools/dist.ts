@@ -88,8 +88,9 @@ function bundlePackages(): string[] {
     ))
       add(d);
   };
-  // The engine itself (an installed web-scumm) is LICENSE; its tools' dependencies never reach the bundle.
-  for (const p of [...listed, ...workbox]) if (p !== 'web-scumm') add(p);
+  // The engine itself (an installed @quest-n-click/engine, `quest-n-click` before 4.5.2) is LICENSE; its tools'
+  // dependencies never reach the bundle.
+  for (const p of [...listed, ...workbox]) if (p !== '@quest-n-click/engine' && p !== 'quest-n-click') add(p);
   return [...all].sort();
 }
 
@@ -112,7 +113,7 @@ function credits(): string {
   const lines = [
     `# Credits: ${game.title ?? GAME}`,
     '',
-    'Built with web-scumm (MIT, see LICENSE). Assets of this game, by entry of its provenance (assets-manifest.json lists every file):',
+    "Built with quest'n'click (MIT, see LICENSE). Assets of this game, by entry of its provenance (assets-manifest.json lists every file):",
     '',
   ];
   for (const e of prov.assets ?? []) {
@@ -124,7 +125,7 @@ function credits(): string {
   }
   lines.push(
     '',
-    'Fonts: DotGothic16 (Fontworks) and Press Start 2P (CodeMan38), SIL Open Font License 1.1: THIRD_PARTY_NOTICES.txt.',
+    'Fonts: Galmuri11 (Lee Minseo), DotGothic16 (Fontworks) and Press Start 2P (CodeMan38), SIL Open Font License 1.1: THIRD_PARTY_NOTICES.txt.',
     '',
   );
   return lines.join('\n');

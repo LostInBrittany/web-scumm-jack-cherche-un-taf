@@ -147,8 +147,26 @@ export function assetsVersion(dir = resolve(WORK, 'public', 'assets')): string {
 }
 
 /**
- * games/<id>/site.json: game title, description and color, injected into index.html and the PWA manifest. `o`: another
- * game folder and name (the Studio Server's previews, built by its worker, 4.2.2).
+ * site.json's `url`, the game's public address, normalised by the URL parser and with its final slash; none when it is
+ * not an absolute http(s) URL, or when it carries a query, a fragment or credentials (`<url>og.png` would not be the
+ * image's address, or would publish a password).
+ */
+function siteUrl(v: unknown): string | undefined {
+  if (typeof v !== 'string') return undefined;
+  let u: URL;
+  try {
+    u = new URL(v);
+  } catch {
+    return undefined;
+  }
+  if (!/^https?:$/.test(u.protocol) || u.search || u.hash || u.username || u.password) return undefined;
+  return u.href.endsWith('/') ? u.href : `${u.href}/`;
+}
+
+/**
+ * games/<id>/site.json: game title, description and color, injected into index.html and the PWA manifest. With `url`
+ * (the game's public address, #271), the share image is absolute and the page gets its og:url: link previews need
+ * both. `o`: another game folder and name (the Studio Server's previews, built by its worker, 4.2.2).
  */
 export function sitePlugin(o: { gameDir?: string; game?: string } = {}): Plugin {
   const gameDir = o.gameDir ?? GAME_DIR;
@@ -192,12 +210,22 @@ export function sitePlugin(o: { gameDir?: string; game?: string } = {}): Plugin 
             .replace(/&/g, '&amp;')
             .replace(/"/g, '&quot;')
             .replace(/</g, '&lt;');
-        return html
-          .replace(/%LANG%/g, esc(s.lang ?? 'en'))
-          .replace(/%TITLE%/g, esc(s.title ?? name))
-          .replace(/%DESCRIPTION%/g, esc(s.description))
-          .replace(/%THEME%/g, esc(s.themeColor ?? '#0a0a12'))
-          .replace(/%BASE%/g, BASE);
+        const url = siteUrl(s.url);
+        // Function replacers: a `$&` or `$'` in a site.json value is text, not a replacement pattern.
+        const page = url
+          ? html
+              .replace('content="%BASE%og.png"', () => `content="${esc(url)}og.png"`)
+              .replace(
+                '<meta property="og:type"',
+                () => `<meta property="og:url" content="${esc(url)}" />\n    <meta property="og:type"`,
+              )
+          : html;
+        return page
+          .replace(/%LANG%/g, () => esc(s.lang ?? 'en'))
+          .replace(/%TITLE%/g, () => esc(s.title ?? name))
+          .replace(/%DESCRIPTION%/g, () => esc(s.description))
+          .replace(/%THEME%/g, () => esc(s.themeColor ?? '#0a0a12'))
+          .replace(/%BASE%/g, () => BASE);
       },
     },
     configureServer(server) {

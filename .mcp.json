@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "web-scumm": {
+    "quest-n-click": {
       "type": "stdio",
       "command": "npm",
       "args": ["run", "-s", "mcp"],

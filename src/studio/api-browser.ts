@@ -14,6 +14,7 @@ import { extraReads, liveClasses, puzzleGraph, puzzleMarkdown, toPuzzleDot, toPu
 import { normalizeStoryboard, storyboardMarkdown, storyboardProblems } from '../../tools/pages/storyboard-data';
 import { coverageMarkdown, storyboardCoverage } from '@engine/tools/coverage';
 import { lintContent, lintMarkdown } from '@engine/tools/lint';
+import { heroMatrix as heroMatrixOf, type HeroMatrix } from '@engine/tools/hero-matrix';
 import { classify, formatPath, parsePath, SourceError, type Seg } from '../../tools/studio/paths';
 import type {
   CoverageData,
@@ -39,6 +40,7 @@ import type {
   ValidateResult,
 } from '../../tools/studio/types';
 import { ApiError, type Api } from './api';
+import type { DocName, ToolBackend } from '../../tools/studio/tools';
 import { must } from '../engine/core/must';
 import {
   addRoomEntity,
@@ -114,6 +116,26 @@ export class BrowserApi implements Api {
   }
   docNames(): string[] {
     return Object.keys(this.o.snapshot.docs ?? {});
+  }
+  /** 4.5.0: the wiki's index and ready pages of the snapshot (the Assistant's search_docs, list_docs, read_doc by id). */
+  wikiDocs() {
+    return this.o.snapshot.wiki;
+  }
+  /** The Assistant's document abilities in the demo: the legacy pages the snapshot holds, and its wiki when it has one. */
+  docAbilities(): Pick<ToolBackend, 'readDoc' | 'docs'> {
+    const wiki = this.wikiDocs();
+    return {
+      readDoc: async (name: DocName) => {
+        const d = this.doc(name);
+        if (d === undefined)
+          throw new Error(
+            `${name} is not in the demo (only ${this.docNames().join(', ') || 'no document'}); read the documentation at https://github.com/Quest-n-Click/quest-n-click/wiki`,
+          );
+        return d;
+      },
+      // Absent from an older snapshot.
+      ...(wiki ? { docs: async () => wiki } : {}),
+    };
   }
   /** Number of edits kept in this browser. */
   get edits() {
@@ -398,6 +420,12 @@ export class BrowserApi implements Api {
     });
   }
 
+  /** The hero × language matrix of the game with this browser's edits (4.4.0), over the module's locale tables. */
+  async heroMatrix(): Promise<HeroMatrix> {
+    const { mod, game } = await this.editedGame();
+    return heroMatrixOf(game, mod.locales ?? {});
+  }
+
   async validate(): Promise<ValidateResult> {
     const t0 = Date.now();
     const { mod, game, layouts } = await this.editedGame();
@@ -405,6 +433,7 @@ export class BrowserApi implements Api {
     const { errors, warnings } = validateGame(game, layouts, {
       assets: mod.assets,
       commands: mod.commands,
+      locales: mod.locales,
       minigameIds: mg ? Object.keys(mg) : undefined,
       minigameParams: mg ? Object.fromEntries(Object.entries(mg).map(([k, m]) => [k, m.required ?? []])) : undefined,
       minigameBindings: mg

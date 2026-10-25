@@ -1,10 +1,14 @@
-// Voice production (3.4): the table a studio records from. One row per line with a stable id and per language: who
+// Voice production (3.4): the table a studio records from. One row per clip of a line with a stable id (a line with
+// text switches has one per value since 4.3.0, `<id>~<flag>=<value>`, core/voice-key.ts, read from the text of that
+// language since 4.3.1: a translation may add switches the source has not, or drop them) and per language: who
 // speaks, the text in that language, the clip (`audio.voices` for the game's language, `audio.voicesByLang[lang]`
 // for the others) and where the line stands (draft, to record, recorded, approved: `games/<id>/voices.json`). CSV or
 // JSON out for the actors, back in with their statuses and notes; the clips' facts (duration, loudness, peak, rate,
 // codec, measured by `npm run voices -- check` with ffmpeg) judged here. Pure: the command line does the files.
 import { lineIds } from '../core/content-ids';
+import { parseText, renderText } from '../core/text-switch';
 import type { GameDef, Id } from '../core/types';
+import { voiceBase, voiceVariants } from '../core/voice-key';
 
 export type VoiceStatus = 'draft' | 'record' | 'recorded' | 'approved';
 export const VOICE_STATUSES: readonly VoiceStatus[] = ['draft', 'record', 'recorded', 'approved'];
@@ -27,32 +31,67 @@ function clipsOf(game: GameDef, lang: string): Record<Id, string> {
 }
 
 /**
+ * The clips a line needs (4.3.0, core/voice-key.ts): a line whose text has switches needs one per combination of the
+ * values they list (`<id>~<flag>=<value>…`, its text as it reads then), plus its plain id as the fallback when a
+ * switch has `*=` or when a clip is already filed under it; any other line, its plain id. Each text is rendered: a
+ * line whose switches list only `*=` reads its default, never the braces (4.3.1).
+ */
+function lineClips(id: Id, text: string, clips: Record<Id, string>): { key: Id; text: string }[] {
+  const vs = voiceVariants(id, text);
+  const out = vs.map((v) => ({ key: v.key, text: renderText(text, v.values ?? {}, '{hero}') }));
+  if (clips[id] && !out.some((o) => o.key === id)) out.push({ key: id, text: renderText(text, {}, '{hero}') });
+  return out;
+}
+
+/**
  * The table of a language. `localized`: the game with that language applied (`applyLocale`), for the texts; the ids
- * are the same in every language. A line with no status yet is `recorded` when it has a clip, else `draft`.
+ * are the same in every language. One row per clip: a line with switches has one per value (its `id` is the clip's
+ * key, `<id>~<flag>=<value>`). A row with no status yet is `recorded` when it has a clip, else `draft`.
  */
 export function voiceTable(game: GameDef, sheet: VoiceSheet, lang: string, localized: GameDef = game): VoiceRow[] {
   const clips = clipsOf(game, lang),
     s = sheet[lang] ?? {};
   const texts = new Map(lineIds(localized).map((l) => [l.id, l.text]));
-  return lineIds(game).map((l) => {
-    const row = s[l.id];
-    return {
-      id: l.id,
-      who: l.who,
-      text: texts.get(l.id) ?? l.text,
-      status: row?.status ?? (clips[l.id] ? 'recorded' : 'draft'),
-      ...(clips[l.id] ? { file: clips[l.id] } : {}),
-      ...(row?.note ? { note: row.note } : {}),
-      ...(row?.actor ? { actor: row.actor } : {}),
-    };
-  });
+  return lineIds(game).flatMap((l) =>
+    lineClips(l.id, texts.get(l.id) ?? l.text, clips).map(({ key, text }) => {
+      const row = s[key];
+      return {
+        id: key,
+        who: l.who,
+        text,
+        status: row?.status ?? (clips[key] ? 'recorded' : 'draft'),
+        ...(clips[key] ? { file: clips[key] } : {}),
+        ...(row?.note ? { note: row.note } : {}),
+        ...(row?.actor ? { actor: row.actor } : {}),
+      };
+    }),
+  );
 }
 
-/** Clips no line claims, in a language. */
-export function orphanClips(game: GameDef, lang: string): { id: Id; file: string }[] {
-  const ids = new Set(lineIds(game).map((l) => l.id));
+/**
+ * Every row id `voiceTable` can list in a language (each line's id and its keyed clips): for `mergeSheet`. `localized`:
+ * the game in that language (`applyLocale`), since a translation may add switches the source has not, or drop them
+ * (4.3.1): the keys come from the text of the language they voice.
+ */
+export function voiceIds(localized: GameDef): Set<Id> {
+  return new Set(lineIds(localized).flatMap((l) => [l.id, ...voiceVariants(l.id, l.text).map((v) => v.key)]));
+}
+
+/**
+ * Whether a clip key belongs to a line: its plain id, or `<id>~…` of a line whose text has switches (any value of
+ * its flags, listed or not: the engine keys by the flag's value, voice-key.ts).
+ */
+function claimsClip(texts: ReadonlyMap<Id, string>, key: Id): boolean {
+  const base = voiceBase(key),
+    text = texts.get(base);
+  return text !== undefined && (base === key || parseText(text).switches.length > 0);
+}
+
+/** Clips no line claims, in a language. `localized`: the game in that language, whose texts key its clips (4.3.1). */
+export function orphanClips(game: GameDef, lang: string, localized: GameDef = game): { id: Id; file: string }[] {
+  const texts = new Map(lineIds(localized).map((l) => [l.id, l.text]));
   return Object.entries(clipsOf(game, lang))
-    .filter(([id]) => !ids.has(id))
+    .filter(([id]) => !claimsClip(texts, id))
     .map(([id, file]) => ({ id, file }));
 }
 

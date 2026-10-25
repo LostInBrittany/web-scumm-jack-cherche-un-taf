@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // npm run ops:qualify -- [--tarballs=<dir>] [--image-from=<dir>] [--short] [--candidate-run=<id>] [--old-bridge=<tgz>]
 // [--out=<dir>] [--keep] (4.1.18 "Dress Rehearsal", plan §8.3): the Bridge's
-// qualification profile (ops/qualify/compose.yml) built from the candidate's `web-scumm-bridge` tarball, brought up
+// qualification profile (ops/qualify/compose.yml) built from the candidate's `quest-n-click-bridge` tarball, brought up
 // behind HTTPS with three instances on one Postgres and two tenants, then driven the way an operator's bad day goes:
 //
 //   1. every image pinned by digest (compose and Dockerfile);
@@ -45,7 +45,7 @@ const flag = (k) => args.find((a) => a.startsWith(`--${k}=`))?.slice(k.length + 
 const version = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).version;
 const out = resolve(flag('out') ?? '.cache/field/deployment');
 mkdirSync(out, { recursive: true });
-const base = mkdtempSync(join(tmpdir(), 'web-scumm-qualify-'));
+const base = mkdtempSync(join(tmpdir(), 'quest-n-click-qualify-'));
 // Whatever ends the run (a setup step that throws included), its folder (tenant keys, the store's URL) goes with it.
 process.on('exit', () => {
   if (!args.includes('--keep')) rmSync(base, { recursive: true, force: true });

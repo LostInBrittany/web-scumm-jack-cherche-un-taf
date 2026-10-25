@@ -1,4 +1,4 @@
-// Open Badges verification (4.1.9, docs/en/CONNECTORS.md "Open Badges", docs/dev/threat-models/open-badge.md). Two
+// Open Badges verification (4.1.9, wiki/en/bridge.connector-open-badges.md, docs/dev/threat-models/open-badge.md). Two
 // formats, verified separately. Open Badges 2.0: a hosted assertion (fetched again from its own `id`) or a signed one
 // (a compact JWS, the key named by `verification.creator`, owned by the issuer). Open Badges 3.0: a Verifiable
 // Credential secured as a VC-JWT or with a Data Integrity proof `eddsa-jcs-2022`. Then, for both: the issuer among the

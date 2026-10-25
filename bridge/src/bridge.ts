@@ -9,7 +9,7 @@ import { readFileSync } from 'node:fs';
 import { manifestHash } from '../../src/engine/reality/manifest';
 import { type WorldSignal, WorldSignalV1Schema, WorldSignalV2Schema } from '../../src/engine/reality/protocol';
 import { biscuitLib, errorClass } from './biscuit';
-import { type BridgeConfig, BridgeError, type BridgeLog, DEFAULT_LIMITS, IDENT, type Limits, sha256 } from './config';
+import { type BridgeConfig, BridgeError, type BridgeLog, checkLimits, IDENT, type Limits, sha256 } from './config';
 import { KeyedLock } from './lock';
 import { authorize, LIMITS, type Proposal } from './policy';
 import { keyObject, signSignalSync } from './sign';
@@ -57,7 +57,7 @@ export class Bridge {
     private log: (l: BridgeLog) => void,
     telemetry: Telemetry,
   ) {
-    this.limits = { ...DEFAULT_LIMITS, ...config.limits };
+    this.limits = checkLimits(config.limits);
     this.tenantId = config.tenantId ?? DEFAULT_TENANT;
     this.store = store;
     this.telemetry = telemetry;
@@ -555,7 +555,7 @@ export class Bridge {
     }
   }
 
-  /** Deletes everything the Bridge holds about a player (docs/en/REALITY-OPS.md, "Deleting a player's data"). */
+  /** Deletes everything the Bridge holds about a player (wiki/en/bridge.install-run.md#retention). */
   async forgetPlayer(adminToken: string | undefined, playerId: string): Promise<void> {
     this.admin(adminToken);
     if (!(await this.store.player(this.tenantId, playerId))) throw new BridgeError(404, 'player', 'unknown player');

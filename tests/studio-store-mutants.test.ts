@@ -192,6 +192,18 @@ describe('sessions', () => {
     expect(await store.session(b)).toBeUndefined();
     expect((await store.userByIdentity('i', 'a'))!.revokedBefore).toBeGreaterThan(0);
   });
+
+  it("an empty sid is no sid: a logout by sub ends that user's sessions, never another's of the same empty sid (4.3.0)", async () => {
+    // Kills store.ts endProviderSessions `if (o.sid)` → true: a logout token may carry `sid: ''` with a sub, and a
+    // session's sid is stored as the provider gave it, '' included; forced true, every '' session of anyone would end.
+    const ua = await store.userFor({ iss: 'i', sub: 'a' });
+    const ub = await store.userFor({ iss: 'i', sub: 'b' });
+    const a = await store.createSession({ user: ua, sid: '', refreshEnc: null, idTokenEnc: null, absoluteMs: 1_000 });
+    const b = await store.createSession({ user: ub, sid: '', refreshEnc: null, idTokenEnc: null, absoluteMs: 1_000 });
+    expect(await store.endProviderSessions({ iss: 'i', sid: '', sub: 'a' })).toEqual([ua.id]);
+    expect(await store.session(a)).toBeUndefined();
+    expect(await store.session(b)).toBeDefined();
+  });
 });
 
 describe('logins in progress and the audit', () => {

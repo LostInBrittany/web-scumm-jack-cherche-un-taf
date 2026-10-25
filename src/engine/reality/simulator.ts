@@ -167,10 +167,13 @@ export class SignalSimulator {
               yield next;
               continue;
             }
+            // The abort listener goes when the wait ends either way (4.4.0): `once` alone kept one per empty wait.
+            const stop = () => self.wake?.();
             await new Promise<void>((ok) => {
               self.wake = ok;
-              signal?.addEventListener('abort', () => ok(), { once: true });
+              signal?.addEventListener('abort', stop, { once: true });
             });
+            signal?.removeEventListener('abort', stop);
             self.wake = null;
           }
         })();

@@ -12,6 +12,7 @@ import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'no
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { projectOf } from '../tools/release/artifacts.mjs';
 import { fetchRetry } from '../tools/release/fetch-retry.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
@@ -29,14 +30,20 @@ export function quickStart(readme) {
 }
 
 /** The URL the README names for `version`: under its own release, or under a release candidate of it (`tag`,
- * `v<version>-rc.N`: the 4.2.0-rc campaign installs from the rc's release until the stable one exists). */
+ * `v<version>-rc.N`: the 4.2.0-rc campaign installs from the rc's release until the stable one exists). The repository
+ * is Quest-n-Click/quest-n-click since 4.5.2 (D51; GitHub redirects the former names' downloads), the archive the version's
+ * engine: `quest-n-click-<v>.tgz` from 4.2.5, `web-scumm-<v>.tgz` before. */
 export const archiveUrl = (version, tag = `v${version}`) =>
-  `https://github.com/wanoo/web-scumm/releases/download/${tag}/web-scumm-${version}.tgz`;
+  `https://github.com/Quest-n-Click/quest-n-click/releases/download/${tag}/${projectOf(version)}-${version}.tgz`;
 
-/** The release tag a README's archive URL names, when it is `v<version>` or `v<version>-rc.N`; null otherwise. */
+/** The release tag a README's archive URL names, when it is `v<version>` or `v<version>-rc.N`; null otherwise. Any
+ * name of the repository (the former ones redirect), the archive name of that version. */
 export function installTag(url, version) {
-  const m = /^https:\/\/github\.com\/wanoo\/web-scumm\/releases\/download\/(v[^/]+)\/web-scumm-([^/]+)\.tgz$/.exec(url);
-  if (!m || m[2] !== version) return null;
+  const m =
+    /^https:\/\/github\.com\/(?:Quest-n-Click\/quest-n-click|wanoo\/(?:quest-n-click|web-scumm))\/releases\/download\/(v[^/]+)\/(quest-n-click|web-scumm)-([^/]+)\.tgz$/.exec(
+      url,
+    );
+  if (!m || m[3] !== version || m[2] !== projectOf(version)) return null;
   return m[1] === `v${version}` || new RegExp(`^v${version.replaceAll('.', '\\.')}-rc\\.[1-9]\\d*$`).test(m[1])
     ? m[1]
     : null;
@@ -69,7 +76,7 @@ export function script(lines, archive, port) {
 
 async function published(version, tag = `v${version}`) {
   const url = archiveUrl(version, tag);
-  const sumsUrl = `https://github.com/wanoo/web-scumm/releases/download/${tag}/web-scumm-${tag}-SHA256SUMS`;
+  const sumsUrl = `https://github.com/Quest-n-Click/quest-n-click/releases/download/${tag}/${projectOf(version)}-${tag}-SHA256SUMS`;
   const [tgz, sums] = await Promise.all([fetchRetry(url), fetchRetry(sumsUrl)]);
   if (!tgz.ok || !sums.ok) throw new Error(`${url}: ${tgz.status}; ${sumsUrl}: ${sums.status}`);
   const got = createHash('sha256')
@@ -77,7 +84,7 @@ async function published(version, tag = `v${version}`) {
     .digest('hex');
   const want = (await sums.text())
     .split('\n')
-    .find((l) => l.endsWith(` web-scumm-${version}.tgz`))
+    .find((l) => l.endsWith(` ${projectOf(version)}-${version}.tgz`))
     ?.split(/\s+/)[0];
   if (got !== want) throw new Error(`${url}: SHA-256 ${got}, the release lists ${want ?? 'nothing'}`);
   console.log(`✔  readme-quickstart --published: ${url} answers, SHA-256 ${got} as SHA256SUMS lists it`);
@@ -97,9 +104,11 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     process.exit(0);
   }
   const dir = args.find((a) => a.startsWith('--tarballs='))?.slice(11);
-  const archive = dir && resolve(dir, `web-scumm-${version}.tgz`);
+  const archive = dir && resolve(dir, `${projectOf(version)}-${version}.tgz`);
   if (!archive || !existsSync(archive)) {
-    console.error(`usage: readme-quickstart --tarballs=<dir holding web-scumm-${version}.tgz> | --published`);
+    console.error(
+      `usage: readme-quickstart --tarballs=<dir holding ${projectOf(version)}-${version}.tgz> | --published`,
+    );
     process.exit(2);
   }
   const base = mkdtempSync(join(tmpdir(), 'readme-quickstart-'));

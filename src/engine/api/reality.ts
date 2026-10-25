@@ -1,6 +1,6 @@
-// web-scumm/reality (4.1.1): signals from the world outside, for a game, a test or a custom transport. The signed
+// quest-n-click/reality (4.1.1): signals from the world outside, for a game, a test or a custom transport. The signed
 // signal and its verification, the player's client and its HTTP transport, the Studio's simulator, a game's manifest.
-// Public (docs/en/SUPPORT.md); the reference Bridge itself is the separate package web-scumm-bridge.
+// Public (wiki/en/start.stability.md); the reference Bridge itself is the separate package quest-n-click-bridge.
 export {
   verifySignal,
   signSignal,

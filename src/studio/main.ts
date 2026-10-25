@@ -1,6 +1,6 @@
 // The Studio: tabs Rooms / Storyboard / Check / Notes over the game on disk (/__studio/ on the dev server), or over a
 // build-time snapshot with the edits kept in this browser (demo mode: studio.html in a STUDIO=1 build, e.g. on GitHub
-// Pages; see docs/en/STUDIO.md, "Demo mode").
+// Pages; see wiki/en/studio.demo-mode.md#demo-mode).
 import { VoicesTab } from './voices';
 import { MusicTab } from './music';
 import { undoButtons } from './structured';
@@ -318,6 +318,7 @@ async function start() {
     rooms.onFileChanged(file);
     assets.onFileChanged(file);
     scenario.onFileChanged(file);
+    voices.onFileChanged(file);
     if (file === 'storyboard.json' && outside) storyboard.onDiskChange();
     if (file === 'notes.json' && outside) void store.load();
     // Another member's voice row (H10): read again, so the next edit is made from it.

@@ -1,4 +1,4 @@
-// Running the Bridge (4.1.10, docs/en/REALITY-OPS.md): a 4.1.9 journal moved into SQLite and served from it; a backup
+// Running the Bridge (4.1.10, wiki/en/bridge.install-run.md): a 4.1.9 journal moved into SQLite and served from it; a backup
 // taken, the store lost, the backup restored, and the players' journals read back identical; a tenant exported and
 // deleted from the command line; `/livez`, `/readyz`, `/healthz`; the measures in the process and through an
 // OpenTelemetry API when one is given; `trust-proxy` by allowlist.

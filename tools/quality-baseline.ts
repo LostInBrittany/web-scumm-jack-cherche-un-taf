@@ -1,10 +1,10 @@
 // npm run quality:baseline [-- --check] [--dist=dist]: what the engine does, frozen before a refactoring (4.1.0
-// "Clarity", docs/dev/PLAN-4.1.1-CLARITY.md lot A). For the demo, the reference game and the solver's fixture games:
-// the witness (status, length, the digest after every input), the proof (status, states, softlocks); every golden
-// save, loaded and played to its end (the last digest); the public API and MCP surface (its hash); the test
-// declarations. Written to tests/quality-baseline.json; --check compares and names each difference, so a change meant
-// to keep behaviour that moves a digest, a verdict or a name fails with what moved. --dist adds the first visit's
-// JavaScript (verify:dist), held to "no bigger": a refactoring may shrink it, never grow it.
+// "Clarity", docs/dev/PLAN-4.1.1-CLARITY.md lot A). For the demo, the reference game, the heroes example (4.4.0) and
+// the solver's fixture games: the witness (status, length, the digest after every input), the proof (status, states,
+// softlocks); every golden save, loaded and played to its end (the last digest); the public API and MCP surface (its
+// hash); the test declarations. Written to tests/quality-baseline.json; --check compares and names each difference,
+// so a change meant to keep behaviour that moves a digest, a verdict or a name fails with what moved. --dist adds the
+// first visit's JavaScript (verify:dist), held to "no bigger": a refactoring may shrink it, never grow it.
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
@@ -38,6 +38,7 @@ const fx = (id: string, file: string, make: string, lay: string, ...a: unknown[]
 const GAMES: GameCase[] = [
   { id: 'demo', load: async () => import('../games/demo') },
   { id: 'reference', load: async () => import('../games/reference') },
+  { id: 'heroes', load: async () => import('../games/heroes') },
   fx('classics.insults', 'classics', 'insults', 'insultsLayouts'),
   fx('classics.grog', 'classics', 'grog', 'grogLayouts'),
   fx('classics.dott', 'classics', 'dott', 'dottLayouts'),
@@ -152,16 +153,22 @@ export function withMetrics(page: string, m: Record<string, string>): string {
  * `archive-human-install` pass's surface (`readme:install`, docs/dev/surfaces.json): only a release changes it.
  */
 const INSTALL = /(<!-- install:begin -->)([\s\S]*?)(<!-- install:end -->)/;
+/** The name the engine's archive of a version starts with: quest-n-click from 4.2.5 (D47), web-scumm before. */
+const engineArchive = (v: string) => {
+  const [a = 0, b = 0, c = 0] = v.split(/[.-]/).map(Number);
+  return a * 1e6 + b * 1e3 + c >= 4_002_005 ? 'quest-n-click' : 'web-scumm';
+};
 export function withInstall(page: string, version: string): string {
   return page.replace(
     INSTALL,
     (_all, open: string, body: string, close: string) =>
       `${open}${body.replace(
-        /https:\/\/github\.com\/wanoo\/web-scumm\/releases\/download\/(v[^/\s]+)\/web-scumm-[^\s/]+?\.tgz/g,
+        /https:\/\/github\.com\/(?:Quest-n-Click\/quest-n-click|wanoo\/(?:quest-n-click|web-scumm))\/releases\/download\/(v[^/\s]+)\/(?:quest-n-click|web-scumm)-[^\s/]+?\.tgz/g,
         // A release candidate of this version keeps its tag (4.2.0-rc, the passes' campaign): the archive is the
         // version's, published under the rc's release until the stable one exists. Any other tag becomes this version's.
+        // The repository's name since 4.2.5 (D47), the engine's archive named as that version's release names it.
         (_url, tag: string) =>
-          `https://github.com/wanoo/web-scumm/releases/download/${tag.startsWith(`v${version}-rc.`) && /^v[\d.]+-rc\.[1-9]\d*$/.test(tag) ? tag : `v${version}`}/web-scumm-${version}.tgz`,
+          `https://github.com/Quest-n-Click/quest-n-click/releases/download/${tag.startsWith(`v${version}-rc.`) && /^v[\d.]+-rc\.[1-9]\d*$/.test(tag) ? tag : `v${version}`}/${engineArchive(version)}-${version}.tgz`,
       )}${close}`,
   );
 }

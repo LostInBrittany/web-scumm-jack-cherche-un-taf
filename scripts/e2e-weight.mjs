@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// The weight budget against the bytes a browser really transfers (docs/en/TOOLS.md "Weight"). A first visit to the
+// The weight budget against the bytes a browser really transfers (wiki/en/create.checking.md#commands, `npm run weight`). A first visit to the
 // production build in Chromium, the background warm-ups off (Save-Data), from the title through New Game until the
 // first room is playable and the service worker has installed: every request is matched to an asset key, and
 //   - a request outside the predicted initial scope (`npm run weight -- --json`: the app shell, the title, the first

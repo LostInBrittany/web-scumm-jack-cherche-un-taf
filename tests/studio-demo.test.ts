@@ -78,6 +78,10 @@ describe('snapshot', () => {
     expect(Array.isArray(snapshot.storyboard.boards)).toBe(true);
     expect(snapshot.notes.entries).toBeInstanceOf(Array);
     expect(snapshot.docs.CONTENT_GUIDE).toContain('#');
+    // 4.5.0: the wiki's index and its ready pages beside it (never a draft), for search_docs and read_doc by id.
+    expect(snapshot.wiki?.index.format).toBe('quest-n-click-docs-index');
+    expect(snapshot.wiki?.index.pages.every((p) => p.state === 'ready')).toBe(true);
+    expect(snapshot.wiki?.provenance.source).toBe('repository');
     expect(Object.keys(snapshot.game.images).length).toBeGreaterThan(10);
   });
 });

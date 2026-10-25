@@ -50,7 +50,8 @@ async function cancelJob(id: string): Promise<void> {
 
 /**
  * Follows a job to its end, with its panel (its state and a Cancel button) at the bottom right; `onChange` hears each
- * state. Resolves with the job as it ended.
+ * state. Resolves with the job as it ended; from then on nothing more is heard of it, not a poll nor a Cancel that
+ * answers late (4.3.0).
  */
 export function followJob(first: JobInfo, onChange?: (j: JobInfo) => void): Promise<JobInfo> {
   const text = h('span', null, jobText(first));
@@ -59,12 +60,16 @@ export function followJob(first: JobInfo, onChange?: (j: JobInfo) => void): Prom
   toastStack().append(panel);
   return new Promise((ok) => {
     let last = first;
+    let over = false;
     const seen = (j: JobInfo) => {
-      if (j.id !== first.id || (ENDED.has(last.state) && !ENDED.has(j.state))) return;
+      // Once ended, nothing more is heard: a poll still in flight may answer after the stream said the job ended, and
+      // telling `onChange` again would overwrite what its caller wrote with the result.
+      if (over || j.id !== first.id) return;
       last = j;
       text.textContent = jobText(j);
       onChange?.(j);
       if (!ENDED.has(j.state)) return;
+      over = true;
       cancel.remove();
       window.removeEventListener('studio-job', onEvent);
       clearInterval(poll);
@@ -91,6 +96,8 @@ export function followJob(first: JobInfo, onChange?: (j: JobInfo) => void): Prom
     cancel.onclick = () => {
       cancel.disabled = true;
       cancelJob(first.id).catch((e) => {
+        // Refused after the job ended (it had nothing left to cancel): the panel keeps its last word (4.3.0).
+        if (over) return;
         cancel.disabled = false;
         text.textContent = `${jobText(last)} (${(e as Error).message})`;
       });

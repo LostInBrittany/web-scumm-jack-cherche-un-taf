@@ -101,7 +101,7 @@ function gatePage(...kids: (Node | null)[]): HTMLElement {
         'div',
         { class: 'gate-brand' },
         h('img', { src: '/icons/icon-192.png', alt: '', width: '40', height: '40' }),
-        h('span', null, 'web-scumm Studio'),
+        h('span', null, "quest'n'click Studio"),
       ),
       ...kids,
     ),

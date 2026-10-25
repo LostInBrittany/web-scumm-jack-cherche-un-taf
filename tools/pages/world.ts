@@ -50,7 +50,7 @@ ${g.oneWay.length ? `<p class="warn">No way back: ${g.oneWay.map((e) => `<b>${es
 if (isMain(import.meta.url)) {
   const args = cliArgs();
   const ctx = await loadContext();
-  const file = outPath(args.out, 'world');
+  const file = outPath(args.out, 'world.html');
   writePage(file, buildWorld(ctx));
   console.log(`world page: ${file}`);
 }

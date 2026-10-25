@@ -1,6 +1,7 @@
 // The public API (4.0): the names each entry of src/engine/api exports. A change to them is a change to the contract:
-// update tests/api-surface.json, docs/en/API.md (every public name is documented there) and the CHANGELOG ("API"),
-// and follow docs/en/SUPPORT.md (a removal waits for the next major).
+// update tests/api-surface.json, the wiki's `engine.api` (wiki/en/engine.api.md and wiki/fr/engine.api.md: every
+// public name is documented there, `npx tsx tools/api-doc.ts`) and the CHANGELOG ("API"), and follow
+// wiki/en/start.stability.md (a removal waits for the next major).
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
@@ -44,8 +45,8 @@ describe('the public API', () => {
     expect(now).toEqual(modules);
   });
 
-  it('documents every public name in docs/en/API.md and docs/fr/API.md', () => {
-    for (const doc of ['docs/en/API.md', 'docs/fr/API.md']) {
+  it('documents every public name in wiki/en/engine.api.md and wiki/fr/engine.api.md', () => {
+    for (const doc of ['wiki/en/engine.api.md', 'wiki/fr/engine.api.md']) {
       const md = readFileSync(doc, 'utf8');
       const missing = Object.entries(now).flatMap(([e, names]) =>
         names.filter((n) => !md.includes(`\`${n}\``)).map((n) => `${e}: ${n}`),

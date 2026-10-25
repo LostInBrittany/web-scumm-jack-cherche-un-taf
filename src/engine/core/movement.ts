@@ -1,7 +1,7 @@
 // Moving through the world: walking to a point, entering a room, the map and its travel, a teleport.
 // Part of the Engine (4.1.1): its methods of the same name forward here, in the same order of effects.
 
-import type { Id, Point } from './types';
+import type { Id, Point, RoomDef } from './types';
 
 import type { Engine } from './engine';
 
@@ -11,7 +11,7 @@ export async function walkTo(eng: Engine, p: Point): Promise<void> {
   const g = eng.busyState.guide;
   if (g) {
     await eng.run(async () => {
-      await eng.ui.say(eng.heroId(), g.say, {});
+      await eng.ui.say(eng.heroId(), eng.text(g.say), {});
     });
     return;
   }
@@ -85,4 +85,16 @@ export async function enter(eng: Engine, id: Id, at: Id | Point | undefined, run
     await eng.exec(room.onEnter, { room, fast: false });
   }
   if (runEnter) eng.startScripts(false);
+}
+
+/**
+ * After the walk to a target: the hero turns towards it, and a targeted character turns to face the hero (two
+ * characters talking look at each other).
+ */
+export function faceEachOther(eng: Engine, id: Id, room: RoomDef) {
+  const x = eng.centerX(id, room);
+  const hx = eng.state.hero[room.id]?.[0];
+  if (x === null || hx === undefined) return;
+  eng.ui.face(eng.heroId(), x < hx ? 'left' : 'right');
+  if (room.actors?.[id] && Math.abs(hx - x) > 8) eng.ui.face(id, hx < x ? 'left' : 'right');
 }

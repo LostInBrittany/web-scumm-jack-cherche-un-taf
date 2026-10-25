@@ -111,7 +111,7 @@ const manifest = {
     'open-badge': { issuers: [issuer], valid: 'badge.valid', invalid: 'badge.refused', indeterminate: 'badge.refused' },
   },
 };
-const bridgeDir = h.unpack(tgz('web-scumm-bridge'), join(base, 'bridge'));
+const bridgeDir = h.unpack(tgz('quest-n-click-bridge'), join(base, 'bridge'));
 h.run('the Bridge installed from its archive', 'npm', ['install', '--omit=dev', '--no-audit', '--no-fund'], bridgeDir);
 const BIN = join(bridgeDir, 'bin.mjs');
 const data = join(base, 'data');
@@ -175,10 +175,10 @@ writeFileSync(join(operator, 'package.json'), JSON.stringify({ name: 'operator',
 h.run(
   'the connectors installed from their archive',
   'npm',
-  ['install', '--omit=optional', '--ignore-scripts', '--no-audit', '--no-fund', tgz('web-scumm-connectors')],
+  ['install', '--omit=optional', '--ignore-scripts', '--no-audit', '--no-fund', tgz('quest-n-click-connectors')],
   operator,
 );
-const CBIN = join(operator, 'node_modules', 'web-scumm-connectors', 'bin.mjs');
+const CBIN = join(operator, 'node_modules', '@quest-n-click', 'connectors', 'bin.mjs');
 const grant = (name, source, signals) => {
   const f = join(base, `${name}.token`);
   writeFileSync(

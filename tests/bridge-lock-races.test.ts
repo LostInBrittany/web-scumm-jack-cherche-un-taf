@@ -122,7 +122,9 @@ describe('JournalLock under its races', () => {
     // kills store.ts:280 condition false (holds !== String(pid) → false)
     const file = journal('rival');
     new JournalLock(file, { pid: 1111, alive: () => true }).acquire();
+    let reads = 0;
     fsMock.read.mockImplementation((...a: unknown[]) => {
+      reads++;
       const text = realRead(...a) as string;
       return text.trim() === '2222' ? '3333\n' : text; // whatever we wrote, the read-back names the rival
     });
@@ -130,5 +132,8 @@ describe('JournalLock under its races', () => {
     expect(() => new JournalLock(file, { pid: 2222, alive: () => false }).acquire()).toThrow(
       /another process keeps taking it/,
     );
+    // 4.3.0 (the reread of the exemptions) kills store.ts `attempt < 3` → `<=`: three attempts exactly, each reading
+    // the lock then reading it back; a fourth would read twice more.
+    expect(reads).toBe(6);
   });
 });

@@ -61,6 +61,7 @@ const GameStateSchema = z.looseObject({
 });
 
 export const SaveEnvelopeV3Schema = z.strictObject({
+  // A format identifier from web-scumm, kept so existing saves and files still load (D47).
   format: z.literal('web-scumm-save'),
   schema: z.literal(3),
   gameId: id,

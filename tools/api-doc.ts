@@ -1,12 +1,15 @@
 // npx tsx tools/api-doc.ts [--check]: the signatures of the public API, read from the sources with the TypeScript
-// compiler (4.1.7), written as the "Signatures" section of docs/en/API.md and docs/fr/API.md (the same block: a
-// signature has no language). `--check` exits 1 when a page is behind the code; tests/api-doc.test.ts runs it.
+// compiler (4.1.7), written as the generated part of the wiki's `engine.api` (wiki/en/engine.api.md and
+// wiki/fr/engine.api.md: the same signatures, the table header in the page's language; and that page's identifiers in
+// wiki/manifest.json; 4.5.0, docs/en|fr/API.md being transition pages). `--check` exits 1 when the page is behind the
+// code; tests/api-doc.test.ts and `npm run wiki -- check` say the same, and `npm run wiki -- generate engine.api` writes
+// the same.
 //
 // Stability (4.1.8). Every symbol the five entries of src/engine/api re-export carries, on the JSDoc of its original
 // declaration, exactly one of two tags and a first sentence that says what it is:
 // - `@public`: a name a game or a host calls or reads (a function, a constant, a class, a type its content or its
 //   options are written with). A change is announced in the CHANGELOG; a removal waits for the next major
-//   (docs/en/SUPPORT.md).
+//   (wiki/en/start.stability.md).
 // - `@extension`: a contract a game or a host IMPLEMENTS, or is handed while implementing it (a Presenter, a save
 //   store, a painter and the specs it is given, a minigame and its context, a custom command, a signal port). The same
 //   promise, and one more: a member added to it is a breaking change for whoever implemented it, so it waits too.
@@ -15,14 +18,12 @@
 // What src/engine exports without an entry re-exporting it is internal by construction and carries no tag (`@internal`
 // marks the members of Engine the modules of core/ read). tests/api-doc.test.ts fails on a row with no description or
 // no stability.
-import { readFileSync, writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import ts from '@typescript/typescript6';
+import { sortedUnique, updateGeneratedPage } from './wiki/generated';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const ENTRIES = ['content', 'player', 'minigames', 'testing', 'reality'];
-const BEGIN = '<!-- api-doc:begin -->';
-const END = '<!-- api-doc:end -->';
 /** The widest signature printed (a wider one is cut: the page is a map, the source is the territory). */
 const SIG_MAX = 160;
 
@@ -145,52 +146,67 @@ export function apiRows(): ApiRow[] {
 
 const cell = (s: string) => s.replace(/\|/g, '\\|');
 
-/** The generated block: one table per entry, one line per export. */
-export function signatures(rows = apiRows()): string {
+const LABELS = {
+  en: { head: '| Name | Signature | Stability | Doc |', deprecated: 'deprecated' },
+  fr: { head: '| Nom | Signature | Stabilité | Doc |', deprecated: 'dépréciée' },
+} as const;
+
+function block(rows: ApiRow[], lang: 'en' | 'fr'): string {
   const out: string[] = [];
   for (const entry of ENTRIES) {
-    out.push(`### web-scumm/${entry}`, '', '| Name | Signature | Stability | Doc |', '|---|---|---|---|');
+    out.push(`<a name="${entry}-reference"></a>`, '');
+    out.push(`### @quest-n-click/engine/${entry}`, '', LABELS[lang].head, '|---|---|---|---|');
     for (const r of rows.filter((r) => r.entry === entry))
       out.push(
-        `| \`${r.name}\` | \`${cell(r.signature)}\` | ${r.stability}${r.deprecated ? ' (deprecated)' : ''} | ${cell(r.doc).slice(0, 140)} |`,
+        `| \`${r.name}\` | \`${cell(r.signature)}\` | ${r.stability}${r.deprecated ? ` (${LABELS[lang].deprecated})` : ''} | ${cell(r.doc).slice(0, 140)} |`,
       );
     out.push('');
   }
   return out.join('\n');
 }
 
-/** The page with its generated block replaced (added at the end when the page has none). */
-export function withBlock(page: string, block: string): string {
-  const body = `${BEGIN}\n${block.trimEnd()}\n${END}`;
-  const i = page.indexOf(BEGIN);
-  const j = page.indexOf(END);
-  if (i >= 0 && j > i) return page.slice(0, i) + body + page.slice(j + END.length);
-  return `${page.trimEnd()}\n\n${body}\n`;
+/**
+ * The generated block of the wiki's `engine.api` (4.5.0, lot B11): one table per entry after its
+ * `<a name="<entry>-reference">` section id, one line per export, its header in the page's language; the docs stay the
+ * source's English first sentences.
+ */
+export const signaturesWiki = (rows: ApiRow[], lang: 'en' | 'fr'): string => block(rows, lang);
+
+/** The rows a page cannot show: no description, no stability, or both tags. */
+export function rowProblems(rows: ApiRow[]): string[] {
+  const out: string[] = [];
+  for (const r of rows) {
+    if (!r.doc) out.push(`${r.entry}: ${r.name} has no description`);
+    if (!r.stability) out.push(`${r.entry}: ${r.name} declares no stability (@public or @extension)`);
+    if (r.bothTags) out.push(`${r.entry}: ${r.name} declares both @public and @extension`);
+  }
+  return out;
 }
 
+/** The identifiers the wiki's `engine.api` names: each entry, and each export. */
+export const apiIdentifiers = (rows: ApiRow[]): string[] =>
+  sortedUnique([
+    ...[...new Set(rows.map((r) => r.entry))].map((e) => `@quest-n-click/engine/${e}`),
+    ...rows.map((r) => r.name),
+  ]);
+
 if (process.argv[1] && import.meta.url.endsWith(process.argv[1].split('/').pop()!)) {
+  const check = process.argv.includes('--check');
   const rows = apiRows();
-  const block = signatures(rows);
-  let behind = 0;
   // A row without a description or a stability fails the command too (tests/api-doc.test.ts says the same).
-  for (const r of rows) {
-    if (!r.doc) console.error(`✖  ${r.entry}: ${r.name} has no description`);
-    if (!r.stability) console.error(`✖  ${r.entry}: ${r.name} declares no stability (@public or @extension)`);
-    if (r.bothTags) console.error(`✖  ${r.entry}: ${r.name} declares both @public and @extension`);
-    if (!r.doc || !r.stability || r.bothTags) behind++;
-  }
-  for (const p of ['docs/en/API.md', 'docs/fr/API.md']) {
-    const file = resolve(ROOT, p);
-    const page = readFileSync(file, 'utf8');
-    const next = withBlock(page, block);
-    if (next === page) continue;
-    if (process.argv.includes('--check')) {
-      console.error(`✖  ${p} is behind the code: npx tsx tools/api-doc.ts`);
-      behind++;
-    } else {
-      writeFileSync(file, next);
-      console.log(`✔  ${p}: the signatures written`);
-    }
-  }
-  process.exit(behind ? 1 : 0);
+  const problems = rowProblems(rows);
+  if (!problems.length)
+    problems.push(
+      ...updateGeneratedPage(
+        resolve(ROOT, 'wiki'),
+        'engine.api',
+        { en: signaturesWiki(rows, 'en'), fr: signaturesWiki(rows, 'fr') },
+        apiIdentifiers(rows),
+        check,
+      ).map((p) => `${p}: npx tsx tools/api-doc.ts`),
+    );
+  for (const p of problems) console.error(`✖  ${p}`);
+  if (!problems.length)
+    console.log(`✔  wiki/en|fr/engine.api.md: the signatures ${check ? 'are up to date' : 'written'}`);
+  process.exit(problems.length ? 1 : 0);
 }

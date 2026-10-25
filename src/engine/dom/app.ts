@@ -335,7 +335,7 @@ export class App {
     // `?renderer=canvas|dom` forces a painter for every room (the visual parity check, the Studio's comparison).
     const forced = typeof location !== 'undefined' ? new URLSearchParams(location.search).get('renderer') : null;
     if (forced === 'canvas' || forced === 'dom') this.view.forced = forced;
-    // `?fps` (3.8): a frame counter in a corner, now and the lowest second seen, for the real-phone pass (docs/en/FIELD.md).
+    // `?fps` (3.8): a frame counter in a corner, now and the lowest second seen, for the real-phone pass (wiki/en/contribute.field-passes.md).
     if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('fps')) this.stopFps = fpsMeter();
     this.view.onSurface = (el, old) => {
       if (old.parentElement) old.replaceWith(el);

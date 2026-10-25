@@ -1,4 +1,4 @@
-import { defineRoom } from 'web-scumm/content';
+import { defineRoom } from '@quest-n-click/engine/content';
 
 // The sample game of the Reality Bridge (4.1.1): the gate opens when the right answer arrives by email (a signal from
 // the world outside), or, if the outside never answers, when the radio on the bench is used (the signal's fallback).

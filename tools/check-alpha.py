@@ -1,5 +1,5 @@
 """Does an image really have a transparent background? Run it once on a test image from your image tool, before
-setting "sheetBackground": "transparent" in the game's site.json (docs/en/PROMPTS.md, "Choosing the sheet background").
+setting "sheetBackground": "transparent" in the game's site.json (wiki/en/create.images.md#sheet-background).
 
     python3 tools/check-alpha.py <image.png>
 

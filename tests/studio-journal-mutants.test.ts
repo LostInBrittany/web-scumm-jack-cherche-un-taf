@@ -15,7 +15,7 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { join } from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { openSqliteDb } from '../bridge/src/store-sqlite';
 import { fsBlobStore } from '../studio-server/src/ops/blobs';
 import { ABSENT, sha256 } from '../studio-server/src/ops/durable';
@@ -367,6 +367,74 @@ describe('the lease', () => {
     expect(Date.now() - t0).toBeGreaterThanOrEqual(300);
     expect(read('rooms/a.ts')).toBe('a1');
     expect(fence).toBe(6);
+    await j.close();
+  });
+
+  it('tries again at the very millisecond of its deadline, and gives up only after it (4.3.0)', async () => {
+    // Kills journal.ts withLease's `Date.now() > deadline` → `>=`. With leaseWaitMs 0 and the clock held still, the
+    // deadline is now: the original keeps trying (now is not past it) and takes the lease once it is free; `>=` would
+    // refuse at once.
+    const j = await open({ leaseWaitMs: 0 });
+    const db = await openDb();
+    await db.run('DELETE FROM studio_lease');
+    await db.run("INSERT INTO studio_lease (id, holder, fence, until_ms) VALUES (1, 'other', 5, $1)", [
+      Date.now() + 60_000,
+    ]);
+    const still = vi.spyOn(Date, 'now').mockReturnValue(Date.now());
+    try {
+      setTimeout(() => void db.run('DELETE FROM studio_lease'), 150);
+      await write(j, 'rooms/a.ts', 'a1');
+      expect(read('rooms/a.ts')).toBe('a1');
+    } finally {
+      still.mockRestore();
+    }
+    await j.close();
+  });
+
+  it("takes another writer's lease that ends in the very millisecond it asks (the database clock pinned, 4.5.0)", async () => {
+    // Kills journal.ts withLease's `Number(cur.until_ms) > t` → `>=`: a lease ending at the database's now is over, as
+    // checkLease says of its own; `>=` would wait for it and, its deadline past, answer 503.
+    const real = await openDb();
+    const CLOCK = "CAST(unixepoch('subsec') * 1000 AS INTEGER)";
+    const pin = (sql: string) => sql.replaceAll(CLOCK, '1000');
+    type Q = {
+      all(s: string, p?: unknown[]): Promise<unknown>;
+      run(s: string, p?: unknown[]): Promise<unknown>;
+      exec(s: string): Promise<void>;
+    };
+    const wrap = (q: Q) => ({
+      all: (sql: string, p?: unknown[]) => q.all(pin(sql), p),
+      run: (sql: string, p?: unknown[]) => q.run(pin(sql), p),
+      exec: (sql: string) => q.exec(pin(sql)),
+    });
+    const db = {
+      ...wrap(real),
+      dialect: 'sqlite' as const,
+      tx: (k: string | undefined, fn: (q: unknown) => Promise<unknown>, o?: unknown) =>
+        real.tx(k, (q) => fn(wrap(q)), o as never),
+      close: () => real.close(),
+    };
+    const j = await Journal.open({
+      db: db as never,
+      blobs: fsBlobStore(join(root, 'blobs')),
+      gameDir: game,
+      leaseMs: 60_000,
+      leaseWaitMs: 0,
+    });
+    await real.run('DELETE FROM studio_lease');
+    await real.run("INSERT INTO studio_lease (id, holder, fence, until_ms) VALUES (1, 'other', 5, 1000)");
+    let fence = 0;
+    await j.apply({
+      author: 'lea',
+      what: 'w',
+      effects: [{ path: 'rooms/a.ts', after: 'a1' }],
+      guard: async () => {
+        fence = Number((await real.all('SELECT fence FROM studio_lease WHERE id = 1'))[0]?.fence);
+      },
+      respond: () => 0,
+    });
+    expect(fence).toBe(6);
+    expect(read('rooms/a.ts')).toBe('a1');
     await j.close();
   });
 

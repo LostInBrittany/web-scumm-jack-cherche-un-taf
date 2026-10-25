@@ -369,6 +369,7 @@
  "ui/reduceMotion": "Réduire les animations",
  "ui/readableFont": "Police lisible",
  "ui/captions": "Sous-titres des sons",
+ "ui/verbKeys": "Touches des verbes",
  "ui/volumeMusic": "Volume musique",
  "ui/volumeSfx": "Volume sons",
  "ui/volumeVoice": "Volume voix",
@@ -384,11 +385,11 @@
  "ui/abandonRun": "Abandonner le run",
  "credits[0]": "LE MARCHÉ DE NUIT",
  "credits[1]": "",
- "credits[2]": "Le chapitre de référence de web-scumm (3.4)",
+ "credits[2]": "Le chapitre de référence de quest'n'click (3.4)",
  "credits[3]": "",
  "credits[4]": "Images et sons : ceux du jeu d'exemple (CC BY 4.0)",
  "credits[5]": "Musique : thème du Lac des cygnes, arrangé (CC BY 4.0)",
  "credits[6]": "",
  "credits[7]": "Merci d'avoir joué !",
- "titleScreen/footer": "Le chapitre de référence de web-scumm. Tourne ton téléphone en paysage."
+ "titleScreen/footer": "Le chapitre de référence de quest'n'click. Tourne ton téléphone en paysage."
 }

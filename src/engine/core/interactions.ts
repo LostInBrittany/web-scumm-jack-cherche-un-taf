@@ -8,6 +8,8 @@ import type { Action, ListLine, Id, RoomDef, Rule, VerbId } from './types';
 import { HERO, type Ctx, type Source } from './engine-shared';
 import type { Engine } from './engine';
 import { seenKey } from './keys';
+import { renderText } from './text-switch';
+import { lineClip } from './voice-key';
 
 // ------------------------------------------------------------------ resolution
 /** Finds the reaction to an action and executes it. */
@@ -17,7 +19,13 @@ export async function resolve(eng: Engine, act: Action, ctx: Ctx): Promise<Sourc
   const rule = eng.findRule(verb, a, b, room);
   if (rule) {
     eng.ran(rule.id);
-    await eng.exec(rule.do, ctx);
+    const last = rule.do.at(-1);
+    eng.tailTalk = typeof last === 'object' && 'talk' in last ? last : null;
+    try {
+      await eng.exec(rule.do, ctx);
+    } finally {
+      eng.tailTalk = null;
+    }
     return 'rule';
   }
 
@@ -35,13 +43,13 @@ export async function resolve(eng: Engine, act: Action, ctx: Ctx): Promise<Sourc
       return 'hint';
     }
     if (room.talk?.[a]) {
-      await eng.talkLoop(a, ctx);
+      await eng.talkLoop(a, ctx, true);
       return 'talk';
     }
   }
   const kind = eng.findKind(verb, a, b, room);
   if (kind) {
-    await eng.say(HERO, eng.fill(kind.say, a, b), ctx, false, eng.voiceOf(kind));
+    await eng.say(HERO, eng.fill(kind.say, a, b), ctx, false, eng.voiceOf(kind, kind.say));
     return 'kind';
   }
   if (verb === 'give' && b) {
@@ -133,10 +141,27 @@ export function fill(eng: Engine, text: string, a: Id, b?: Id): string {
   return text.replace(/\{(\w+)\}/g, (m, k: string) => (PLACEHOLDERS[k] ? value[PLACEHOLDERS[k]] : m));
 }
 
-/** A line's voice clip: its id, when `audio.voices` has a clip under it (the rule of `say` lines). */
-export function voiceOf(eng: Engine, l: ListLine | { id?: Id }): Id | undefined {
+/**
+ * A text as the player reads it now (4.3.0, core/text-switch.ts): `{<flag>?<value>=<text>|…|*=<text>}` takes the text
+ * listed for the flag's current value, `{hero}` the active hero's name (its variant's). Called where a text is shown,
+ * after `fill()` and after the translation; it reads the state and never changes it.
+ */
+export function text(eng: Engine, s: string): string {
+  if (!eng.state) return s;
+  return renderText(s, eng.state.flags, () => {
+    const id = eng.heroId();
+    return eng.character(id)?.name ?? eng.game.characters[id]?.name ?? id;
+  });
+}
+
+/**
+ * A line's voice clip (the rule of `say` lines): `<id>~<flag>=<value>…` when its text (as written) has switches and
+ * `audio.voices` has that clip (4.3.0, core/voice-key.ts), else its id when `audio.voices` has a clip under it.
+ */
+export function voiceOf(eng: Engine, l: ListLine | { id?: Id }, text?: string): Id | undefined {
   const id = typeof l === 'string' ? undefined : 'text' in l ? listId(l) : l.id;
-  return id && eng.game.audio?.voices?.[id] ? id : undefined;
+  const written = text ?? (typeof l !== 'string' && 'text' in l ? l.text : undefined);
+  return lineClip(eng.game.audio?.voices, id, written, eng.state?.flags);
 }
 
 export async function sayFallback(eng: Engine, who: Id, key: string, ctx: Ctx, a: Id, b?: Id) {
@@ -173,8 +198,11 @@ export async function hint(eng: Engine, ctx: Ctx) {
   await eng.say(voice, listText(l), ctx, false, eng.voiceOf(l));
 }
 
-/** Conversation topic menu, until "Bye". */
-export async function talkLoop(eng: Engine, actor: Id, ctx: Ctx) {
+/**
+ * Conversation topic menu, until "Bye". With `saveTopics` (the conversation is the rest of its action: the talk verb
+ * on a character with topics, or a rule's last command), each topic is saved once whole (4.3.0, #218).
+ */
+export async function talkLoop(eng: Engine, actor: Id, ctx: Ctx, saveTopics = false) {
   const room = ctx.room;
   const char = room.actors?.[actor]?.char ?? actor;
   const g = eng.game.globalTalk ?? {};
@@ -192,6 +220,11 @@ export async function talkLoop(eng: Engine, actor: Id, ctx: Ctx) {
       await eng.exec(t.do, ctx);
       eng.state.seen[topicKey(t, i)] = 1;
       eng.writes?.add(`seen:${topicKey(t, i)}`);
+      // A conversation is one action, saved at "Bye": a topic's progress (a flag, an item, a minigame won) would be
+      // lost if the page died before it (#218). The topic is whole here; `saveMade` stays at the action's end. Only
+      // when nothing of the action follows the conversation: a talk in a cutscene, a topic's `do` or the middle of a
+      // rule would save half a `do` that a reload never finishes.
+      if (saveTopics) eng.save();
       continue;
     }
     if (g.hug && pick === topics.length) {

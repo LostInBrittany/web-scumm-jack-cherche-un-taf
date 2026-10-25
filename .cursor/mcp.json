@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "web-scumm": {
+    "quest-n-click": {
       "command": "npm",
       "args": ["--prefix", "${workspaceFolder}", "run", "-s", "mcp"]
     }

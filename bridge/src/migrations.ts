@@ -3,7 +3,7 @@
 // database newer than this Bridge is refused (an older Bridge must not write a schema it does not know).
 import { readdirSync, readFileSync } from 'node:fs';
 
-/** Where the migrations are: beside `src/` in this repository and in the packed web-scumm-bridge. */
+/** Where the migrations are: beside `src/` in this repository and in the packed quest-n-click-bridge. */
 const DIR = new URL('../migrations/', import.meta.url);
 
 /** The steps in `dir` (the Bridge's by default), in order: their version and both directions. */

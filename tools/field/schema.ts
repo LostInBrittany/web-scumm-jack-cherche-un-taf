@@ -5,7 +5,7 @@
 // field it does not name is refused, so a token, an address or an attachment cannot ride in by mistake.
 import { z } from 'zod';
 
-/** The passes, by an id that does not move with a translation: the thirteen of 4.1.17's sheet, then two each in 4.2.1, 4.2.2 and 4.2.3. */
+/** The passes, by an id that does not move with a translation: the thirteen of 4.1.17's sheet, then two each in 4.2.1, 4.2.2, 4.2.3 and 4.4.0, one in 4.5.0. */
 export const PASS_IDS = [
   'bridge-postgres-https',
   'runs-real-players',
@@ -26,6 +26,9 @@ export const PASS_IDS = [
   'studio-assets-hosted',
   'studio-mcp-remote',
   'studio-oidc-generic',
+  'heroes-two-languages',
+  'studio-hero-matrix',
+  'docs-beginner-reader',
 ] as const;
 export type PassId = (typeof PASS_IDS)[number];
 
@@ -37,6 +40,9 @@ const PASS_SINCE: Partial<Record<PassId, string>> = {
   'studio-assets-hosted': '4.2.2',
   'studio-mcp-remote': '4.2.3',
   'studio-oidc-generic': '4.2.3',
+  'heroes-two-languages': '4.4.0',
+  'studio-hero-matrix': '4.4.0',
+  'docs-beginner-reader': '4.5.0',
 };
 
 /** The passes asked of a release (`4.2.1`, `4.2.1-rc.1`: a pre-release is asked what its release will be). */
@@ -76,6 +82,12 @@ export const PASS_LABELS: Record<PassId, string> = {
     "An AI agent on a hosted Studio through its remote MCP (/mcp): a real MCP client, a member's token, a write in the journal as the member, a span another holds refused",
   'studio-oidc-generic':
     'The Studio Server behind a second OpenID Connect provider (GitLab, D44): login, roles, a revoked member refused, verified by a person',
+  'heroes-two-languages':
+    "The heroes example (games/heroes) on a real phone, in English and French: each hero's card, name, lines and voice, a save resumed",
+  'studio-hero-matrix':
+    "The Studio's hero × language matrix read by an author on their own game: what it shows, what is missing, what it should say",
+  'docs-beginner-reader':
+    'A beginner reads the published documentation for answers to ten real questions (docs/dev/acceptance/BEGINNER-READER.md): found, missing or misread, in their language',
 };
 
 export const FIELD_STATUSES = ['not-run', 'blocked', 'failed', 'passed'] as const;

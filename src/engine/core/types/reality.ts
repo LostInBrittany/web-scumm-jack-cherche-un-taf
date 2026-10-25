@@ -1,6 +1,6 @@
 // Reality Bridge (4.1.1): the signals a game may receive from the world outside, as data. A signal is an identifier
 // from a finite alphabet the game declares; it reaches the game as an event (`events: [{ on: '<signal id>' }]`),
-// never as text from outside (docs/en/REALITY.md). (core/types.ts re-exports every name.)
+// never as text from outside (wiki/en/bridge.what-it-is.md). (core/types.ts re-exports every name.)
 import type { Cmd, Id } from './content';
 
 /**
@@ -49,7 +49,7 @@ export interface RealityDef {
    */
   bridge?: string;
   /**
-   * What each connector may turn into a signal (4.1.9, docs/en/CONNECTORS.md), as data: words an email must say,
+   * What each connector may turn into a signal (4.1.9, wiki/en/bridge.connectors.md), as data: words an email must say,
    * the commands of a virtual terminal and the files of its virtual disk, the badge issuers a game trusts. Public (it
    * goes into the Reality manifest); every signal named here is one of `signals`. A game runs without any connector.
    */

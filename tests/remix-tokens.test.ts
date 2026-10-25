@@ -131,3 +131,13 @@ describe('a Mystery commitment and its reveal', () => {
     );
   });
 });
+
+// Killed mutant (4.3.0 reread of the exemptions): a token whose header is not UTF-8 is unreadable. A byte that is not
+// UTF-8 inside a JSON string would otherwise decode to U+FFFD, which JSON.parse takes: the refusal would name the key.
+describe('a token that is not UTF-8', () => {
+  it('is unreadable, not a token of another key', async () => {
+    const h = Buffer.from([...new TextEncoder().encode(`{"alg":"EdDSA","kid":"${fixture.kid}`), 0xff, 0x22, 0x7d]);
+    const r = await verifyDayToken(`${h.toString('base64url')}.e30.AAAA`, await pub(), 'reference', null);
+    expect(r).toEqual({ ok: false, reason: 'unreadable token' });
+  });
+});

@@ -47,15 +47,29 @@ const pick = <T extends object>(o: T | undefined, keys: readonly (keyof T)[]): P
 const each = <V, R>(rec: Readonly<Record<Id, V>> | undefined, f: (v: V) => R | undefined) =>
   rec ? Object.fromEntries(Object.entries(rec).map(([k, v]) => [k, f(v) ?? {}])) : undefined;
 
+/** The card images of every choice in the content (`Choice.img`), in content order: a deep walk of the commands. */
+function choiceImages(x: unknown, out: string[] = []): string[] {
+  if (Array.isArray(x)) for (const v of x) choiceImages(v, out);
+  else if (x && typeof x === 'object')
+    for (const [k, v] of Object.entries(x)) {
+      if (k === 'choice' && Array.isArray(v))
+        for (const o of v) if (o && typeof o === 'object' && typeof o.img === 'string') out.push(o.img);
+      choiceImages(v, out);
+    }
+  return out;
+}
+
 /**
  * What the fingerprint's `presentation` hashes: the asset manifest, and every field core/ir-fields.ts classes as
  * presentation (whole) or both (its presentation part: a room's decor, music, stage layers and lights, its props'
- * images and animation frames, its actors' poses; the characters' looks; the items' icons; the verbs' colours; the
- * map's images and pins). No condition nor command of the content is in it.
+ * images and animation frames, its actors' poses; the characters' looks; the items' icons; the verbs' colours and keys;
+ * the map's images and pins; the choices' card images when there are some). No condition nor command of the content is
+ * in it.
  * @public
  */
 export function presentationOf(game: CompiledGame | GameDef, manifest: unknown = null): unknown {
   const g = game as GameDef;
+  const cards = choiceImages([g.rooms, g.rules, g.events, g.scripts, g.start]);
   return {
     manifest: manifest ?? null,
     game: {
@@ -68,12 +82,14 @@ export function presentationOf(game: CompiledGame | GameDef, manifest: unknown =
         'saves',
         'settings',
         'input',
+        'actorGap',
         'ui',
         'titleScreen',
         'creditsScreen',
         'credits',
       ]),
-      verbs: g.verbs.map((v) => ({ id: v.id, color: v.color })),
+      // A verb's key (#203) only when set: a game without keys keeps its fingerprint.
+      verbs: g.verbs.map((v) => ({ id: v.id, color: v.color, ...(v.key !== undefined ? { key: v.key } : {}) })),
       characters: each(g.characters, (c) =>
         pick(c, [
           'color',
@@ -108,6 +124,8 @@ export function presentationOf(game: CompiledGame | GameDef, manifest: unknown =
             places: each(g.map.places, (x) => pick(x, ['pos', 'portrait', 'vehicle'])),
           }
         : undefined,
+      // Only when a choice has a card image: a game without one keeps the hash it had.
+      ...(cards.length ? { choiceImages: cards } : {}),
     },
   };
 }

@@ -16,7 +16,7 @@
 import { EventEmitter } from 'node:events';
 import type { SqlDb, SqlQuery } from '../../../bridge/src/store-sql';
 import { StudioError } from '../ops/errors';
-import { EXCLUSIVE, spansOf } from '../ops/spans';
+import { EXCLUSIVE, type OwnSpans, spansOf } from '../ops/spans';
 
 export interface Claimant {
   userId: string;
@@ -54,12 +54,15 @@ export class Leases {
   /** `changed` (): after a commit that took, renewed, released or took over a lease. */
   readonly events = new EventEmitter();
   readonly ttlMs: number;
+  /** The game's own spans (its spans.json, 4.5.1), read when a write claims its files. */
+  readonly own: () => OwnSpans;
 
   constructor(
     private db: SqlDb,
-    o: { ttlMs?: number } = {},
+    o: { ttlMs?: number; own?: () => OwnSpans } = {},
   ) {
     this.ttlMs = o.ttlMs ?? 120_000;
+    this.own = o.own ?? (() => []);
     this.events.setMaxListeners(0);
   }
 
@@ -130,7 +133,7 @@ export class Leases {
 
   /** The claim of an operation on these game files (the journal's hook). */
   claimPaths(q: SqlQuery, who: Claimant, paths: string[]): Promise<Record<string, number>> {
-    return this.claim(q, who, spansOf(paths));
+    return this.claim(q, who, spansOf(paths, this.own()));
   }
 
   /** Takes spans ahead, as a write would. */

@@ -381,11 +381,41 @@
     "checkpoint"
    ]
   },
-  "read_doc": {
+  "search_docs": {
    "required": [
-    "name"
+    "query"
    ],
-   "optional": []
+   "optional": [
+    "audience",
+    "context",
+    "cursor",
+    "includeArchived",
+    "lang",
+    "limit",
+    "type",
+    "version"
+   ]
+  },
+  "list_docs": {
+   "required": [],
+   "optional": [
+    "audience",
+    "context",
+    "lang",
+    "state",
+    "type"
+   ]
+  },
+  "read_doc": {
+   "required": [],
+   "optional": [
+    "cursor",
+    "id",
+    "lang",
+    "maxChars",
+    "name",
+    "section"
+   ]
   },
   "run_tests": {
    "required": [],

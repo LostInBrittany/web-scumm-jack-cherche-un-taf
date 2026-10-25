@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import type { Layout } from 'web-scumm/content';
-import { solve } from 'web-scumm/testing';
-import { Engine } from 'web-scumm/testing';
-import { FakePresenter, MemoryStore } from 'web-scumm/testing';
-import { parseSave, saveEnvelope } from 'web-scumm/testing';
+import type { Layout } from '@quest-n-click/engine/content';
+import { solve } from '@quest-n-click/engine/testing';
+import { Engine } from '@quest-n-click/engine/testing';
+import { FakePresenter, MemoryStore } from '@quest-n-click/engine/testing';
+import { parseSave, saveEnvelope } from '@quest-n-click/engine/testing';
 import { game } from '../game';
 import start from '../layout/start.json';
 

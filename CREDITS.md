@@ -1,19 +1,19 @@
 # Credits
 
 ## Code
-web-scumm engine and tools: MIT License, (c) 2026 Wano. Built with Vite, Vitest, Howler, earcut, navmesh, Tweakpane, Playwright, zod.
+quest'n'click (formerly web-scumm) engine and tools: MIT License, (c) 2026 Wano. Built with Vite, Vitest, Howler, earcut, navmesh, Tweakpane, Playwright, zod.
 The Biscuit test vectors under `bridge/test-vectors/biscuit/` come from the Biscuit project (Apache-2.0, their `LICENSE` beside them).
-The SSH connector (`web-scumm-connectors`, 4.1.9) runs on ssh2 (MIT, Brian White) and its dependencies asn1 (MIT),
+The SSH connector (`@quest-n-click/connectors`, 4.1.9) runs on ssh2 (MIT, Brian White) and its dependencies asn1 (MIT),
 bcrypt-pbkdf (BSD-3-Clause), safer-buffer (MIT) and tweetnacl (Unlicense).
 
 ## Sample game artwork (games/demo/art)
 Backgrounds, characters, objects and interface icons: generated for the project with an image model from written prompts
-(see docs/en/PROMPTS.md), then cut and keyed with the tools in this repository. CC BY 4.0, attribution "Wano".
+(see wiki/en/create.images.md), then cut and keyed with the tools in this repository. CC BY 4.0, attribution "Wano".
 The four human characters are cartoon caricatures used with the consent of the people they are based on; they are
 published under names that are not theirs.
 
 ## Music and sound effects (games/demo/audio)
-Rendered for the project with the Mega Drive audio pipeline in `tools/audio` (docs/en/AUDIO.md), which drives
+Rendered for the project with the Mega Drive audio pipeline in `tools/audio` (wiki/en/create.music.md), which drives
 [Furnace](https://github.com/tildearrow/furnace) (GPL-2.0, downloaded by `npm run audio -- setup`, not bundled).
 - Music: the oboe theme of *Swan Lake* (Pyotr Ilyich Tchaikovsky, 1876, public domain), its notes, harmony and
   arrangement written for the project (`audio/projects/swan-theme/compose.py`, then `spec.json`) and rendered for
@@ -23,13 +23,15 @@ Rendered for the project with the Mega Drive audio pipeline in `tools/audio` (do
   attribution "Wano".
 
 ## Fonts (public/fonts, src/engine/dom/fonts)
+- Galmuri11, by Lee Minseo (quiple). SIL Open Font License 1.1 (no Reserved Font Name). The default interface font
+  since 4.3.0, shipped as a Latin subset made by `tools/subset-font.py` (`src/engine/dom/fonts/`).
 - DotGothic16, by Fontworks. SIL Open Font License 1.1 (no Reserved Font Name). The engine ships it whole
   (`public/fonts/`) and as a Latin subset made by `tools/subset-font.py` (`src/engine/dom/fonts/`).
 - Press Start 2P, by CodeMan38. SIL Open Font License 1.1.
 
 ## Not affiliated
 
-web-scumm is an independent project. "SCUMM-style" describes a kind of game (verbs, a bag, rooms, dialogue with
+quest'n'click (formerly web-scumm) is an independent project. "SCUMM-style" describes a kind of game (verbs, a bag, rooms, dialogue with
 choices); the project is not affiliated with, endorsed by or derived from LucasArts, Lucasfilm, Disney or the ScummVM
 project, and ships none of their code, data or art.
 

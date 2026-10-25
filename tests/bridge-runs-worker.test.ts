@@ -91,3 +91,13 @@ describe('a worker', () => {
     expect(existsSync(dir)).toBe(true);
   });
 });
+
+// Killed mutants (4.3.0 reread of the exemptions): `let ended = false` and `if (ended || killed) settle()`. The race
+// is staged: a grandchild in its own process group holds the worker's stdout and writes the answer 100 ms after the
+// worker exited. The queue reads until the pipe ends (a second at most), so the answer is not lost; settling at 'exit'
+// would read nothing and call it a crash. POSIX only, like the signal: a detached group is a POSIX process group.
+describe.skipIf(process.platform === 'win32')('a worker whose answer reaches the pipe after it exited', () => {
+  it('is read all the same', async () => {
+    expect(await runWorker(fake('late'), game, '{}')).toMatchObject({ verdict: 'valid', ranked: '100' });
+  });
+});

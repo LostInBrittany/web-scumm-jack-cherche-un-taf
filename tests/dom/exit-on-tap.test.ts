@@ -1,12 +1,13 @@
 // @vitest-environment happy-dom
 // A single tap on an exit (#188): with the game's `input.exitOnTap`, or the exit's `onTap: 'go'`, the hero walks to it
 // and goes through on arrival, with the double tap's verb; otherwise the tap only walks there, as before. A verb
-// picked still wins, a tap elsewhere during the walk redirects the hero and nothing goes through, and a double tap
-// acts once.
+// picked still wins, a tap elsewhere during the walk redirects the hero and nothing goes through, so do a room change
+// and a save loaded during it, and a double tap acts once.
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@engine/dom/app';
 import type { ExitDef, GameDef, SessionEntry } from '@engine/core/types';
 import { game as demo } from '../../games/demo/game';
+import { validate } from '@engine/tools/validate';
 import { mini, miniLayouts } from '../fixtures/mini';
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -119,6 +120,33 @@ describe('a single tap on an exit (#188)', () => {
     app.destroy();
   });
 
+  it('a room change during the walk cancels it: nothing goes through in the new room', async () => {
+    const app = await start({ exitOnTap: true });
+    const going = app.actOnTarget('door');
+    await sleep(20);
+    expect(app.engine.busy).toBe(false);
+    await app.engine.teleport('b');
+    await going;
+    await settle(app);
+    expect(app.engine.state.room).toBe('b');
+    expect(acts(app)).toEqual([]);
+    app.destroy();
+  });
+
+  it('a save loaded during the walk cancels it, in the same room too', async () => {
+    const app = await start({ exitOnTap: true });
+    const saved = structuredClone(app.engine.state);
+    const going = app.actOnTarget('door');
+    await sleep(20);
+    expect(app.engine.busy).toBe(false);
+    await app.engine.load(saved);
+    await going;
+    await settle(app);
+    expect(app.engine.state.room).toBe('a');
+    expect(acts(app)).toEqual([]);
+    app.destroy();
+  });
+
   it('a double tap still acts once', async () => {
     const app = await start({ exitOnTap: true });
     const first = app.actOnTarget('door');
@@ -128,5 +156,56 @@ describe('a single tap on an exit (#188)', () => {
     expect(acts(app)).toEqual([{ verb: 'use', a: 'door' }]);
     expect(app.engine.state.room).toBe('b');
     app.destroy();
+  });
+});
+
+describe("the validator on the player's side (validate/player.ts): the two fields (#188) and the menus", () => {
+  const errs = (g: GameDef) => validate(g, {}).errors.filter((e) => /onTap|input/.test(e));
+
+  it('accepts the demo, a boolean exitOnTap and an onTap of go or walk', () => {
+    const g = structuredClone(demo) as GameDef;
+    expect(errs(g)).toEqual([]);
+    const room = g.rooms.find((r) => Object.keys(r.exits ?? {}).length)!;
+    const [xid] = Object.keys(room.exits!);
+    g.input = { exitOnTap: false };
+    room.exits![xid!]!.onTap = 'walk';
+    expect(errs(g)).toEqual([]);
+  });
+
+  it('refuses another onTap, a non-boolean exitOnTap and an input that is not an object', () => {
+    const g = structuredClone(demo) as GameDef;
+    const room = g.rooms.find((r) => Object.keys(r.exits ?? {}).length)!;
+    const [xid] = Object.keys(room.exits!);
+    room.exits![xid!]!.onTap = 'look' as never;
+    g.input = { exitOnTap: 'yes' as never };
+    expect(errs(g)).toEqual([
+      'input.exitOnTap › exitOnTap is true or false',
+      `${room.id}.exits.${xid} › onTap is "go" or "walk", not "look"`,
+    ]);
+    g.input = true as never;
+    expect(errs(g)).toContain('input › input is an object: { exitOnTap?: boolean }');
+  });
+
+  it('refuses an actorGap that is not a positive number (#198)', () => {
+    const g = structuredClone(demo) as GameDef;
+    const gaps = () => validate(g, {}).errors.filter((e) => e.startsWith('actorGap'));
+    g.actorGap = 60;
+    expect(gaps()).toEqual([]);
+    for (const bad of [0, -5, Number.NaN, Number.POSITIVE_INFINITY, '60']) {
+      g.actorGap = bad as never;
+      expect(gaps()).toEqual(['actorGap › actorGap is a positive number of pixels (44 is used instead)']);
+    }
+  });
+
+  it("still checks the save slots and the menus' texts", () => {
+    const g = structuredClone(demo) as GameDef;
+    g.saves = { slots: -1 };
+    expect(validate(g, {}).errors).toContain('saves › slots must be a whole number');
+    g.saves = { slots: 3 };
+    g.settings = true;
+    g.ui = { ...g.ui, exportSave: undefined, textSize: undefined } as never;
+    const w = validate(g, {}).warnings;
+    expect(w).toContain('ui.exportSave › missing text for the save menu (English default used)');
+    expect(w).toContain('ui.textSize › missing text for the settings menu (English default used)');
   });
 });

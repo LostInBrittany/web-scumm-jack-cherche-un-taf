@@ -1,7 +1,7 @@
 {
-  "name": "web-scumm",
+  "name": "@quest-n-click/engine",
   "private": true,
-  "version": "4.2.2",
+  "version": "4.5.3",
   "type": "module",
   "scripts": {
     "dev": "tsx tools/select-game.ts && vite",
@@ -43,7 +43,7 @@
     "e2e:studio-hosted": "tsx scripts/e2e-studio-hosted.ts",
     "e2e:studio-collab": "tsx scripts/e2e-studio-collab.ts",
     "release-check": "npm run doctor -- --release && npm run quality && npm run build && npm run test:coverage && npx tsx tools/coverage-ratchet.ts --strict && npm run verify:release && npm run prove:game && npm run solve -- --audit-abstractions && npm run reality:xcheck -- --require-rust && npm run test:mutation:core -- --set=all && node scripts/pack.mjs --out=.cache/pack --publish-dry-run && npm run audit:deps && npm audit --audit-level=high",
-    "release-check:ci": "npm run doctor -- --release && npm run quality && npm run build && npm run test:coverage && npx tsx tools/coverage-ratchet.ts --strict && npm run verify:release && npm run prove:game && npm run solve -- --audit-abstractions && npm run reality:xcheck -- --require-rust && node scripts/pack.mjs --out=.cache/pack --publish-dry-run && npm run audit:deps && npm audit --audit-level=high",
+    "release-check:ci": "npm run doctor -- --release && npm run quality && npm run build && npm run test:coverage -- --reporter=default --reporter=github-actions --reporter=json --outputFile.json=.cache/test-report/vitest.json && npx tsx tools/coverage-ratchet.ts --strict && npm run verify:release && npm run prove:game && npm run solve -- --audit-abstractions && npm run reality:xcheck -- --require-rust && node scripts/pack.mjs --out=.cache/pack --publish-dry-run && npm run audit:deps && npm audit --audit-level=high",
     "release-check:local": "npm run quality && npm run docs:truth && npm run test:node && npm run build:game && npm run quality:baseline -- --check --dist",
     "ship": "node tools/release/ship.mjs",
     "e2e": "node scripts/e2e.mjs",
@@ -125,6 +125,7 @@
     "docs:truth": "tsx tools/docs-truth.ts",
     "docs:links": "node scripts/check-links.mjs",
     "changes": "tsx tools/changes.ts",
+    "wiki": "tsx tools/wiki.ts",
     "ci:plan": "tsx tools/ci-plan.ts",
     "test:heavy": "vitest run --no-file-parallelism tests/ownership.test.ts tests/audit.test.ts tests/canonical.test.ts tests/memo.test.ts tests/reference-proof.test.ts tests/solver-oracle.test.ts tests/dominance.test.ts tests/partition.test.ts tests/checkpoint-matrix.test.ts",
     "build:game": "npm run verify:game && vite build && npm run verify:dist && npm run check:spoilers && npm run audit:assets",

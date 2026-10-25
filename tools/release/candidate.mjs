@@ -14,7 +14,7 @@
 //                                          the full qualification of this SHA and run, on its archives and image (4.1.20)
 import { createHash } from 'node:crypto';
 import { spawnSync } from 'node:child_process';
-import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { versionOf } from './lib.mjs';
@@ -150,8 +150,10 @@ if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
     const archives = readdirSync(pack)
       .filter((f) => f.endsWith('.tgz'))
       .map((name) => ({ name, sha256: sha256(join(pack, name)) }));
-    const image = JSON.parse(readFileSync(join(flag('image'), 'web-scumm-bridge-image.json'), 'utf8'));
-    // The catalogue from the checkout (scripts/ is not shipped with tools/ in the web-scumm package: never imported
+    // The image's identity under its name since 4.2.5 (D47), or its former one.
+    const named = ['quest-n-click-bridge-image.json', 'web-scumm-bridge-image.json'].map((f) => join(flag('image'), f));
+    const image = JSON.parse(readFileSync(named.find((f) => existsSync(f)) ?? named[0], 'utf8'));
+    // The catalogue from the checkout (scripts/ is not shipped with tools/ in the quest-n-click package: never imported
     // statically, second reading of 4.1.20 PR 3).
     const { CATALOGUE } = await import(pathToFileURL(join(process.cwd(), 'scripts', 'ops-qualify', 'steps.mjs')).href);
     const bad = qualificationProblems(JSON.parse(readFileSync(arg, 'utf8')), {

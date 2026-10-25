@@ -48,6 +48,14 @@ export const SETS = {
   // The speedrun queue (4.1.17, plan §7): admission, quota, leaderboard ranking. Gated from the start: the bugs 4.1.17
   // fixed there (a board cut before ranking, a count then a write, a quota per process) were in no set.
   runs: ['bridge/src/runs.ts', 'bridge/src/runs-store.ts', 'bridge/src/runs-limiter.ts'],
+  // Voices by value and the solver's verdicts (4.3.1): the keys a line's clips go by in each language, the recording
+  // table, the validator's check, and the one sentence each status says. 4.3.1 fixed two bugs there that no set held.
+  voices: [
+    'src/engine/core/voice-key.ts',
+    'src/engine/tools/voices.ts',
+    'src/engine/tools/validate/voices.ts',
+    'src/engine/tools/status.ts',
+  ],
   // The Bridge's stores and its fan-out (4.1.10, ADR 0009): measured until 4.1.18, gated since (D32): its 118
   // survivors read one by one, each killed by a short test (tests/reality-store-*-mutants.test.ts) or named.
   'reality-store': [
@@ -186,10 +194,19 @@ export const TESTS: Record<MutationSet, string[]> = {
     'tests/code-wheel.test.ts',
   ],
   speedrun: ['tests/speedrun-*.test.ts', 'tests/critical-minigame-outcome.test.ts'],
+  voices: [
+    'tests/voice-key.test.ts',
+    'tests/voices.test.ts',
+    'tests/voice-locale.test.ts',
+    'tests/voices-mutants.test.ts',
+    'tests/hero-choice.test.ts',
+    'tests/status.test.ts',
+  ],
   // studio-server.test.ts's local part opens journals and migrates too: durable.ts's writes are judged there as well.
   'studio-ops': [
     'tests/studio-journal*.test.ts',
     'tests/studio-durable-mutants.test.ts',
+    'tests/studio-spans-mutants.test.ts',
     'tests/studio-server.test.ts',
     'tests/studio-collab.test.ts',
   ],
@@ -248,6 +265,9 @@ export const GATED: MutationSet[] = [
   // 4.2.3 PR 10: its 104 survivors read (94 killed by tests/studio-workshop-{backup,health,previews,prepared}-mutants,
   // 10 named in docs/dev/mutants.json).
   'studio-workshop',
+  // 4.3.1: gated from the start, its survivors read before it joined (186 of 193 killed, 7 named in
+  // docs/dev/mutants.json, each read again in a second context, which found one a bug: a `*=`-only line's sheet text).
+  'voices',
 ];
 /** Measured on demand (`gh workflow run mutation -f set=…`) and every night, gating nothing until their survivors are read. */
 // Empty in 4.1.20 (plan §7.5): every set was gated; a set added later is measured here until its survivors are read.

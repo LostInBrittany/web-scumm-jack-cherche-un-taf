@@ -1,4 +1,4 @@
-// web-scumm-connector <id> --config <file.json> (4.1.9, docs/en/CONNECTORS.md): one connector, one process. Reads its
+// quest-n-click-connector <id> --config <file.json> (4.1.9, wiki/en/bridge.connectors.md): one connector, one process. Reads its
 // configuration (the Bridge, the token from a file, the limits, its own section), the game's Reality manifest (a file,
 // or the Bridge's `GET /v1/manifest`), starts the connector, serves `/health` and `/metrics` on a local port when asked,
 // and stops cleanly on SIGTERM or SIGINT: no new input, what is in flight drained for at most five seconds, exit 0.
@@ -9,9 +9,9 @@ import type { RealityManifest } from '../../src/engine/reality/manifest';
 import { CONNECTOR_IDS, makeConnector } from './registry';
 import { createContext, type ConnectorLimits, DRAIN_MS, within } from './sdk';
 
-export const USAGE = `usage: web-scumm-connector <${CONNECTOR_IDS.join('|')}> --config <file.json>
+export const USAGE = `usage: quest-n-click-connector <${CONNECTOR_IDS.join('|')}> --config <file.json>
 
-  One connector of the world outside, as its own process (docs/en/CONNECTORS.md). The configuration names the Bridge
+  One connector of the world outside, as its own process (https://github.com/Quest-n-Click/quest-n-click/wiki/EN-Bridge-Connectors). The configuration names the Bridge
   ({ "bridge": { "url", "tokenFile" } }), the game ("gameId"), optionally "manifestFile" (else the Bridge's manifest),
   "limits" ({ maxBytes, maxPerMinute, timeoutMs }), "health" ({ "port" }, on 127.0.0.1: /health and /metrics), and a
   section named after the connector. Secrets are read from files, never from the command line.
@@ -75,7 +75,9 @@ export async function main(
     return 1;
   }
   if (!token) {
-    console.error('✖  no token: "bridge.tokenFile" names the file of the connector Biscuit (web-scumm-bridge grant)');
+    console.error(
+      '✖  no token: "bridge.tokenFile" names the file of the connector Biscuit (quest-n-click-bridge grant)',
+    );
     return 1;
   }
   const manifest = await manifestOf(cfg, base);

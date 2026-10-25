@@ -50,6 +50,38 @@ describe('a job followed in the page', () => {
   });
 });
 
+describe('a job that ended', () => {
+  it('is not told again by a poll still in flight when the stream said it ended', async () => {
+    vi.useFakeTimers();
+    try {
+      let answer!: (r: Response) => void;
+      vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>((ok) => (answer = ok)));
+      const seen: string[] = [];
+      const done = followJob(job({ kind: 'prepare', state: 'running' }), (j) => seen.push(jobText(j)));
+      await vi.advanceTimersByTimeAsync(3_100); // the poll is sent, its answer not yet back
+      tell(job({ kind: 'prepare', state: 'done', result: { rev: 3 } }));
+      await done;
+      answer(json(200, job({ kind: 'prepare', state: 'done', result: { rev: 3 } })));
+      await vi.advanceTimersByTimeAsync(10);
+      expect(seen).toEqual(['Preparing the assets: starting…', 'Preparing the assets: done']);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+  it('keeps its last word when a Cancel sent before the end is refused after it (4.3.0)', async () => {
+    let refuse!: (r: Response) => void;
+    vi.spyOn(globalThis, 'fetch').mockReturnValue(new Promise<Response>((ok) => (refuse = ok)));
+    const done = followJob(job({ kind: 'prepare', state: 'running' }));
+    document.querySelector<HTMLButtonElement>('[data-job="j1"] button')!.click(); // the cancel is sent
+    tell(job({ kind: 'prepare', state: 'done' }));
+    await done;
+    refuse(json(409, { error: 'the job has ended' }));
+    await new Promise((r) => setTimeout(r, 0));
+    await new Promise((r) => setTimeout(r, 0));
+    expect(document.querySelector('[data-job="j1"]')!.textContent).toBe('Preparing the assets: done ');
+  });
+});
+
 describe('a job the server no longer knows', () => {
   it('ends as failed, saying the server restarted', async () => {
     vi.useFakeTimers();

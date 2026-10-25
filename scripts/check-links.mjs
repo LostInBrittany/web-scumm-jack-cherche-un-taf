@@ -16,7 +16,7 @@ const FILES = [
   'LICENSE-ASSETS',
   'CODE_OF_CONDUCT.md',
 ];
-const DIRS = ['docs', '.github'];
+const DIRS = ['wiki/en', 'wiki/fr', 'docs', '.github'];
 // Hosts quoted as a provider's base URL, not as a page: a 4xx from them says nothing about the documentation.
 const BASE_HOSTS = new Set(['api.anthropic.com', 'api.mistral.ai', 'api.openai.com']);
 

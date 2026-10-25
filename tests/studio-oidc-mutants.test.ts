@@ -153,6 +153,8 @@ describe('logout tokens', () => {
     const oidc = await Oidc.discover(settings());
     for (const events of [
       undefined,
+      // null is an object to `typeof`: indexed, it would throw a TypeError, not the refusal (4.4.0).
+      null,
       'logout',
       {},
       { 'http://schemas.openid.net/event/backchannel-logout': [] },

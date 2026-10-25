@@ -158,8 +158,8 @@ export const CMD_DOCS: Record<CmdKey, Said> = {
   ],
   cutscene: ['Runs a list the player can skip.', 'Joue une liste que le joueur peut passer.'],
   choice: [
-    'Offers the player options, each with its commands.',
-    'Propose des options au joueur, chacune avec ses commandes.',
+    'Offers the player options, each with its commands; an option with an `img` shows as a card (the image, its text under it), the cards first.',
+    "Propose des options au joueur, chacune avec ses commandes ; une option avec `img` s'affiche en carte (l'image, son texte dessous), les cartes d'abord.",
   ],
   minigame: ['Starts a minigame, then runs `then`.', 'Lance un mini-jeu, puis joue `then`.'],
   phone: ['An incoming call from one or several characters.', "Un appel entrant d'un ou plusieurs personnages."],

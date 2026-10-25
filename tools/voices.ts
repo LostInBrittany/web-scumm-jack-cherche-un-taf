@@ -1,6 +1,7 @@
 // npm run voices -- status [--lang xx] | export --lang xx [--json] | import <file> --lang xx | check [--lang xx] [--release]
-// The voice production table (src/engine/tools/voices.ts): per language, every line with a stable id, who speaks it,
-// its text in that language, its clip and its status (`games/<id>/voices.json`: draft, record, recorded, approved).
+// The voice production table (src/engine/tools/voices.ts): per language, every clip a line with a stable id needs (a
+// line with text switches needs one per value, `<id>~<flag>=<value>`, src/engine/core/voice-key.ts), who speaks it,
+// its text in that language, its file and its status (`games/<id>/voices.json`: draft, record, recorded, approved).
 // `export` writes the table for the actors (CSV, or JSON), `import` brings their statuses, actors and notes back,
 // `check` measures every clip with ffmpeg (duration, sample rate, codec, loudness, peak). Exit codes: `status` 0;
 // `import` 1 on an unknown line or status; `check` 1 on an error (with --release, an approved line without its clip
@@ -8,13 +9,13 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { applyLocale } from '../src/engine/tools/i18n';
-import { lineIds } from '../src/engine/core/content-ids';
 import {
   clipVerdict,
   mergeSheet,
   orphanClips,
   parseCsv,
   toCsv,
+  voiceIds,
   voiceTable,
   VOICE_STATUSES,
   type VoiceSheet,
@@ -52,9 +53,9 @@ if (cmd === 'status') {
   for (const lang of arg('lang') ? [arg('lang')!] : langs) {
     const rows = table(lang);
     const by = Object.fromEntries(VOICE_STATUSES.map((s) => [s, rows.filter((r) => r.status === s).length]));
-    const orphans = orphanClips(game, lang);
+    const orphans = orphanClips(game, lang, localized(lang));
     console.log(
-      `[${GAME}] ${lang}: ${rows.length} line(s) with an id — ${VOICE_STATUSES.map((s) => `${by[s]} ${s}`).join(', ')}; ${rows.filter((r) => r.file).length} with a clip${orphans.length ? `, ${orphans.length} clip(s) no line claims` : ''}`,
+      `[${GAME}] ${lang}: ${rows.length} clip(s) for the lines with an id (one per value for a line with switches) — ${VOICE_STATUSES.map((s) => `${by[s]} ${s}`).join(', ')}; ${rows.filter((r) => r.file).length} with a clip${orphans.length ? `, ${orphans.length} clip(s) no line claims` : ''}`,
     );
     for (const o of orphans) console.log(`  orphan clip ${o.id} → ${o.file}`);
   }
@@ -77,7 +78,7 @@ if (cmd === 'import') {
   }
   const text = readFileSync(file, 'utf8');
   const rows = file.endsWith('.json') ? (JSON.parse(text) as Record<string, string>[]) : parseCsv(text);
-  const r = mergeSheet(sheet, lang, rows, new Set(lineIds(game).map((l) => l.id)));
+  const r = mergeSheet(sheet, lang, rows, voiceIds(localized(lang)));
   for (const u of r.unknown) console.log(`  ✖ no line "${u}" in the game`);
   for (const b of r.bad) console.log(`  ✖ ${b}`);
   if (r.unknown.length || r.bad.length) process.exit(1);
@@ -104,7 +105,8 @@ if (cmd === 'check') {
       errors += errs.length;
       warnings += warns.length;
     }
-    for (const o of orphanClips(game, lang)) {
+    // The clips a language claims follow its own text (4.4.0: `status` read the translation, `check` the source).
+    for (const o of orphanClips(game, lang, localized(lang))) {
       console.log(`  ⚠ ${lang} ${o.id}: a clip no line claims (${o.file})`);
       warnings++;
     }

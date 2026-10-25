@@ -1,4 +1,4 @@
-// The Studio's Assets tab, server side (docs/en/STUDIO.md, "Assets tab"): every image and sound of the game with where
+// The Studio's Assets tab, server side (wiki/en/studio.assets.md#assets-tab): every image and sound of the game with where
 // it is used, the art prompts per sheet, and the uploads (a generated sheet cut by tools/cut-sheet.py, one cell, a
 // decor, a sound), never deleting anything: a replaced file is first kept as `<name>_v<N>.<ext>` next to it. Since
 // 4.2.1 every upload is one operation of the game's journal (studio.writeFiles): the backups, the new files and the

@@ -1,5 +1,5 @@
-// npm run bridge -- <init|serve|grant|revoke> (web-scumm bridge …, 4.1.1): a reference Reality Bridge for a game, for
-// development and self-hosting (docs/en/REALITY-OPS.md).
+// npm run bridge -- <init|serve|grant|revoke> (quest-n-click bridge …, 4.1.1): a reference Reality Bridge for a game, for
+// development and self-hosting (wiki/en/bridge.install-run.md).
 //   init [--dir=.cache/bridge] [--audience=bridge.local] [--origin=…] [--manifest=dist/reality-manifest.json]
 //        [--no-demo-webhooks] [--demo-days=30]                                                 keys, a config
 //   serve [--dir=…] [--port=8787] [--host=127.0.0.1] [--trust-proxy]                         the Bridge over HTTP
@@ -165,8 +165,8 @@ export async function main(args: string[], game?: { manifest: RealityManifest | 
   const cfgFile = resolve(dir, 'config.json');
   const read = (): BridgeFile => JSON.parse(readFileSync(cfgFile, 'utf8')) as BridgeFile;
   if (cmd === 'init') {
-    // The game's manifest: from its content (npm run bridge, web-scumm bridge), or a built game's
-    // dist/reality-manifest.json (--manifest=…, the standalone web-scumm-bridge package).
+    // The game's manifest: from its content (npm run bridge, quest-n-click bridge), or a built game's
+    // dist/reality-manifest.json (--manifest=…, the standalone quest-n-click-bridge package).
     const manifestFile = arg(args, 'manifest');
     const manifest = manifestFile
       ? (JSON.parse(readFileSync(resolve(manifestFile), 'utf8')) as RealityManifest)
@@ -340,6 +340,7 @@ export async function main(args: string[], game?: { manifest: RealityManifest | 
           // rotated key resets the quota, said in REALITY-OPS).
           limiter: new SqlLimiter(sql, {
             perMinute: f.runs.perMinute ?? 10,
+            // A derivation label from web-scumm, kept so existing deployments derive the same secret (D47).
             secret: createHmac('sha256', f.eventKey.pkcs8).update('web-scumm runs quota').digest('hex'),
             keyVersion: f.eventKey.kid,
           }),
@@ -464,7 +465,7 @@ export async function main(args: string[], game?: { manifest: RealityManifest | 
     if (done !== undefined) return done;
   }
   if (cmd === 'compact') {
-    // Rewrites the journal without what nobody needs any more (docs/en/REALITY-OPS.md): the Bridge must be stopped,
+    // Rewrites the journal without what nobody needs any more (wiki/en/bridge.install-run.md): the Bridge must be stopped,
     // as a running one appends to the file this command replaces.
     const file = read();
     // `compact` rewrites the journal: it takes the journal's lock (4.1.8) and refuses while a Bridge holds it.
@@ -488,7 +489,7 @@ export async function main(args: string[], game?: { manifest: RealityManifest | 
     return r.ok ? 0 : 1;
   }
   console.error(
-    'usage: web-scumm-bridge <init|serve|grant|rotate|revoke|doctor|compact|migrate|tenant|backup|restore> (bridge/src/cli.ts)',
+    'usage: quest-n-click-bridge <init|serve|grant|rotate|revoke|doctor|compact|migrate|tenant|backup|restore> (bridge/src/cli.ts)',
   );
   return 2;
 }

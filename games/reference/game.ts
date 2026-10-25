@@ -12,7 +12,7 @@ import cellar from './rooms/cellar';
 import hall from './rooms/hall';
 import { game as demo } from '../demo/game';
 
-// "The Night Market": web-scumm's reference chapter (3.4, D13: the sample game's art). Pixel and Biscuit light up the
+// "The Night Market": quest'n'click's reference chapter (3.4, D13: the sample game's art). Pixel and Biscuit light up the
 // market before the festival: two playable cats with their own bags, an item handed from one to the other, a floor
 // one of them changes for the other, a staged scene with layers, masks, lights and particles, a timed finale, choices,
 // a character walking on his own until an event stops him, a minigame, English and French. Design: STORY.md.
@@ -71,7 +71,7 @@ export const game = defineGame({
     board: { title: 'Hang the festival board', done: 'board_hung' },
     radio: { title: 'Make Grandma dance', done: 'radio_on', optional: true },
   },
-  // Remix (4.1.15, docs/en/REMIX.md): where the seller starts and which round he walks, whether Lou hands the board
+  // Remix (4.1.15, wiki/en/create.remix.md): where the seller starts and which round he walks, whether Lou hands the board
   // before or after the lights, the festival password and its riddle, how Pixel greets the night. Every mode is a
   // catalogue (D25): 24 logical worlds, each validated and solved by `npm run verify:variants`. The daily challenge is
   // the same catalogue, its seed signed by the Bridge (the key below is the reference's published TEST key: it shows
@@ -109,7 +109,7 @@ export const game = defineGame({
     constraints: [],
     daily: { kid: 'reference-daily-test', publicKey: 'lbigQxp3ncZ_4aScu3-8hXDpy44WB55ZJ0yMy8BkE1o', mode: 'daily' },
   },
-  // Speedrun categories (4.1.14, docs/en/SPEEDRUN.md): content only. Any% is ranked on the logical time; No Hints on
+  // Speedrun categories (4.1.14, wiki/en/create.speedrun.md): content only. Any% is ranked on the logical time; No Hints on
   // the active time (the cutscenes aside), without a hint, a save or a load; Real Time on the wall clock (unranked
   // without a witness). The splits follow the objectives, then the ending.
   speedrun: {
@@ -165,12 +165,13 @@ export const game = defineGame({
     ],
   },
   skin: { ...demo.skin, icons: { ...demo.skin.icons } },
-  titleScreen: { decor: 'decor/market_wide', music: 'theme', footer: 'The reference chapter of web-scumm. Turn your phone sideways.' },
-  credits: ['THE NIGHT MARKET', '', 'The reference chapter of web-scumm (3.4)', '', 'Art and sound: the sample game\'s (CC BY 4.0)', 'Music: Swan Lake theme, arranged (CC BY 4.0)', '', 'Thanks for playing!'],
+  titleScreen: { decor: 'decor/market_wide', music: 'theme', footer: "The reference chapter of quest'n'click. Turn your phone sideways." },
+  credits: ['THE NIGHT MARKET', '', "The reference chapter of quest'n'click (3.4)", '', 'Art and sound: the sample game\'s (CC BY 4.0)', 'Music: Swan Lake theme, arranged (CC BY 4.0)', '', 'Thanks for playing!'],
   // Measured with `npm run weight` and `npm run e2e:weight` once built: see BENCH.md "3.4".
   // 3.7: two scores' stems (3.9 MB), the full warm-up (9.2 MB), the most decoded at once during a transition (128 MB:
   // both scores and a bridge).
-  assetBudgets: { initialKB: 3000, roomKB: 3000, chapterKB: 6000, backgroundScoreKB: 4800, offlineTotalKB: 11000, decodedAudioMB: 128, transitionPeakMB: 150, initialJsKB: 140 },
+  // initialJsKB 142 since 4.4.0: the engine's first visit grew by 1 KB (a hotspot's single tap, a map pin's several faces).
+  assetBudgets: { initialKB: 3000, roomKB: 3000, chapterKB: 6000, backgroundScoreKB: 4800, offlineTotalKB: 11000, decodedAudioMB: 128, transitionPeakMB: 150, initialJsKB: 142 },
   i18n: { same: demo.i18n?.same?.filter((p) => p.startsWith('ui/') || p === 'char:hero/name' || p === 'char:biscuit/name' || p === 'char:neighbor/name').concat(['room:kitchen/props.radio.name', ...[0, 1, 3].map((i) => `room:hall/on.hall.use-map.do[1].params.actors[${i}].label`), ...['317', '542', '868'].map((n) => `room:hall/talk.neighbor.hall.neighbor.i-know-the-password.do[1].choice.hall.neighbor.i-know-the-password.c-${n}.text`)]) },
   ui: demo.ui,
 });

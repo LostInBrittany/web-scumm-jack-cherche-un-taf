@@ -70,7 +70,7 @@ document.getElementById('graph').addEventListener('click', (ev) => {
 if (isMain(import.meta.url)) {
   const args = cliArgs();
   const ctx = await loadContext();
-  const file = outPath(args.out, 'puzzles');
+  const file = outPath(args.out, 'puzzles.html');
   writePage(file, buildPuzzles(ctx));
   console.log(`puzzles page: ${file}`);
 }

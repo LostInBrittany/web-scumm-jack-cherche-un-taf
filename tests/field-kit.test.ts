@@ -17,6 +17,7 @@ import {
   main,
   renderPasses,
   SITE_FILES,
+  checkoutVersion,
   SURFACES,
   sha256,
   TAR,
@@ -88,6 +89,16 @@ describe('field:check', () => {
     const { problems, reports } = checkDir(folder());
     expect(problems).toEqual([]);
     expect(reports.map((r) => r.status)).toEqual(passesFor('4.1.18').map(() => 'not-run'));
+  });
+
+  it("asks the checkout version's passes of a folder that names no release (no report, no package)", () => {
+    const dir = tmp();
+    writeFileSync(join(dir, MANIFEST), JSON.stringify({ ...manifest, artifacts: [manifest.artifacts[1]] }));
+    const v = checkoutVersion();
+    expect(v).toBe(JSON.parse(readFileSync('package.json', 'utf8')).version);
+    expect(checkDir(dir).problems).toEqual(passesFor(v).map((id) => `${id}: no report`));
+    // A pass added later (docs-beginner-reader, 4.5.0) is not asked of an older checkout, as before of every pass.
+    expect(passesFor('4.4.0')).not.toContain('docs-beginner-reader');
   });
 
   it('reads the candidate files field:init writes beside the reports as no report (4.2.0-rc.1)', () => {
@@ -420,6 +431,7 @@ describe('field:verify-bundle', () => {
     const statement = JSON.stringify([
       {
         verificationResult: {
+          signature: { certificate: { sourceRepositoryIdentifier: '1402166796' } },
           statement: {
             predicate: {
               runDetails: {

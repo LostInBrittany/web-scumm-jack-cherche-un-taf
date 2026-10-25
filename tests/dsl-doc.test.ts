@@ -1,4 +1,5 @@
-// docs/en/DSL.md and docs/fr/DSL.md carry the DSL's reference generated from its schemas (4.1.12, tools/dsl-doc.ts):
+// The wiki's `create.dsl` (wiki/en/create.dsl.md and wiki/fr/create.dsl.md; docs/en|fr/DSL.md until 4.5.0) carries
+// the DSL's reference generated from its schemas (4.1.12, tools/dsl-doc.ts):
 // every condition kind, every command key with its shape, the objectives' fields, the fields' classes. A page behind
 // the schemas fails here; `npx tsx tools/dsl-doc.ts` brings it up to date.
 import { readFileSync } from 'node:fs';
@@ -7,7 +8,9 @@ import { CMD_KEYS } from '@engine/core/cmds';
 import { objectiveSchema } from '@engine/core/ir-schema';
 import { COND_KINDS } from '../src/studio/schema';
 import { COND_DOCS } from '../tools/dsl-meta';
-import { dslBlock, shapeOf, withDslBlock } from '../tools/dsl-doc';
+import { dslBlock, dslIdentifiers, dslWikiBlock, shapeOf } from '../tools/dsl-doc';
+import { withGenerated } from '../tools/wiki/generated';
+import { readManifest } from '../tools/wiki/manifest';
 
 describe('the generated DSL reference', () => {
   for (const lang of ['en', 'fr'] as const) {
@@ -18,11 +21,16 @@ describe('the generated DSL reference', () => {
       for (const k of Object.keys(objectiveSchema.shape)) expect(block, k).toContain(`| \`${k}\` |`);
       expect(block).toContain('`objectives`');
     });
-    it(`docs/${lang}/DSL.md is up to date (npx tsx tools/dsl-doc.ts)`, () => {
-      const page = readFileSync(`docs/${lang}/DSL.md`, 'utf8');
-      expect(withDslBlock(page, block)).toBe(page);
+    it(`wiki/${lang}/create.dsl.md is up to date (npx tsx tools/dsl-doc.ts)`, () => {
+      const page = readFileSync(`wiki/${lang}/create.dsl.md`, 'utf8');
+      expect(withGenerated(page, dslWikiBlock(lang)).text).toBe(page);
     });
   }
+
+  it("the manifest names create.dsl's identifiers: every command and every condition", () => {
+    const page = readManifest('wiki').manifest!.pages.find((p) => p.id === 'create.dsl')!;
+    expect([...page.identifiers].sort()).toEqual(dslIdentifiers());
+  });
 
   it('writes a shape as the content writes it', () => {
     expect(
