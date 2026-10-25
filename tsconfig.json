@@ -9,32 +9,22 @@
       "DOM.Iterable"
     ],
     "strict": true,
-    "noUnusedLocals": true,
-    "noUnusedParameters": true,
-    "noFallthroughCasesInSwitch": true,
-    "noUncheckedIndexedAccess": false,
     "skipLibCheck": true,
     "isolatedModules": true,
     "noEmit": true,
-    "allowImportingTsExtensions": true,
     "resolveJsonModule": true,
     "paths": {
-      "@quest-n-click/engine/*": [
-        "./src/engine/api/*"
-      ],
-      "quest-n-click/*": [
-        "./src/engine/api/*"
-      ],
       "@engine/*": [
-        "./src/engine/*"
+        "./node_modules/@quest-n-click/engine/src/engine/*"
+      ],
+      "@quest-n-click/engine/*": [
+        "./node_modules/@quest-n-click/engine/src/engine/api/*"
       ],
       "@game": [
-        "./.cache/game/index.ts",
-        "./games/demo/index.ts"
+        "./game/index.ts"
       ],
       "@game/*": [
-        "./.cache/game/*",
-        "./games/demo/*"
+        "./game/*"
       ]
     },
     "types": [
@@ -43,19 +33,7 @@
     ]
   },
   "include": [
-    "src",
-    "games",
-    "tests",
-    "tools",
-    "scripts",
-    "bridge",
-    "connectors",
-    "studio-server"
-  ],
-  "exclude": [
-    "legacy",
-    "node_modules",
-    "dist",
-    "tests/fixtures/game-4.1"
+    "game",
+    "node_modules/@quest-n-click/engine/src/env.d.ts"
   ]
 }

@@ -1,9 +1,0 @@
-{
-  "identities": [
-    {
-      "name": "studio-ci",
-      "credentials": [{ "accessKey": "studio-ci", "secretKey": "studio-ci-secret-not-for-production" }],
-      "actions": ["Admin", "Read", "Write", "List", "Tagging"]
-    }
-  ]
-}

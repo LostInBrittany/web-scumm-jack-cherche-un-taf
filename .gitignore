@@ -1,26 +1,17 @@
 node_modules
 dist
 .cache
+public/assets
 .DS_Store
-# A game's private sources (photos, raw sheets, sealed-ending config) never enter the repo
+# The game's private sources (photos, raw sheets, sealed-ending config) never enter the repo
 private/
-games/*/private/
-dist-pages
-public/studio-demo/
-# Audio pipeline (tools/audio): the pinned Furnace binary, the SoundFont, the transcription venv, the big renders
-tools/audio/.furnace/
-tools/audio/.venv/
-games/*/audio/projects/*/out/*.wav
-games/*/audio/projects/*/out/.qa/
-games/*/audio/projects/*/reference.wav
-games/*/audio/projects/*/source_audio.*
-games/*/audio/projects/*/out/*.mp3
-games/*/audio/projects/*/analysis.json
-tests/fixtures/release-tmp-*/
-tests/visual/**/*.actual.png
+game/private/
+# Audio renders and analysis (the Mega Drive pipeline's outputs)
+game/audio/projects/*/out/*.wav
+game/audio/projects/*/out/.qa/
+game/audio/projects/*/reference.wav
+game/audio/projects/*/source_audio.*
+game/audio/projects/*/out/*.mp3
+game/audio/projects/*/analysis.json
 __pycache__/
 *.pyc
-
-# The Rust cross-check builds here (bridge/xcheck, npm run reality:xcheck)
-bridge/xcheck/target/
-.python/

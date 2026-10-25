@@ -1,7 +1,0 @@
-{
-  "name": "quest-n-click-connectors",
-  "private": true,
-  "description": "The repository's view of the connectors package; scripts/pack.mjs writes the published package.json (4.1.9).",
-  "type": "module",
-  "bin": { "quest-n-click-connector": "bin.mjs" }
-}

@@ -1,7 +1,0 @@
-{
-  // npm run quality: the engine and the Studio with every index access checked (4.1.0 "Clarity"). An array or a
-  // record read by index may be undefined: a guard says what happens then. Tests and tools/ stay on tsconfig.json.
-  "extends": "./tsconfig.json",
-  "compilerOptions": { "noUncheckedIndexedAccess": true },
-  "include": ["src/engine", "src/studio", "src/env.d.ts"]
-}

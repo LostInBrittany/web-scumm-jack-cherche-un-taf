@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "quest-n-click": {
-      "command": "npm",
-      "args": ["--prefix", "${workspaceFolder}", "run", "-s", "mcp"]
-    }
-  }
-}

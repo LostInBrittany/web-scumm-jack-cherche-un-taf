@@ -1,3 +1,0 @@
-# Mechanical commits git blame skips (git config blame.ignoreRevsFile .git-blame-ignore-revs; GitHub reads it).
-# Biome formatting, 4.1.0 "Clarity".
-1e0e3057c6d8d25e2c013ff152d04bb9159ed038

@@ -1,8 +1,0 @@
-# What a change must be looked at for, by the maintainer (4.1.3): the frozen behaviour, the named survivors of
-# mutation testing, the coverage floors and the workflows themselves. A pull request that touches these asks for
-# a review; everything else is reviewed by the gates.
-tests/quality-baseline.json @wanoo
-tests/api-surface.json @wanoo
-docs/dev/mutants.json @wanoo
-vite.config.ts @wanoo
-.github/ @wanoo

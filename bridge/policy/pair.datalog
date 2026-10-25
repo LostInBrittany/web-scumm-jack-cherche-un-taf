@@ -1,7 +1,0 @@
-// The Bridge's policy for confirming a pairing code (4.1.1): a connector's token may pair players of its game, for
-// this Bridge, before its expiry, when its authority block grants `pair(true)`. Parameters: {now} {game} {audience}.
-time({now});
-request_game({game});
-request_audience({audience});
-
-allow if request_game($g), game($g), request_audience($a), audience($a), pair(true);
