@@ -30,17 +30,10 @@ if (import.meta.env) {
 }
 
 /** Images to prepare even when no content references them (full minigame sheets, spare poses). */
-export const extraImages: string[] = [
-  // Minigame images: named only in minigame params, which the asset step does not read.
-  'minigame/barbe_rose', 'minigame/barbe_bleue', 'minigame/barbe_verte', 'minigame/barbe_jaune', 'minigame/barbe_araignee',
-  'minigame/pepite_big', 'minigame/main',
-  'minigame/cables_board', 'minigame/cables_noeud', 'minigame/prise_rouge', 'minigame/prise_bleu', 'minigame/prise_vert', 'minigame/prise_jaune',
-  'minigame/squelette_calme', 'minigame/squelette_danse',
-  'minigame/cache_fond', 'minigame/cache_cercueil', 'minigame/cache_cercueil_jack', 'minigame/cache_lustre', 'minigame/cache_armoire', 'minigame/cache_tonneau',
-];
+export const extraImages: string[] = [];
 
 /**
- * Custom commands: when the DSL is not enough (docs/en/CONTENT_GUIDE.md, "When the DSL is not enough"). Declare the
+ * Custom commands: when the DSL is not enough (wiki/en/create.custom-code.md#custom-commands). Declare the
  * state changes as `effects` (the solver and the save rely on them); `run` is the visual part, browser only.
  * Example:  flash: { pure: true, run: ({ scene }) => { … } }   then   { custom: 'flash', args: { ms: 300 } }
  */

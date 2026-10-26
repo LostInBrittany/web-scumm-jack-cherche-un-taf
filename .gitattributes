@@ -11,5 +11,3 @@
 *.mp4 binary
 *.webm binary
 *.bin binary
-# Emails are CRLF on the wire (4.1.9): the connector fixtures keep their bytes as written.
-connectors/test-vectors/email/*.eml -text
