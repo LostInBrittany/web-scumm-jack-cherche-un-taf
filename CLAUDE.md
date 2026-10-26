@@ -8,7 +8,7 @@ https://github.com/Quest-n-Click/quest-n-click/wiki (also searchable through the
 ## Where things are
 - `game/` – the game: `game.ts` (verbs, map, start, ui texts), `cast.ts`, `items.ts`, `rules.ts`, `rooms/*.ts` (one per
   room), `layout/*.json` (geometry, written by the editor), `art/` (cut sprites; `art/sheets/` the source sheets),
-  `audio/` (with `palette.json`, the game's sound bank), `locales/` (en, es; French is the source), `storyboard.json` (the script), `site.json`, `index.ts`,
+  `audio/`, `locales/` (en, es; French is the source), `storyboard.json` (the script), `site.json`, `index.ts`,
   `tests/game.test.ts`, `ART_BRIEF.md` and `prompts*.md` (the image model's brief), `art-tools/` (small cleanup scripts).
 - `game/private/` – raw sheets, photos: gitignored, never committed.
 - `patches/` – changes to the engine package not yet in a release (see below).
@@ -30,7 +30,8 @@ npm run audio -- all game/audio/projects/<slug>/spec.json   # the Mega Drive pip
 ```
 `game/prompts.md` and `prompts-episode2.md` were adjusted by hand after generation (background colour, 2x pixel
 grid, see `ART_BRIEF.md`): never regenerate them over the originals. The engine's `quest-n-click prompts` rewrites
-`game/prompts.md` and, in 4.5.3, writes wrong paths for a project (`../../../game/art`).
+`game/prompts.md`: after a run, keep the sections you need and `git restore game/prompts.md`. Since 4.5.4 the prompts
+and the mouth tools (`npm run quest-n-click -- talk-kit`, `talk-apply`) work in this project.
 
 Always absolute paths in shell commands (`npm --prefix /abs/path run …`), never `cd X && cmd relative/path`.
 
@@ -59,10 +60,6 @@ When the game needs an engine change before a release has it:
    patch's hunks that the release now has (or the whole file), check the fuse box or whatever the patch fixed.
    `patch-package --error-on-fail` stops every command if a patch no longer applies: that is the signal.
 
-Current patch (`patches/@quest-n-click+engine+4.5.3.patch`):
-- `src/engine/minigames/cables.ts`: `tipDeg`, `socketX`, `socketY`, `plugInset` (PR #304, merged, not yet released;
-  used by `game/rooms/train.ts`). Drop it with 4.5.4.
-
-The game's own sound bank is `game/audio/palette.json`: the engine's palette plus the `church_organ` FM patch (the
-manor's and the fair's music, whose `spec.json` say `"palette": "../../palette.json"`). Not a patch: the engine's palette
-can change without touching the game's tracks. Add a game-only patch there, never to the engine's copy.
+Current patches: none. 4.5.4 has everything the game needed (the cables params, PR #304; the `church_organ` FM patch
+of the manor's and the fair's music, PR #314). `patches/` comes back with the next `npm run patch`; `patch-package`
+with no patch file does nothing. A missing sound goes to the engine's palette (`tools/audio/palette.json`) as a PR.

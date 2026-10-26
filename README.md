@@ -110,7 +110,7 @@ game/
 
 Le moteur vient de npm (`@quest-n-click/engine`, dans `package.json`). Sa documentation est
 [le wiki de quest'n'click](https://github.com/Quest-n-Click/quest-n-click/wiki), en français et en anglais.
-Les modifications du moteur que le jeu utilise avant leur publication sont dans `patches/`, appliquées
+Quand le jeu a besoin d'une modification du moteur pas encore publiée, elle va dans `patches/`, appliquée
 automatiquement par `patch-package` (voir `CLAUDE.md`).
 
 ## Licence

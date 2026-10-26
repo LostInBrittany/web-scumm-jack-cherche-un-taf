@@ -26,7 +26,7 @@
     "postinstall": "patch-package"
   },
   "dependencies": {
-    "@quest-n-click/engine": "4.5.3"
+    "@quest-n-click/engine": "^4.5.4"
   },
   "devDependencies": {
     "patch-package": "^8.0.1",
